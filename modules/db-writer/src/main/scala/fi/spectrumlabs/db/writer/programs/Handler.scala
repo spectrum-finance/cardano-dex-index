@@ -11,8 +11,8 @@ import tofu.Catches
 import tofu.logging.{Logging, Logs}
 import tofu.streams.{Evals, Temporal}
 import tofu.syntax.logging._
-import tofu.syntax.handle._
 import tofu.syntax.monadic._
+import tofu.syntax.handle._
 import tofu.syntax.streams.evals._
 import tofu.syntax.streams.temporal._
 
@@ -29,21 +29,26 @@ object Handler {
     C[_]: Foldable,
     I[_]: Functor
   ](
-    config: WriterConfig
+    config: WriterConfig,
+    handlerName: String
   )(
-    implicit consumer: Consumer[_, Option[A], S, F],
+    implicit
+    consumer: Consumer[_, Option[A], S, F],
     handlers: NonEmptyList[Handle[A, F]],
     logs: Logs[I, F]
   ): I[Handler[S]] =
-    logs.forService[Handler[S]].map(implicit __ => new Impl[A, S, F, C](config))
+    logs.forService[Handler[S]].map(implicit __ => new Impl[A, S, F, C](config, handlerName))
 
   final private class Impl[
     A,
     S[_]: Monad: Evals[*[_], F]: Temporal[*[_], C]: Catches,
     F[_]: Monad: Parallel: Logging,
     C[_]: Foldable
-  ](config: WriterConfig)(implicit consumer: Consumer[_, Option[A], S, F], handlers: NonEmptyList[Handle[A, F]])
-    extends Handler[S] {
+  ](config: WriterConfig, name: String)(
+    implicit
+    consumer: Consumer[_, Option[A], S, F],
+    handlers: NonEmptyList[Handle[A, F]]
+  ) extends Handler[S] {
 
     def handle: S[Unit] =
       consumer.stream
@@ -53,14 +58,17 @@ object Handler {
             case x :: xs =>
               val nel = NonEmptyList.of(x, xs: _*)
               eval(handlers.toList.parTraverse(_.handle(nel)))
-                .evalMap(_ => info"Handler processed next batch of size ${nel.size}.")
+                .evalMap(_ => info"Handler [$name] processed batch of ${nel.size} elements.")
                 .evalMap(_ => batch.toList.lastOption.fold(().pure[F])(_.commit))
+                .handleWith { err: Throwable =>
+                  eval(error"Handler [$name] got error: ${err.getMessage}. Failed to insert ${nel.size} elements.")
+                }
             case Nil =>
-              eval(info"Got empty batch in handler. Skip insertion.")
+              eval(info"Handler [$name] got empty batch. Skip iteration.")
           }
         }
         .handleWith { err: Throwable =>
-          eval(error"The err ${err.getMessage} occurred in handler.") >> handle
+          eval(error"Handler [$name] got error: ${err.getMessage}. It is gonna die and then restart.") >> handle
         }
   }
 }
