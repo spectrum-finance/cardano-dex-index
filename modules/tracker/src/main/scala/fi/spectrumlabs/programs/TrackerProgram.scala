@@ -9,10 +9,12 @@ import fi.spectrumlabs.core.streaming.{Producer, Record}
 import fi.spectrumlabs.repositories.TrackerCache
 import fi.spectrumlabs.services.{Explorer, Filter}
 import mouse.any._
+import tofu.Catches
 import tofu.logging.{Logging, Logs}
 import tofu.streams.{Compile, Evals, Pace, Temporal}
 import tofu.syntax.logging._
 import tofu.syntax.monadic._
+import tofu.syntax.handle._
 import tofu.syntax.streams.combineK._
 import tofu.syntax.streams.compile._
 import tofu.syntax.streams.emits._
@@ -28,7 +30,7 @@ object TrackerProgram {
 
   def create[
     S[_]: Monad: Evals[*[_], F]: FunctorFilter: Temporal[*[_], C]: Compile[*[_], F]: SemigroupK: Defer: Pace,
-    F[_]: Monad: Timer,
+    F[_]: Monad: Timer: Catches,
     I[_]: Functor,
     C[_]: Foldable
   ](producer: Producer[String, Tx, S], config: TrackerConfig)(
@@ -41,7 +43,7 @@ object TrackerProgram {
 
   private final class Impl[
     S[_]: Monad: Evals[*[_], F]: FunctorFilter: Temporal[*[_], C]: Compile[*[_], F]: SemigroupK: Defer: Pace,
-    F[_]: Monad: Logging,
+    F[_]: Monad: Logging: Catches,
     C[_]: Foldable
   ](producer: Producer[String, Tx, S], config: TrackerConfig)(
     implicit
@@ -65,6 +67,9 @@ object TrackerProgram {
               }
               .flatMap { _ =>
                 cache.setLastOffset(batch.size + offset)
+              }
+              .handleWith { err: Throwable =>
+                error"The error ${err.getMessage} occurred in tracker stream."
               }
           }
       }).repeat

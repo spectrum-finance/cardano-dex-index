@@ -22,7 +22,8 @@ object Handlers {
   final val TxHandlerName             = "Tx"
   final val ExecutedOrdersHandlerName = "ExecutedOrder"
 
-  def makeTxHandler(config: WriterConfig)(implicit
+  def makeTxHandler(config: WriterConfig)(
+    implicit
     bundle: PersistBundle[RunF],
     consumer: Consumer[_, Option[Tx], StreamF, RunF],
     logs: Logs[InitF, RunF]
@@ -38,7 +39,8 @@ object Handlers {
     } yield handler
   }
 
-  def makeExecutedOrdersHandler(config: WriterConfig)(implicit
+  def makeExecutedOrdersHandler(config: WriterConfig)(
+    implicit
     bundle: PersistBundle[RunF],
     consumer: Consumer[_, Option[ExecutedOrderEvent], StreamF, RunF],
     logs: Logs[InitF, RunF]

@@ -19,6 +19,7 @@ object Dependencies {
     val fs2KafkaVersion = "1.4.1"
     val circeVersion    = "0.14.1"
     val scalaland       = "0.6.1"
+    val catsRetry = "2.1.1"
     val log4cats = "1.0.1"
     val logback = "1.2.3"
 
@@ -45,6 +46,8 @@ object Dependencies {
     val derevoPureconfig  = "tf.tofu" %% "derevo-pureconfig-legacy" % V.derevo
 
     val catsEffect = "org.typelevel" %% "cats-effect" % V.catsEffect
+
+    val catsRetry = "com.github.cb372" %% "cats-retry" % V.catsRetry
 
     val doobieCore   = "org.tpolecat" %% "doobie-core"     % V.doobie
     val doobiePg     = "org.tpolecat" %% "doobie-postgres" % V.doobie

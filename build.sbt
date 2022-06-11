@@ -93,7 +93,9 @@ lazy val tracker = project
     Libraries.jawnFs2,
     Libraries.enumeratumCirce,
     Libraries.mouse,
-    Libraries.pureconfig
+    Libraries.pureconfig,
+    Libraries.catsRetry
+
   ))
   .dependsOn(core)
   .settings(assembly / assemblyJarName := "tracker.jar")
