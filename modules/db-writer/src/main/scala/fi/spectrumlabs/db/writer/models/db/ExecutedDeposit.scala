@@ -17,7 +17,7 @@ final case class ExecutedDeposit(
   exFee: ExFee,
   rewardPkh: PublicKeyHash,
   stakePkh: Option[PublicKeyHash],
-  collateralAda: Long,
+  collateralAda: CollateralAda,
   orderInputId: BoxId,
   userOutputId: BoxId,
   poolInputId: BoxId,

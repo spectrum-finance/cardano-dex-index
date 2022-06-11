@@ -15,7 +15,7 @@ final case class Deposit(
   depositExFee: ExFee,
   depositRewardPkh: PublicKeyHash,
   depositRewardSPkh: Option[PublicKeyHash],
-  adaCollateral: Long
+  adaCollateral: CollateralAda
 )
 
 object Deposit {
