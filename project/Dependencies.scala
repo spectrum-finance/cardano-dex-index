@@ -19,9 +19,7 @@ object Dependencies {
     val fs2KafkaVersion = "1.4.1"
     val circeVersion    = "0.14.1"
     val scalaland       = "0.6.1"
-    val catsRetry = "2.1.1"
-    val log4cats = "1.0.1"
-    val logback = "1.2.3"
+    val catsRetry       = "2.1.1"
 
     val betterMonadicFor = "0.3.1"
     val kindProjector    = "0.13.2"
@@ -77,10 +75,6 @@ object Dependencies {
     val redis4catsEffects = "dev.profunktor"  %% "redis4cats-effects" % V.redis
     val jawnFs2           = "org.http4s"      %% "jawn-fs2"           % V.jawnFs2Version
     val kafka             = "com.github.fd4s" %% "fs2-kafka"          % V.fs2KafkaVersion
-
-    val logbackClassic = "ch.qos.logback" % "logback-classic" % V.logback
-    val log4catsCore = "io.chrisdavenport" %% "log4cats-core" % V.log4cats
-    val log4catsSlf4j = "io.chrisdavenport" %% "log4cats-slf4j" % V.log4cats
   }
 
   object CompilerPlugins {

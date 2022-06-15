@@ -60,14 +60,12 @@ lazy val core = project
   .settings(libraryDependencies ++= List(
     Libraries.derevoCirce,
     Libraries.derevoPureconfig,
-
     Libraries.tofuDerivation,
     Libraries.tofuDoobie,
     Libraries.tofuLogging,
     Libraries.tofuZio,
     Libraries.tofuStreams,
     Libraries.tofuFs2,
-
     Libraries.newtype,
     Libraries.enumeratum,
     Libraries.kafka,
@@ -95,7 +93,6 @@ lazy val tracker = project
     Libraries.mouse,
     Libraries.pureconfig,
     Libraries.catsRetry
-
   ))
   .dependsOn(core)
   .settings(assembly / assemblyJarName := "tracker.jar")
@@ -123,10 +120,7 @@ lazy val dbWriter = project
     Libraries.pureconfig,
     Libraries.kafka,
     Libraries.tofuFs2,
-    Libraries.mouse,
-    Libraries.logbackClassic,
-    Libraries.log4catsCore,
-    Libraries.log4catsSlf4j,
+    Libraries.mouse
   ))
   .dependsOn(core)
   .settings(assembly / assemblyJarName := "indexes-writer.jar")
