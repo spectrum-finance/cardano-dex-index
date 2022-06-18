@@ -37,7 +37,7 @@ lazy val dexIndex = project
   .settings(idePackagePrefix := Some("fi.spectrumlabs"))
   .settings(commonSettings)
   .settings(name := "cardano-dex-index")
-  .aggregate(core, tracker, dexAggregator, dbWriter, api, explorer)
+  .aggregate(core, tracker, dexAggregator, dbWriter, api, explorer, ratesResolver)
 
 lazy val explorer = project
   .in(file("modules/explorer"))
@@ -130,5 +130,33 @@ lazy val api = project
   .withId("cardano-markets-api")
   .settings(name := "cardano-markets-api")
   .settings(commonSettings)
+  .settings(libraryDependencies ++= List(
+    Libraries.doobiePg,
+    Libraries.doobieHikari,
+    Libraries.doobieCore,
+    Libraries.derevoPureconfig,
+    Libraries.tofuZio,
+    Libraries.pureconfig,
+    Libraries.tofuFs2,
+    Libraries.mouse
+  ))
+  .dependsOn(core)
+  .enablePlugins(JavaAppPackaging, UniversalPlugin, DockerPlugin)
+
+lazy val ratesResolver = project
+  .in(file("modules/rates-resolver"))
+  .withId("cardano-rates-resolver")
+  .settings(name := "cardano-rates-resolver")
+  .settings(commonSettings)
+  .settings(libraryDependencies ++= List(
+    Libraries.doobiePg,
+    Libraries.doobieHikari,
+    Libraries.doobieCore,
+    Libraries.derevoPureconfig,
+    Libraries.tofuZio,
+    Libraries.pureconfig,
+    Libraries.tofuFs2,
+    Libraries.mouse
+  ))
   .dependsOn(core)
   .enablePlugins(JavaAppPackaging, UniversalPlugin, DockerPlugin)
