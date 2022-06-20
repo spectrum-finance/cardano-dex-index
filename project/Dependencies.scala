@@ -28,6 +28,7 @@ object Dependencies {
     val tofuCore       = "tf.tofu" %% "tofu-core"         % V.tofu
     val tofuConcurrent = "tf.tofu" %% "tofu-concurrent"   % V.tofu
     val tofuOptics     = "tf.tofu" %% "tofu-optics-macro" % V.tofu
+    val tofuOpticsInterop = "tf.tofu" %% "tofu-optics-interop" % V.tofu
     val tofuDerivation = "tf.tofu" %% "tofu-derivation"   % V.tofu
     val tofuLogging    = "tf.tofu" %% "tofu-logging"      % V.tofu
     val tofuDoobie     = "tf.tofu" %% "tofu-doobie"       % V.tofu

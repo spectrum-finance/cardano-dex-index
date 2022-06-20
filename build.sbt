@@ -66,6 +66,7 @@ lazy val core = project
     Libraries.tofuZio,
     Libraries.tofuStreams,
     Libraries.tofuFs2,
+    Libraries.tofuOpticsInterop,
     Libraries.newtype,
     Libraries.enumeratum,
     Libraries.kafka,
