@@ -31,21 +31,23 @@ object PoolsService {
             for {
               x <- AssetClass.fromString(poolDb.x)
               y <- AssetClass.fromString(poolDb.y)
-            } yield Pool(
-              PoolId(poolDb.poolId),
-              AssetAmount(x, Amount(poolDb.xReserves)),
-              AssetAmount(y, Amount(poolDb.yReserves))
-            )
+            } yield
+              Pool(
+                PoolId(poolDb.poolId),
+                AssetAmount(x, Amount(poolDb.xReserves)),
+                AssetAmount(y, Amount(poolDb.yReserves))
+              )
           }
         )
   }
 
   final class Tracing[F[_]: Monad: Logging] extends PoolsService[Mid[F, *]] {
 
-    def getAllLatest(minLiquidityValue: Long): Mid[F, List[Pool]] = for {
-      _ <- trace"Going to get all pools from db with limit lq $minLiquidityValue"
-      r <- _
-      _ <- trace"Pools from db are: $r"
-    } yield r
+    def getAllLatest(minLiquidityValue: Long): Mid[F, List[Pool]] =
+      for {
+        _ <- trace"Going to get all pools from db with limit lq $minLiquidityValue"
+        r <- _
+        _ <- trace"Pools from db are: $r"
+      } yield r
   }
 }

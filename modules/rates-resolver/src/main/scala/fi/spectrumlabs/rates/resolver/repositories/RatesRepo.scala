@@ -19,7 +19,8 @@ trait RatesRepo[F[_]] {
 
 object RatesRepo {
 
-  def create[I[_]: Functor, F[_]: Monad](implicit
+  def create[I[_]: Functor, F[_]: Monad](
+    implicit
     cmd: RedisCommands[F, String, String],
     logs: Logs[I, F]
   ): I[RatesRepo[F]] =

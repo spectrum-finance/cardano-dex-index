@@ -22,7 +22,8 @@ object Network {
 
   final val CmcApiKey = "X-CMC_PRO_API_KEY"
 
-  def create[I[_]: Functor, F[_]: Monad: Throws](config: NetworkConfig)(implicit
+  def create[I[_]: Functor, F[_]: Monad: Throws](config: NetworkConfig)(
+    implicit
     backend: SttpBackend[F, _],
     logs: Logs[I, F]
   ): I[Network[F]] =

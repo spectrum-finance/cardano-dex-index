@@ -24,7 +24,8 @@ object Resolver {
     I[_]: Functor,
     S[_]: Monad: Evals[*[_], F]: SemigroupK: Defer: Pace,
     F[_]: Monad: Parallel
-  ](config: ResolverConfig)(implicit
+  ](config: ResolverConfig)(
+    implicit
     pools: PoolsService[F],
     repo: RatesRepo[F],
     network: Network[F],

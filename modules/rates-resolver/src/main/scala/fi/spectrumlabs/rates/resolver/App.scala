@@ -36,17 +36,17 @@ object App extends EnvApp[AppContext] {
       trans <- PostgresTransactor.make[InitF]("rates-resolver-pool", configs.pg)
       implicit0(xa: Txr.Continuational[RunF]) = Txr.continuational[RunF](trans.mapK(wr.liftF))
       implicit0(elh: EmbeddableLogHandler[xa.DB]) <- Resource.eval(
-                                                       doobieLogging.makeEmbeddableHandler[InitF, RunF, xa.DB](
-                                                         "rates-resolver-db-logging"
-                                                       )
-                                                     )
+                                                      doobieLogging.makeEmbeddableHandler[InitF, RunF, xa.DB](
+                                                        "rates-resolver-db-logging"
+                                                      )
+                                                    )
       implicit0(sttp: SttpBackend[RunF, Any]) <- makeBackend[AppContext, InitF, RunF](ctx, blocker)
       implicit0(logsDb: Logs[InitF, xa.DB]) = Logs.sync[InitF, xa.DB]
 
       implicit0(redis: RedisCommands[RunF, String, String]) <- mkRedis[String, String, InitF, RunF](
-                                                                 configs.redis,
-                                                                 stringCodec
-                                                               )
+                                                                configs.redis,
+                                                                stringCodec
+                                                              )
       implicit0(pRepo: PoolsRepo[RunF])       <- Resource.eval(PoolsRepo.create[InitF, xa.DB, RunF])
       implicit0(pService: PoolsService[RunF]) <- Resource.eval(PoolsService.create[InitF, RunF])
       implicit0(rates: RatesRepo[RunF])       <- Resource.eval(RatesRepo.create[InitF, RunF])
