@@ -2,10 +2,11 @@ package fi.spectrumlabs.core.models.rates
 
 import fi.spectrumlabs.core.models.domain.{AssetClass, Pool}
 import cats.syntax.eq._
+import derevo.circe.magnolia.{decoder, encoder}
 import derevo.derive
 import tofu.logging.derivation.loggable
 
-@derive(loggable)
+@derive(loggable, encoder, decoder)
 final case class ResolvedRate(asset: AssetClass, rate: BigDecimal) {
   def contains(x: AssetClass, y: AssetClass): Boolean =
     asset === x || asset == y

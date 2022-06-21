@@ -4,7 +4,7 @@ import doobie.LogHandler
 import doobie.implicits._
 import fi.spectrumlabs.markets.api.models.db.Pool
 
-final case class PoolsSql(implicit lh: LogHandler) {
+final class PoolsSql(implicit lh: LogHandler) {
 
   def getPoolsByAssetId: doobie.Query0[Pool] =
     sql"""

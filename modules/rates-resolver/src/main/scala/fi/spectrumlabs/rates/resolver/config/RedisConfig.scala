@@ -7,4 +7,4 @@ import tofu.logging.derivation.loggable
 import scala.concurrent.duration.FiniteDuration
 
 @derive(pureconfigReader, loggable)
-final case class ResolverConfig(throttleRate: FiniteDuration, minLiquidityValue: Long)
+final case class RedisConfig(password: String, host: String, port: Int, timeout: FiniteDuration)

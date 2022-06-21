@@ -1,13 +1,13 @@
 package fi.spectrumlabs.rates.resolver.services
 
-import cats.{Defer, Monad, Parallel, SemigroupK}
+import cats.{Defer, Functor, Monad, Parallel, SemigroupK}
 import fi.spectrumlabs.core.models.domain.AssetClass
 import fi.spectrumlabs.core.models.rates.ResolvedRate
 import fi.spectrumlabs.rates.resolver.gateways.NetworkClient
 import fi.spectrumlabs.rates.resolver.repositories.{PoolsRepo, RatesRepo}
 import tofu.syntax.monadic._
 import cats.syntax.eq._
-import tofu.logging.Logging
+import tofu.logging.{Logging, Logs}
 import tofu.syntax.logging._
 import tofu.syntax.monadic._
 import tofu.syntax.streams.combineK._
@@ -35,6 +35,15 @@ object RatesResolver {
 
   final val AdaAssetClass: AssetClass = AssetClass("", "") //todo constant
 
+  def create[
+    I[_]: Functor,
+    S[_]: Monad: Evals[*[_], F]: SemigroupK: Defer: Pace,
+    F[_]: Monad: Parallel
+  ](pools: PoolsService[F], repo: RatesRepo[F], networkClient: NetworkClient[F], config: ResolverConfig)(implicit
+    logs: Logs[I, F]
+  ): I[RatesResolver[S]] =
+    logs.forService[RatesResolver[S]].map(implicit __ => new Impl[S, F](pools, repo, networkClient, config))
+
   final private class Impl[
     S[_]: Monad: Evals[*[_], F]: SemigroupK: Defer: Pace,
     F[_]: Monad: Logging: Parallel
@@ -53,7 +62,8 @@ object RatesResolver {
     def resolve: F[List[ResolvedRate]] = networkClient
       .getPrice(AdaAssetClass)
       .flatMap { adaPrice =>
-        pools.getAllLatest(config.minLiquidityValue)
+        pools
+          .getAllLatest(config.minLiquidityValue)
           .flatTap(pools => trace"Pools from DB are: $pools.")
           .map { pools =>
             val resolvedByAda =

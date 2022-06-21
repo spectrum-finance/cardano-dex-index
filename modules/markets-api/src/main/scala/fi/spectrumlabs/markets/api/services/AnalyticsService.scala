@@ -15,6 +15,6 @@ object AnalyticsService {
       for {
         pool <- poolRepo.getPoolById(poolId)
 
-      } yield ()
+      } yield ???
   }
 }

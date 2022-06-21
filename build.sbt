@@ -71,7 +71,11 @@ lazy val core = project
     Libraries.enumeratum,
     Libraries.kafka,
     Libraries.circeParse,
-    Libraries.scalaland
+    Libraries.scalaland,
+    Libraries.sttpCore,
+    Libraries.sttpCirce,
+    Libraries.sttpClientFs2,
+    Libraries.sttpClientCE2
   ))
   .dependsOn(explorer)
   .settings(commonSettings)
@@ -157,7 +161,12 @@ lazy val ratesResolver = project
     Libraries.tofuZio,
     Libraries.pureconfig,
     Libraries.tofuFs2,
-    Libraries.mouse
+    Libraries.mouse,
+    Libraries.redis4catsEffects,
+    Libraries.sttpCore,
+    Libraries.sttpCirce,
+    Libraries.sttpClientFs2,
+    Libraries.sttpClientCE2
   ))
   .dependsOn(core)
   .enablePlugins(JavaAppPackaging, UniversalPlugin, DockerPlugin)

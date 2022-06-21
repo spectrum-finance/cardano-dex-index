@@ -11,7 +11,7 @@ trait RatesResolver[F[_]] {
 
 object RatesResolver {
 
-  final private class Impl[F[_]: Monad](poolsRepository: PoolsRepository[F], poolsKeeper: PoolsKeeper[F])
+  final private class Impl[F[_]: Monad](poolsRepository: PoolsRepository[F])
     extends RatesResolver[F] {
 
     def resolve(
@@ -32,6 +32,8 @@ object RatesResolver {
             poolsRelativeTo.find(p => p.x == tokenA && p.y == tokenB) //todo which pool is better to get?
 
         } yield BigDecimal(1)
+
+      ???
     }
   }
 }
