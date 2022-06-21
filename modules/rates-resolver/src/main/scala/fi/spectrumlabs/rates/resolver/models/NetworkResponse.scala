@@ -1,6 +1,7 @@
 package fi.spectrumlabs.rates.resolver.models
 
 import derevo.derive
+import fi.spectrumlabs.rates.resolver._
 import io.circe.{Decoder, HCursor}
 import tofu.logging.derivation.loggable
 
@@ -11,8 +12,8 @@ object NetworkResponse {
 
   implicit val decoder: Decoder[NetworkResponse] = Decoder.instance { c: HCursor =>
     val data            = c.downField("data")
-    val adaCurrencyInfo = data.downField("2010")
-    val rateUds         = adaCurrencyInfo.downField("quote").downField("2781")
+    val adaCurrencyInfo = data.downField(s"$AdaCMCId")
+    val rateUds         = adaCurrencyInfo.downField("quote").downField(s"$UsdCMCId")
     for {
       name   <- adaCurrencyInfo.get[String]("name")
       symbol <- adaCurrencyInfo.get[String]("symbol")

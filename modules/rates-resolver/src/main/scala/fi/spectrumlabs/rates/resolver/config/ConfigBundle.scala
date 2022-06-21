@@ -12,9 +12,10 @@ import tofu.optics.macros.ClassyOptics
 @ClassyOptics
 @derive(loggable, pureconfigReader)
 final case class ConfigBundle(
-  resolverConfig: ResolverConfig,
-  redisConfig: RedisConfig,
-  pgConfig: PgConfig
+  resolver: ResolverConfig,
+  redis: RedisConfig,
+  pg: PgConfig,
+  network: NetworkConfig
 )
 
 object ConfigBundle extends WithContext.Companion[ConfigBundle] with ConfigBundleCompanion[ConfigBundle]

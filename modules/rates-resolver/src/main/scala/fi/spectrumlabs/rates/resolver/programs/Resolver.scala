@@ -1,68 +1,53 @@
-package fi.spectrumlabs.rates.resolver.services
+package fi.spectrumlabs.rates.resolver.programs
 
+import cats.syntax.parallel._
 import cats.{Defer, Functor, Monad, Parallel, SemigroupK}
-import fi.spectrumlabs.core.models.domain.AssetClass
 import fi.spectrumlabs.core.models.rates.ResolvedRate
-import fi.spectrumlabs.rates.resolver.gateways.NetworkClient
-import fi.spectrumlabs.rates.resolver.repositories.{PoolsRepo, RatesRepo}
-import tofu.syntax.monadic._
-import cats.syntax.eq._
+import fi.spectrumlabs.rates.resolver.AdaAssetClass
+import fi.spectrumlabs.rates.resolver.config.ResolverConfig
+import fi.spectrumlabs.rates.resolver.gateways.Network
+import fi.spectrumlabs.rates.resolver.repositories.RatesRepo
+import fi.spectrumlabs.rates.resolver.services.PoolsService
 import tofu.logging.{Logging, Logs}
+import tofu.streams.{Evals, Pace}
 import tofu.syntax.logging._
 import tofu.syntax.monadic._
-import tofu.syntax.streams.combineK._
-import tofu.syntax.streams.compile._
-import tofu.syntax.streams.emits._
 import tofu.syntax.streams.evals._
-import tofu.syntax.streams.pace._
-import tofu.syntax.streams.temporal._
-import tofu.optics.interop
-import tofu.streams.{Evals, Pace}
-import cats.syntax.parallel._
-import fi.spectrumlabs.rates.resolver.config.ResolverConfig
 
-trait RatesResolver[S[_]] {
+trait Resolver[S[_]] {
   def run: S[Unit]
 }
 
-//todo min liquidity check (id db)
-
-// 100 ada -> 1000 udst.
-// 1 ada = 1000 / 100 = 10 udst  byX
-// 1 udst = 100 / 1000 = 0.1 ada byY
-
-object RatesResolver {
-
-  final val AdaAssetClass: AssetClass = AssetClass("", "") //todo constant
+object Resolver {
 
   def create[
     I[_]: Functor,
     S[_]: Monad: Evals[*[_], F]: SemigroupK: Defer: Pace,
     F[_]: Monad: Parallel
-  ](pools: PoolsService[F], repo: RatesRepo[F], networkClient: NetworkClient[F], config: ResolverConfig)(
-    implicit
+  ](config: ResolverConfig)(implicit
+    pools: PoolsService[F],
+    repo: RatesRepo[F],
+    network: Network[F],
     logs: Logs[I, F]
-  ): I[RatesResolver[S]] =
-    logs.forService[RatesResolver[S]].map(implicit __ => new Impl[S, F](pools, repo, networkClient, config))
+  ): I[Resolver[S]] =
+    logs.forService[Resolver[S]].map(implicit __ => new Impl[S, F](config))
 
   final private class Impl[
     S[_]: Monad: Evals[*[_], F]: SemigroupK: Defer: Pace,
     F[_]: Monad: Logging: Parallel
-  ](pools: PoolsService[F], repo: RatesRepo[F], networkClient: NetworkClient[F], config: ResolverConfig)
-    extends RatesResolver[S] {
+  ](config: ResolverConfig)(implicit pools: PoolsService[F], repo: RatesRepo[F], network: Network[F])
+    extends Resolver[S] {
 
-    def run: S[Unit] = {
+    def run: S[Unit] =
       for {
         _     <- eval(info"Going to update rates.")
         rates <- eval(resolve)
         _     <- eval(rates.parTraverse(repo.put))
         _     <- eval(info"Rates was updated successfully.")
       } yield ()
-    }.repeat.throttled(config.throttleRate)
 
     def resolve: F[List[ResolvedRate]] =
-      networkClient
-        .getPrice(AdaAssetClass)
+      network.getAdaPrice
         .flatMap { adaPrice =>
           pools
             .getAllLatest(config.minLiquidityValue)

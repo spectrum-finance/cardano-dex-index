@@ -1,43 +1,51 @@
 package fi.spectrumlabs.rates.resolver.services
 
-import cats.Functor
+import cats.{Functor, Monad}
+import derevo.derive
 import fi.spectrumlabs.core.models.domain._
 import fi.spectrumlabs.rates.resolver.repositories.PoolsRepo
-import cats.syntax.functor._
+import tofu.syntax.monadic._
+import tofu.syntax.logging._
+import tofu.higherKind.Mid
+import tofu.higherKind.derived.representableK
+import tofu.logging.{Logging, Logs}
 
+@derive(representableK)
 trait PoolsService[F[_]] {
   def getAllLatest(minLiquidityValue: Long): F[List[Pool]]
 }
 
 object PoolsService {
 
-  def create[F[_]: Functor](poolsRepo: PoolsRepo[F]): PoolsService[F] = new Impl[F](poolsRepo)
+  def create[I[_]: Functor, F[_]: Monad](implicit pools: PoolsRepo[F], logs: Logs[I, F]): I[PoolsService[F]] =
+    logs.forService[PoolsService[F]].map(implicit __ => new Tracing[F] attach new Impl[F])
 
-  final private class Impl[F[_]: Functor](poolsRepo: PoolsRepo[F]) extends PoolsService[F] {
+  final private class Impl[F[_]: Functor](implicit pools: PoolsRepo[F]) extends PoolsService[F] {
 
     def getAllLatest(minLiquidityValue: Long): F[List[Pool]] =
-      poolsRepo
+      pools
         .getAllLatest(minLiquidityValue)
-        .map {
-          _.map { poolDb =>
-            Pool(
+        .map(
+          _.flatMap { poolDb =>
+            println(poolDb)
+            for {
+              x <- AssetClass.fromString(poolDb.x)
+              y <- AssetClass.fromString(poolDb.y)
+            } yield Pool(
               PoolId(poolDb.poolId),
-              AssetAmount(
-                AssetClass(
-                  poolDb.x.split(".").headOption.getOrElse(""),
-                  poolDb.x.split(".").lastOption.getOrElse("")
-                ),
-                Amount(poolDb.xReserves)
-              ),
-              AssetAmount(
-                AssetClass(
-                  poolDb.y.split(".").headOption.getOrElse(""),
-                  poolDb.y.split(".").lastOption.getOrElse("")
-                ),
-                Amount(poolDb.yReserves)
-              )
+              AssetAmount(x, Amount(poolDb.xReserves)),
+              AssetAmount(y, Amount(poolDb.yReserves))
             )
           }
-        }
+        )
+  }
+
+  final class Tracing[F[_]: Monad: Logging] extends PoolsService[Mid[F, *]] {
+
+    def getAllLatest(minLiquidityValue: Long): Mid[F, List[Pool]] = for {
+      _ <- trace"Going to get all pools from db with limit lq $minLiquidityValue"
+      r <- _
+      _ <- trace"Pools from db are: $r"
+    } yield r
   }
 }
