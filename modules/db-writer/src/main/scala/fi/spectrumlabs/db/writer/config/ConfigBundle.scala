@@ -2,10 +2,12 @@ package fi.spectrumlabs.db.writer.config
 
 import derevo.derive
 import derevo.pureconfig.pureconfigReader
+import fi.spectrumlabs.core.config.ConfigBundleCompanion
 import fi.spectrumlabs.core.streaming.config.{ConsumerConfig, KafkaConfig}
 import tofu.WithContext
 import tofu.logging.derivation.loggable
 import tofu.optics.macros.ClassyOptics
+import fi.spectrumlabs.core.pg.PgConfig
 
 @ClassyOptics
 @derive(loggable, pureconfigReader)

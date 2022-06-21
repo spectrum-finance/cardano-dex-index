@@ -11,10 +11,10 @@ trait RatesRepo[F[_]] {
 
 object RatesRepo {
 
-  def create[F[_]](cmd: RedisCommands[F, String, String]): RatesRepo[F] =
-    new Impl[F](cmd)
+  def create[F[_]](implicit cmd: RedisCommands[F, String, String]): RatesRepo[F] =
+    new Impl[F]
 
-  final private class Impl[F[_]](cmd: RedisCommands[F, String, String]) extends RatesRepo[F] {
+  final private class Impl[F[_]](implicit cmd: RedisCommands[F, String, String]) extends RatesRepo[F] {
 
     def put(rate: ResolvedRate): F[Unit] =
       cmd.set(rate.asset.show, rate.asJson.noSpaces)

@@ -58,24 +58,24 @@ lazy val core = project
   .withId("cardano-markets-core")
   .settings(name := "cardano-markets-core")
   .settings(libraryDependencies ++= List(
-    Libraries.derevoCirce,
     Libraries.derevoPureconfig,
-    Libraries.tofuDerivation,
     Libraries.tofuDoobie,
-    Libraries.tofuLogging,
     Libraries.tofuZio,
     Libraries.tofuStreams,
     Libraries.tofuFs2,
     Libraries.tofuOpticsInterop,
-    Libraries.newtype,
-    Libraries.enumeratum,
     Libraries.kafka,
     Libraries.circeParse,
     Libraries.scalaland,
     Libraries.sttpCore,
     Libraries.sttpCirce,
     Libraries.sttpClientFs2,
-    Libraries.sttpClientCE2
+    Libraries.sttpClientCE2,
+    Libraries.redis4catsEffects,
+    Libraries.doobiePg,
+    Libraries.doobieHikari,
+    Libraries.doobieCore,
+    Libraries.pureconfig
   ))
   .dependsOn(explorer)
   .settings(commonSettings)
@@ -86,17 +86,11 @@ lazy val tracker = project
   .settings(name := "cardano-markets-tracker")
   .settings(commonSettings)
   .settings(libraryDependencies ++=  List(
-    Libraries.sttpCore,
-    Libraries.sttpCirce,
-    Libraries.sttpClientFs2,
-    Libraries.sttpClientCE2,
-    Libraries.redis4catsEffects,
     Libraries.derevoCats,
     Libraries.derevoCatsTagless,
     Libraries.jawnFs2,
     Libraries.enumeratumCirce,
-    Libraries.mouse,
-    Libraries.pureconfig
+    Libraries.mouse
   ))
   .dependsOn(core)
   .settings(assembly / assemblyJarName := "tracker.jar")
@@ -116,12 +110,7 @@ lazy val dbWriter = project
   .settings(name := "cardano-db-writer")
   .settings(commonSettings)
   .settings(libraryDependencies ++= List(
-    Libraries.doobiePg,
-    Libraries.doobieHikari,
-    Libraries.doobieCore,
-    Libraries.derevoPureconfig,
     Libraries.tofuZio,
-    Libraries.pureconfig,
     Libraries.kafka,
     Libraries.tofuFs2,
     Libraries.mouse
@@ -139,7 +128,6 @@ lazy val api = project
     Libraries.doobiePg,
     Libraries.doobieHikari,
     Libraries.doobieCore,
-    Libraries.derevoPureconfig,
     Libraries.tofuZio,
     Libraries.pureconfig,
     Libraries.tofuFs2,
@@ -157,16 +145,9 @@ lazy val ratesResolver = project
     Libraries.doobiePg,
     Libraries.doobieHikari,
     Libraries.doobieCore,
-    Libraries.derevoPureconfig,
     Libraries.tofuZio,
-    Libraries.pureconfig,
     Libraries.tofuFs2,
-    Libraries.mouse,
-    Libraries.redis4catsEffects,
-    Libraries.sttpCore,
-    Libraries.sttpCirce,
-    Libraries.sttpClientFs2,
-    Libraries.sttpClientCE2
+    Libraries.mouse
   ))
   .dependsOn(core)
   .enablePlugins(JavaAppPackaging, UniversalPlugin, DockerPlugin)

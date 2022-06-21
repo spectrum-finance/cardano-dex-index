@@ -39,7 +39,8 @@ object RatesResolver {
     I[_]: Functor,
     S[_]: Monad: Evals[*[_], F]: SemigroupK: Defer: Pace,
     F[_]: Monad: Parallel
-  ](pools: PoolsService[F], repo: RatesRepo[F], networkClient: NetworkClient[F], config: ResolverConfig)(implicit
+  ](pools: PoolsService[F], repo: RatesRepo[F], networkClient: NetworkClient[F], config: ResolverConfig)(
+    implicit
     logs: Logs[I, F]
   ): I[RatesResolver[S]] =
     logs.forService[RatesResolver[S]].map(implicit __ => new Impl[S, F](pools, repo, networkClient, config))
@@ -59,30 +60,31 @@ object RatesResolver {
       } yield ()
     }.repeat.throttled(config.throttleRate)
 
-    def resolve: F[List[ResolvedRate]] = networkClient
-      .getPrice(AdaAssetClass)
-      .flatMap { adaPrice =>
-        pools
-          .getAllLatest(config.minLiquidityValue)
-          .flatTap(pools => trace"Pools from DB are: $pools.")
-          .map { pools =>
-            val resolvedByAda =
-              pools
-                .filter(_.contains(AdaAssetClass))
-                .map(ResolvedRate(_, AdaAssetClass))
+    def resolve: F[List[ResolvedRate]] =
+      networkClient
+        .getPrice(AdaAssetClass)
+        .flatMap { adaPrice =>
+          pools
+            .getAllLatest(config.minLiquidityValue)
+            .flatTap(pools => trace"Pools from DB are: $pools.")
+            .map { pools =>
+              val resolvedByAda =
+                pools
+                  .filter(_.contains(AdaAssetClass))
+                  .map(ResolvedRate(_, AdaAssetClass))
 
-            val resolvedViaAda =
-              pools
-                .filterNot(_.contains(AdaAssetClass))
-                .flatMap { pool =>
-                  resolvedByAda
-                    .find(_.contains(pool.x.asset, pool.y.asset))
-                    .map(ResolvedRate(pool, _))
-                }
+              val resolvedViaAda =
+                pools
+                  .filterNot(_.contains(AdaAssetClass))
+                  .flatMap { pool =>
+                    resolvedByAda
+                      .find(_.contains(pool.x.asset, pool.y.asset))
+                      .map(ResolvedRate(pool, _))
+                  }
 
-            (resolvedByAda ::: resolvedViaAda).map(rate => rate.copy(rate.asset, rate.rate * adaPrice.rate))
-          }
-      }
-      .flatTap(resolved => info"Resolved rates are: $resolved.")
+              (resolvedByAda ::: resolvedViaAda).map(rate => rate.copy(rate.asset, rate.rate * adaPrice.rate))
+            }
+        }
+        .flatTap(resolved => info"Resolved rates are: $resolved.")
   }
 }

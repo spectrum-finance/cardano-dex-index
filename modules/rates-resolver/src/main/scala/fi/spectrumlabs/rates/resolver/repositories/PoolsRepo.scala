@@ -20,7 +20,8 @@ trait PoolsRepo[F[_]] {
 
 object PoolsRepo {
 
-  def create[I[_]: Functor, D[_]: FlatMap: LiftConnectionIO, F[_]](implicit
+  def create[I[_]: Functor, D[_]: FlatMap: LiftConnectionIO, F[_]](
+    implicit
     elh: EmbeddableLogHandler[D],
     logs: Logs[I, D],
     txr: Txr[F, D]

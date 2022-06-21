@@ -1,9 +1,8 @@
-package fi.spectrumlabs.db.writer
+package fi.spectrumlabs.core.pg
 
 import cats.effect.{Async, Blocker, ContextShift, Resource, Sync}
 import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
-import fi.spectrumlabs.db.writer.config.PgConfig
 
 object PostgresTransactor {
 

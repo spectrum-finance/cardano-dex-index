@@ -1,4 +1,4 @@
-package fi.spectrumlabs.rates.resolver
+package fi.spectrumlabs.core.pg
 
 import cats.Functor
 import cats.syntax.functor._

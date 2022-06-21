@@ -1,4 +1,4 @@
-package fi.spectrumlabs.rates.resolver.config
+package fi.spectrumlabs.core.redis
 
 import derevo.derive
 import derevo.pureconfig.pureconfigReader

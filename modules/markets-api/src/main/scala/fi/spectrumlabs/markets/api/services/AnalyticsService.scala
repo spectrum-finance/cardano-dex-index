@@ -11,6 +11,7 @@ trait AnalyticsService[F[_]] {
 object AnalyticsService {
 
   final private class Impl[F[_]: Monad](poolRepo: PoolsRepository[F]) extends AnalyticsService[F] {
+
     def getPoolTvl(poolId: String): F[BigDecimal] =
       for {
         pool <- poolRepo.getPoolById(poolId)

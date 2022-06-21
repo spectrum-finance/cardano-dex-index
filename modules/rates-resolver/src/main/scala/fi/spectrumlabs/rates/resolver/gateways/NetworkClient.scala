@@ -11,9 +11,9 @@ import sttp.client3._
 import sttp.client3.circe._
 import tofu.syntax.monadic._
 import tofu.syntax.logging._
-import fi.spectrumlabs.core.syntax.sttp.syntax._
 import tofu.Throws
 import tofu.logging.{Logging, Logs}
+import fi.spectrumlabs.core.network.syntax._
 
 trait NetworkClient[F[_]] {
   def getPrice(asset: AssetClass): F[ResolvedRate]
@@ -23,7 +23,8 @@ object NetworkClient {
   final val AdaId = 2010
   final val UdsId = 2781
 
-  def create[I[_]: Functor, F[_]: Monad: Throws](implicit
+  def create[I[_]: Functor, F[_]: Monad: Throws](
+    implicit
     backend: SttpBackend[F, _],
     logs: Logs[I, F]
   ): I[NetworkClient[F]] =

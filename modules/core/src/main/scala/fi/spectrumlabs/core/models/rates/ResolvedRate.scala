@@ -8,6 +8,7 @@ import tofu.logging.derivation.loggable
 
 @derive(loggable, encoder, decoder)
 final case class ResolvedRate(asset: AssetClass, rate: BigDecimal) {
+
   def contains(x: AssetClass, y: AssetClass): Boolean =
     asset === x || asset == y
 }

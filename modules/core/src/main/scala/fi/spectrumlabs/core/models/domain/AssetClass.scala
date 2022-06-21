@@ -13,6 +13,5 @@ object AssetClass {
   implicit val eq: Eq[AssetClass] = (x: AssetClass, y: AssetClass) =>
     x.tokenName == y.tokenName && x.currencySymbol == y.currencySymbol
 
-  implicit val show: Show[AssetClass] = asset =>
-    s"${asset.currencySymbol}.${asset.tokenName}"
+  implicit val show: Show[AssetClass] = asset => s"${asset.currencySymbol}.${asset.tokenName}"
 }

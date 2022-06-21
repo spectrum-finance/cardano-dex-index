@@ -2,6 +2,9 @@ package fi.spectrumlabs.rates.resolver.config
 
 import derevo.derive
 import derevo.pureconfig.pureconfigReader
+import fi.spectrumlabs.core.config.ConfigBundleCompanion
+import fi.spectrumlabs.core.pg.PgConfig
+import fi.spectrumlabs.core.redis.RedisConfig
 import tofu.WithContext
 import tofu.logging.derivation.loggable
 import tofu.optics.macros.ClassyOptics

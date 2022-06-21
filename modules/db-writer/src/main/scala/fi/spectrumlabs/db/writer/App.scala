@@ -9,7 +9,7 @@ import fi.spectrumlabs.core.streaming.config.{ConsumerConfig, KafkaConfig}
 import fi.spectrumlabs.core.streaming.serde._
 import fi.spectrumlabs.core.streaming.{Consumer, MakeKafkaConsumer}
 import fi.spectrumlabs.db.writer.classes.Handle
-import fi.spectrumlabs.db.writer.config._
+import fi.spectrumlabs.db.writer.config.{ConfigBundle, _}
 import fi.spectrumlabs.db.writer.models._
 import fi.spectrumlabs.db.writer.models.db.{ExecutedDeposit, ExecutedRedeem, ExecutedSwap, Pool}
 import fi.spectrumlabs.db.writer.models.streaming.{ExecutedOrderEvent, PoolEvent}
@@ -27,6 +27,8 @@ import tofu.logging.Logs
 import tofu.logging.derivation.loggable.generate
 import zio.interop.catz._
 import zio.{ExitCode, URIO, ZIO}
+import fi.spectrumlabs.core.pg.doobieLogging
+import fi.spectrumlabs.core.pg.PostgresTransactor
 
 object App extends EnvApp[AppContext] {
 

@@ -1,9 +1,8 @@
-package fi.spectrumlabs.config
+package fi.spectrumlabs.core.config
 
 import cats.effect.{Blocker, ContextShift, Sync}
 import pureconfig.{ConfigReader, ConfigSource}
 import pureconfig.module.catseffect.syntax._
-
 import scala.reflect.ClassTag
 
 trait ConfigBundleCompanion[T] {
