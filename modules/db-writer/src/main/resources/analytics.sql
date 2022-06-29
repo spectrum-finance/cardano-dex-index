@@ -2,14 +2,16 @@ create sequence if not exists executed_deposit_seq;
 create sequence if not exists executed_swap_seq;
 create sequence if not exists executed_redeem_seq;
 create sequence if not exists pool_seq;
+create sequence if not exists asset_seq;
 
 drop table executed_deposit;
 drop table executed_redeem;
 drop table executed_swap;
+drop table pool;
 
 create table if not exists executed_deposit (
     id Integer not null default nextval('executed_deposit_seq'),
-    pool_nft Text not null,
+    pool_nft Text not null references pool (pool_id),
     coin_x Text not null,
     coin_y Text not null,
     coin_lq Text not null,
@@ -24,12 +26,16 @@ create table if not exists executed_deposit (
     user_output_id Text not null,
     pool_input_Id Text not null,
     pool_output_Id Text not null,
-    timestamp BIGINT not null
+    timestamp BIGINT not null,
+    primary key (id, pool_nft, coin_x, coin_y)
 );
+
+create unique index if not exists executed_deposit_id_index on executed_deposit (id);
+create unique index if not exists executed_deposit_pool_nft_index on executed_deposit (pool_nft);
 
 create table if not exists executed_redeem (
     id Integer not null default nextval('executed_redeem_seq'),
-    pool_nft Text not null,
+    pool_nft Text not null references pool (pool_id),
     coin_x Text not null,
     coin_y Text not null,
     coin_lq Text not null,
@@ -43,14 +49,18 @@ create table if not exists executed_redeem (
     user_output_id Text not null,
     pool_input_Id Text not null,
     pool_output_Id Text not null,
-    timestamp BIGINT not null
+    timestamp BIGINT not null,
+    primary key (id, pool_nft, coin_x, coin_y)
 );
+
+create unique index if not exists executed_redeem_id_index on executed_redeem (id);
+create unique index if not exists executed_redeem_pool_nft_index on executed_redeem (pool_nft);
 
 create table if not exists executed_swap (
     id Integer not null default nextval('executed_swap_seq'),
     base Text not null,
     quote Text not null,
-    pool_nft Text not null,
+    pool_nft Text not null references pool (pool_id),
     ex_fee_per_token_num BIGINT not null,
     ex_fee_per_token_den BIGINT not null,
     reward_pkh Text not null,
@@ -62,8 +72,12 @@ create table if not exists executed_swap (
     user_output_id Text not null,
     pool_input_Id Text not null,
     pool_output_Id Text not null,
-    timestamp BIGINT not null
+    timestamp BIGINT not null,
+    primary key (id, pool_nft, base, quote)
 );
+
+create unique index if not exists executed_swap_id_index on executed_swap (id);
+create unique index if not exists executed_swap_pool_nft_index on executed_swap (pool_nft);
 
 create table if not exists pool (
     id Integer not null default nextval('pool_seq'),
@@ -81,5 +95,12 @@ create table if not exists pool (
     timestamp BIGINT not null
 );
 
-create unique index if not exists pool_id on transaction (id);
-create unique index if not exists pool_id_pool_id on transaction (id, pool_id);
+create table if not exists Asset (
+    id Integer not null default nextval('asset_seq'),
+    currency_symbol Text not null,
+    token_name Text not null,
+    primary key (id, currency_symbol, token_name)
+);
+
+create unique index if not exists pool_id_index on transaction (id);
+create unique index if not exists pool_pool_id_index on transaction (pool_id);
