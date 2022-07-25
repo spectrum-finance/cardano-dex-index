@@ -15,7 +15,8 @@ final case class ConfigBundle(
   resolver: ResolverConfig,
   redis: RedisConfig,
   pg: PgConfig,
-  network: NetworkConfig
+  network: NetworkConfig,
+  tokens: TokenFetcherConfig
 )
 
 object ConfigBundle extends WithContext.Companion[ConfigBundle] with ConfigBundleCompanion[ConfigBundle]
