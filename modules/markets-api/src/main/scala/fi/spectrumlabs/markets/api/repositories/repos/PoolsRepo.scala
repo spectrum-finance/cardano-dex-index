@@ -4,8 +4,8 @@ import cats.{FlatMap, Functor}
 import derevo.derive
 import doobie.ConnectionIO
 import fi.spectrumlabs.core.models.db.Pool
-import fi.spectrumlabs.core.models.domain.{Pool => DomainPool}
-import fi.spectrumlabs.markets.api.models.PoolVolume
+import fi.spectrumlabs.core.models.domain.{PoolId, Pool => DomainPool}
+import fi.spectrumlabs.markets.api.models.{PoolOverview, PoolVolume}
 import fi.spectrumlabs.markets.api.repositories.sql.PoolsSql
 import tofu.doobie.LiftConnectionIO
 import tofu.doobie.log.EmbeddableLogHandler
@@ -16,12 +16,15 @@ import tofu.logging.{Logging, Logs}
 import tofu.syntax.logging._
 import tofu.syntax.monadic._
 import cats.tagless.syntax.functorK._
+import fi.spectrumlabs.markets.api.models.db.PoolDb
 
 import scala.concurrent.duration.FiniteDuration
 
 @derive(representableK)
 trait PoolsRepo[D[_]] {
-  def getPoolById(poolId: String, minLiquidityValue: Long): D[Option[Pool]]
+  def getPools: D[List[PoolDb]]
+
+  def getPoolById(poolId: PoolId, minLiquidityValue: Long): D[Option[Pool]]
 
   def getPoolVolume(pool: DomainPool, period: FiniteDuration): D[Option[PoolVolume]]
 }
@@ -41,7 +44,10 @@ object PoolsRepo {
 
   final private class Impl(sql: PoolsSql) extends PoolsRepo[ConnectionIO] {
 
-    def getPoolById(poolId: String, minLiquidityValue: Long): ConnectionIO[Option[Pool]] =
+    def getPools: ConnectionIO[List[PoolDb]] =
+      sql.getPools.to[List]
+
+    def getPoolById(poolId: PoolId, minLiquidityValue: Long): ConnectionIO[Option[Pool]] =
       sql.getPool(poolId, minLiquidityValue).option
 
     def getPoolVolume(pool: DomainPool, period: FiniteDuration): ConnectionIO[Option[PoolVolume]] =
@@ -50,7 +56,14 @@ object PoolsRepo {
 
   final private class Tracing[F[_]: FlatMap: Logging] extends PoolsRepo[Mid[F, *]] {
 
-    def getPoolById(poolId: String, minLiquidityValue: Long): Mid[F, Option[Pool]] =
+    def getPools: Mid[F, List[PoolDb]] =
+      for {
+        _ <- trace"Going to get all pools"
+        r <- _
+        _ <- trace"Pools from db are $r"
+      } yield r
+
+    def getPoolById(poolId: PoolId, minLiquidityValue: Long): Mid[F, Option[Pool]] =
       for {
         _ <- trace"Going to get pool with id $poolId and min lq value $minLiquidityValue"
         r <- _

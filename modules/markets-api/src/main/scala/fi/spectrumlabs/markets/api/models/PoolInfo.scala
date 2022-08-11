@@ -10,6 +10,5 @@ final case class PoolInfo(totalTvl: BigDecimal, totalVolume: BigDecimal)
 
 object PoolInfo {
 
-  implicit def schema: Schema[PoolInfo] =
-    Schema.schemaForString.description("Pool information").asInstanceOf[Schema[PoolInfo]]
+  implicit def schema: Schema[PoolInfo] = Schema.derived
 }

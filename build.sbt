@@ -71,12 +71,14 @@ lazy val core = project
     Libraries.sttpCirce,
     Libraries.sttpClientFs2,
     Libraries.sttpClientCE2,
+    Libraries.tapirCirce,
+    Libraries.tapirHttp4s,
     Libraries.redis4catsEffects,
     Libraries.doobiePg,
     Libraries.doobieHikari,
     Libraries.doobieCore,
     Libraries.pureconfig
-  ))
+  ) ++ Libraries.Scodec)
   .dependsOn(explorer)
   .settings(commonSettings)
 
@@ -126,8 +128,6 @@ lazy val api = project
     Libraries.pureconfig,
     Libraries.tofuFs2,
     Libraries.mouse,
-    Libraries.tapirCirce,
-    Libraries.tapirHttp4s,
     Libraries.tapirRedoc,
     Libraries.tapirDocs,
     Libraries.tapirOpenApi,

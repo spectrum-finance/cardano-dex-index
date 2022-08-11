@@ -17,13 +17,10 @@ final case class Pool(id: PoolId, x: AssetAmount, y: AssetAmount) {
 
 object Pool {
 
-  def fromDb(poolDb: PoolDb): Option[Pool] =
-    for {
-      x <- AssetClass.fromString(poolDb.x)
-      y <- AssetClass.fromString(poolDb.y)
-    } yield Pool(
+  def fromDb(poolDb: PoolDb): Pool =
+    Pool(
       PoolId(poolDb.poolId),
-      AssetAmount(x, Amount(poolDb.xReserves)),
-      AssetAmount(y, Amount(poolDb.yReserves))
+      AssetAmount(poolDb.x, Amount(poolDb.xReserves)),
+      AssetAmount(poolDb.y, Amount(poolDb.yReserves))
     )
 }

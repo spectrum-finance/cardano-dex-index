@@ -23,6 +23,9 @@ object Dependencies {
     val catsRetry       = "2.1.1"
     val specs2          = "4.16.0"
     val scalaCheck      = "1.16.0"
+    val scodecCoreVersion = "1.11.7"
+    val scodecBitsVersion = "1.1.21"
+    val scodecCatsVersion = "1.1.0"
 
     val betterMonadicFor = "0.3.1"
     val kindProjector    = "0.13.2"
@@ -84,6 +87,12 @@ object Dependencies {
 
     val specs2Core = "org.specs2"     %% "specs2-core" % V.specs2     % Test
     val scalaCheck = "org.scalacheck" %% "scalacheck"  % V.scalaCheck % Test
+
+    val Scodec = List(
+      "org.scodec" %% "scodec-core" % V.scodecCoreVersion,
+      "org.scodec" %% "scodec-bits" % V.scodecBitsVersion,
+      "org.scodec" %% "scodec-cats" % V.scodecCatsVersion
+    )
   }
 
   object CompilerPlugins {

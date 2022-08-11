@@ -11,6 +11,11 @@ import tofu.syntax.raise._
 
 object syntax {
 
+  implicit class AdaptThrowableOps[F[_], G[_, _], E, A](val fa: F[A]) extends AnyVal {
+
+    def adaptThrowable(implicit A: AdaptThrowable[F, G, E]): G[E, A] = A.adaptThrowable(fa)
+  }
+
   implicit class ResponseOps[F[_], A, E](private val fr: F[Response[Either[ResponseException[String, E], A]]])
     extends AnyVal {
 

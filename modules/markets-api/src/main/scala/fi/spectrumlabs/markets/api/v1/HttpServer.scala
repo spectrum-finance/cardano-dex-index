@@ -5,7 +5,7 @@ import cats.data.{Kleisli, OptionT}
 import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Resource, Timer}
 import fi.spectrumlabs.markets.api.configs.HttpConfig
 import fi.spectrumlabs.markets.api.services.AnalyticsService
-import fi.spectrumlabs.markets.api.v1.routes.AnalyticsRoutes
+import fi.spectrumlabs.markets.api.v1.routes.{AnalyticsRoutes, OpenApiRoutes}
 import org.http4s.{Http, HttpApp, HttpRoutes}
 import org.http4s.blaze.server.BlazeServerBuilder
 import org.http4s.server.{Router, Server}
@@ -14,6 +14,7 @@ import sttp.tapir.server.http4s.Http4sServerOptions
 import tofu.higherKind.Embed
 import tofu.lift.{IsoK, Unlift}
 import tofu.syntax.monadic._
+import cats.syntax.semigroupk._
 
 import scala.concurrent.ExecutionContext
 
@@ -42,7 +43,8 @@ object HttpServer {
     opts: Http4sServerOptions[F, F]
   ): Resource[I, Server] = {
     val analyticsR = AnalyticsRoutes.make[F]
-    val routes     = unliftRoutes[F, I](analyticsR)
+    val openApiR   = OpenApiRoutes.make[F]
+    val routes     = unliftRoutes[F, I](analyticsR <+> openApiR)
     val corsRoutes = CORS.policy.withAllowOriginAll(routes)
     val api        = Router("/" -> corsRoutes).orNotFound
     BlazeServerBuilder[I](ec).bindHttp(conf.port, conf.host).withHttpApp(api).resource
