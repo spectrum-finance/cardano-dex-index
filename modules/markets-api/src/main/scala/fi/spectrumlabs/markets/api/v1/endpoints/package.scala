@@ -8,6 +8,7 @@ import sttp.tapir._
 import sttp.tapir.generic.auto._
 import sttp.tapir.json.circe._
 import cats.syntax.option._
+import fi.spectrumlabs.markets.api.v1.endpoints.models.TimeWindow
 import io.circe.generic.auto._
 
 import java.util.concurrent.TimeUnit
@@ -45,4 +46,21 @@ package object endpoints {
       }(_.toSeconds)
       .description("Unix Timestamp after which statistic is accumulated.")
       .example(FiniteDuration(Duration(1658379570, TimeUnit.SECONDS).toSeconds, SECONDS))
+
+  def timeWindow: EndpointInput[TimeWindow] =
+    (query[Option[Long]]("from")
+      .description("Window lower bound (UNIX timestamp millis)")
+      .validateOption(Validator.min(0L)) and
+      query[Option[Long]]("to")
+        .description("Window upper bound (UNIX timestamp millis)")
+        .validateOption(Validator.min(0L)))
+      .map { input =>
+        TimeWindow(input._1, input._2)
+      } { case TimeWindow(from, to) => from -> to }
+
+  def secondsResolution: EndpointInput[Long] =
+    query[Long]("resolution")
+      .validate(Validator.min(0))
+      .validate(Validator.max(Long.MaxValue))
+      .description("Resolution in seconds")
 }

@@ -7,10 +7,11 @@ import fi.spectrumlabs.core.models.db.Pool
 import fi.spectrumlabs.core.models.domain.{PoolId, Pool => DomainPool}
 import fi.spectrumlabs.markets.api.models.PoolVolume
 import fi.spectrumlabs.markets.api.repositories._
-
 import scala.concurrent.duration.FiniteDuration
 import cats.syntax.show._
-import fi.spectrumlabs.markets.api.models.db.PoolDb
+import doobie.util.fragment.Fragment
+import fi.spectrumlabs.markets.api.models.db.{AvgAssetAmounts, PoolDb}
+import fi.spectrumlabs.markets.api.v1.endpoints.models.TimeWindow
 
 final class PoolsSql(implicit lh: LogHandler) {
 
@@ -86,4 +87,22 @@ final class PoolsSql(implicit lh: LogHandler) {
          |			AND base = ${pool.y.asset.show}
          |			AND timestamp > ${period.toSeconds}) y
        """.stripMargin.query[PoolVolume]
+
+  def getAvgPoolSnapshot(id: PoolId, tw: TimeWindow, resolution: Long): Query0[AvgAssetAmounts] =
+    sql"""
+         |select avg(p.reserves_x), avg(p.reserves_y), timestamp / $resolution as res
+         |from pool p
+         |where pool_id = $id
+         |${timeWindowCond(tw, "and", "p")}
+         |group by res
+         |order by res
+         """.stripMargin.query[AvgAssetAmounts]
+
+  private def timeWindowCond(tw: TimeWindow, condKeyword: String, alias: String): Fragment =
+    if (tw.from.nonEmpty || tw.to.nonEmpty)
+      Fragment.const(
+        s"$condKeyword ${tw.from.map(ts => s"$alias.timestamp >= $ts").getOrElse("")} ${if (tw.from.isDefined && tw.to.isDefined) "and"
+        else ""} ${tw.to.map(ts => s"$alias.timestamp <= $ts").getOrElse("")}"
+      )
+    else Fragment.empty
 }

@@ -10,7 +10,6 @@ import sttp.client3.circe.asJson
 import sttp.client3.{basicRequest, SttpBackend, UriContext}
 import tofu.Throws
 import tofu.higherKind.derived.representableK
-import tofu.syntax.embed._
 import tofu.syntax.monadic._
 
 @derive(representableK)
@@ -27,10 +26,10 @@ object TokenFetcher {
   @derive(decoder)
   final case class TokenResponse(tokens: List[Token])
 
-  def make[F[_]: Monad: Throws: TokenFetcherConfig.Has](implicit
+  def make[F[_]: Monad: Throws](conf: TokenFetcherConfig)(implicit
     backend: SttpBackend[F, Any]
   ): TokenFetcher[F] =
-    TokenFetcherConfig.access.map(conf => new ValidTokensFetcher[F](conf): TokenFetcher[F]).embed
+    new ValidTokensFetcher[F](conf)
 
   final class ValidTokensFetcher[F[_]: Monad: Throws](
     conf: TokenFetcherConfig

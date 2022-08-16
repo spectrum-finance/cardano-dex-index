@@ -2,10 +2,11 @@ package fi.spectrumlabs.markets.api.v1.endpoints
 
 import fi.spectrumlabs.core.models.domain.PoolId
 import fi.spectrumlabs.core.network.models.HttpError
-import fi.spectrumlabs.markets.api.models.{PoolInfo, PoolOverview}
+import fi.spectrumlabs.markets.api.models.{PoolInfo, PoolOverview, PricePoint}
 import sttp.tapir._
 import sttp.tapir.json.circe.jsonBody
 import fi.spectrumlabs.markets.api.v1.endpoints._
+import fi.spectrumlabs.markets.api.v1.endpoints.models.TimeWindow
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -40,4 +41,14 @@ object PoolInfoEndpoints {
       .tag(pathPrefix)
       .name("Pools overview")
       .description("Allow to get info about all pool within period")
+
+  def getPoolPriceChart: Endpoint[(PoolId, TimeWindow, Long), HttpError, List[PricePoint], Any] =
+    baseEndpoint.get
+      .in("pool" / path[PoolId] / "chart")
+      .in(timeWindow)
+      .in(secondsResolution)
+      .out(jsonBody[List[PricePoint]])
+      .tag(pathPrefix)
+      .name("Pool price chart")
+      .description("Allow to get pool price chart within period")
 }
