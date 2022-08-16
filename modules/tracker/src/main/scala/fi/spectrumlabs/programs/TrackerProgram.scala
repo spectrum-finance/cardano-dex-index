@@ -42,7 +42,7 @@ object TrackerProgram {
 
   private final class Impl[
     S[_]: Monad: Evals[*[_], F]: FunctorFilter: Temporal[*[_], C]: Compile[*[_], F]: SemigroupK: Defer: Pace,
-    F[_]: Monad: Logging: Catches,
+    F[_]: Monad: Logging: Catches: Timer,
     C[_]: Foldable
   ](producer: Producer[String, Tx, S], config: TrackerConfig)(implicit
     cache: TrackerCache[F],
@@ -66,11 +66,16 @@ object TrackerProgram {
               .flatMap { _ =>
                 cache.setLastOffset(batch.size + offset)
               }
+              .flatMap { _ =>
+                if (batch.size < config.limit)
+                  debug"Batch size is less than ${config.limit}. Going to sleep for ${config.throttleRate}" >>
+                    Timer[F].sleep(config.throttleRate)
+                else debug"Batch size equals ${config.limit}. Going to request next batch"
+              }
               .handleWith { err: Throwable =>
                 error"The error ${err.getMessage} occurred in tracker stream."
               }
           }
-          .throttled(config.throttleRate)
       }).repeat
 
   }
