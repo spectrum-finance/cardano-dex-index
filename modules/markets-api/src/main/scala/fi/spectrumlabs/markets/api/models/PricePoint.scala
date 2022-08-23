@@ -5,15 +5,11 @@ import derevo.derive
 import sttp.tapir.Schema
 import tofu.logging.derivation.loggable
 
-import scala.math.BigDecimal.RoundingMode
-
 @derive(loggable, encoder, decoder)
 case class PricePoint(
-                       timestamp: Long,
-                       price: BigDecimal
-                     ) { self =>
-  def setScale(scale: Int): PricePoint = self.copy(price = price.setScale(scale, RoundingMode.HALF_UP))
-}
+  timestamp: Long,
+  price: RealPrice
+)
 
 object PricePoint {
 

@@ -6,11 +6,8 @@ import sttp.tapir.json.circe.jsonBody
 import sttp.tapir.{emptyOutputAs, endpoint, oneOf, oneOfDefaultMapping, oneOfMapping, Endpoint, EndpointInput}
 import sttp.tapir._
 import sttp.tapir.generic.auto._
-import sttp.tapir.json.circe._
-import cats.syntax.option._
 import fi.spectrumlabs.markets.api.v1.endpoints.models.TimeWindow
 import io.circe.generic.auto._
-
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{Duration, FiniteDuration, SECONDS}
 
@@ -58,9 +55,9 @@ package object endpoints {
         TimeWindow(input._1, input._2)
       } { case TimeWindow(from, to) => from -> to }
 
-  def secondsResolution: EndpointInput[Long] =
+  def minutesResolution: EndpointInput[Long] =
     query[Long]("resolution")
       .validate(Validator.min(0))
       .validate(Validator.max(Long.MaxValue))
-      .description("Resolution in seconds")
+      .description("Resolution in minutes")
 }

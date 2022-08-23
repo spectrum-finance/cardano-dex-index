@@ -5,7 +5,7 @@ import derevo.pureconfig.pureconfigReader
 import fi.spectrumlabs.core.config.ConfigBundleCompanion
 import fi.spectrumlabs.core.pg.PgConfig
 import fi.spectrumlabs.core.redis.RedisConfig
-import fi.spectrumlabs.rates.resolver.config.TokenFetcherConfig
+import fi.spectrumlabs.rates.resolver.config.{NetworkConfig, TokenFetcherConfig}
 import tofu.WithContext
 import tofu.logging.derivation.loggable
 import tofu.optics.macros.ClassyOptics
@@ -17,6 +17,7 @@ final case class ConfigBundle(
   redis: RedisConfig,
   pg: PgConfig,
   http: HttpConfig,
+  network: NetworkConfig,
   tokenFetcher: TokenFetcherConfig
 )
 

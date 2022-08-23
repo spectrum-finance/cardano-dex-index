@@ -4,7 +4,7 @@ import cats.effect.{Blocker, Resource}
 import dev.profunktor.redis4cats.RedisCommands
 import fi.spectrumlabs.core.EnvApp
 import fi.spectrumlabs.core.network.makeBackend
-import fi.spectrumlabs.core.pg.{PostgresTransactor, doobieLogging}
+import fi.spectrumlabs.core.pg.{doobieLogging, PostgresTransactor}
 import fi.spectrumlabs.core.redis.codecs.stringCodec
 import fi.spectrumlabs.core.redis.mkRedis
 import fi.spectrumlabs.markets.api.configs.ConfigBundle
@@ -12,7 +12,8 @@ import fi.spectrumlabs.markets.api.context.AppContext
 import fi.spectrumlabs.markets.api.repositories.repos.{PoolsRepo, RatesRepo}
 import fi.spectrumlabs.markets.api.services.AnalyticsService
 import fi.spectrumlabs.markets.api.v1.HttpServer
-import fi.spectrumlabs.rates.resolver.services.TokenFetcher
+import fi.spectrumlabs.rates.resolver.gateways.Metadata
+import fi.spectrumlabs.rates.resolver.services.{MetadataService, TokenFetcher}
 import org.http4s.server.Server
 import sttp.capabilities.fs2.Fs2Streams
 import sttp.client3.SttpBackend
@@ -52,8 +53,10 @@ object App extends EnvApp[AppContext] {
                                                                )
       implicit0(backend: SttpBackend[RunF, Fs2Streams[RunF]]) <- makeBackend[AppContext, InitF, RunF](ctx, blocker)
       implicit0(tokens: TokenFetcher[RunF]) = TokenFetcher.make[RunF](configs.tokenFetcher)
-      implicit0(poolsRepo: PoolsRepo[RunF]) <- Resource.eval(PoolsRepo.create[InitF, xa.DB, RunF])
-      implicit0(ratesRepo: RatesRepo[RunF]) <- Resource.eval(RatesRepo.create[InitF, RunF])
+      implicit0(metadata: Metadata[RunF])               <- Resource.eval(Metadata.create[InitF, RunF](configs.network))
+      implicit0(metadataService: MetadataService[RunF]) <- Resource.eval(MetadataService.create[InitF, RunF])
+      implicit0(poolsRepo: PoolsRepo[RunF])             <- Resource.eval(PoolsRepo.create[InitF, xa.DB, RunF])
+      implicit0(ratesRepo: RatesRepo[RunF])             <- Resource.eval(RatesRepo.create[InitF, RunF])
       implicit0(service: AnalyticsService[RunF]) <- Resource.eval(
                                                       AnalyticsService.create[InitF, RunF](configs.marketsApi)
                                                     )

@@ -5,8 +5,7 @@ import doobie.implicits._
 import doobie.util.query.Query0
 import fi.spectrumlabs.core.models.db.Pool
 import fi.spectrumlabs.core.models.domain.{PoolId, Pool => DomainPool}
-import fi.spectrumlabs.markets.api.models.PoolVolume
-import fi.spectrumlabs.markets.api.repositories._
+import fi.spectrumlabs.markets.api.models.{PoolVolume, PoolVolumeDb}
 import scala.concurrent.duration.FiniteDuration
 import cats.syntax.show._
 import doobie.util.fragment.Fragment
@@ -88,14 +87,28 @@ final class PoolsSql(implicit lh: LogHandler) {
          |			AND timestamp > ${period.toSeconds}) y
        """.stripMargin.query[PoolVolume]
 
+  def getPoolVolumes(tw: TimeWindow): Query0[PoolVolumeDb] =
+    sql"""
+         |SELECT sum(ex.actual_quote), ex.pool_nft, ex.base FROM executed_swap ex
+         |JOIN (
+         | SELECT pool_nft, count(DISTINCT base) num_assets
+         | FROM executed_swap es
+         | ${timeWindowCond(tw, "where", "es")}
+         | GROUP BY pool_nft
+         | ) sub ON ex.pool_nft = sub.pool_nft
+         |WHERE sub.num_assets = 2
+         |${timeWindowCond(tw, "and", "ex")}
+         |GROUP by ex.pool_nft, ex.base
+       """.stripMargin.query[PoolVolumeDb]
+
   def getAvgPoolSnapshot(id: PoolId, tw: TimeWindow, resolution: Long): Query0[AvgAssetAmounts] =
     sql"""
-         |select avg(p.reserves_x), avg(p.reserves_y), timestamp / $resolution as res
-         |from pool p
-         |where pool_id = $id
+         |SELECT avg(p.reserves_x), AVG(p.reserves_y), timestamp / ($resolution * 60) AS res
+         |FROM pool p
+         |WHERE pool_id = $id
          |${timeWindowCond(tw, "and", "p")}
-         |group by res
-         |order by res
+         |GROUP BY res
+         |ORDER BY res
          """.stripMargin.query[AvgAssetAmounts]
 
   private def timeWindowCond(tw: TimeWindow, condKeyword: String, alias: String): Fragment =

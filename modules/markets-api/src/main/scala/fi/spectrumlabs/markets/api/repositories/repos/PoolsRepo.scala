@@ -5,7 +5,7 @@ import derevo.derive
 import doobie.ConnectionIO
 import fi.spectrumlabs.core.models.db.Pool
 import fi.spectrumlabs.core.models.domain.{PoolId, Pool => DomainPool}
-import fi.spectrumlabs.markets.api.models.PoolVolume
+import fi.spectrumlabs.markets.api.models.{PoolVolume, PoolVolumeDb}
 import fi.spectrumlabs.markets.api.repositories.sql.PoolsSql
 import tofu.doobie.LiftConnectionIO
 import tofu.doobie.log.EmbeddableLogHandler
@@ -28,6 +28,8 @@ trait PoolsRepo[D[_]] {
   def getPoolById(poolId: PoolId, minLiquidityValue: Long): D[Option[Pool]]
 
   def getPoolVolume(pool: DomainPool, period: FiniteDuration): D[Option[PoolVolume]]
+
+  def getPoolVolumes(period: TimeWindow): D[List[PoolVolumeDb]]
 
   def getAvgPoolSnapshot(id: PoolId, tw: TimeWindow, resolution: Long): D[List[AvgAssetAmounts]]
 }
@@ -56,6 +58,9 @@ object PoolsRepo {
     def getPoolVolume(pool: DomainPool, period: FiniteDuration): ConnectionIO[Option[PoolVolume]] =
       sql.getPoolVolume(pool, period).option
 
+    def getPoolVolumes(period: TimeWindow): ConnectionIO[List[PoolVolumeDb]] =
+      sql.getPoolVolumes(period).to[List]
+
     def getAvgPoolSnapshot(id: PoolId, tw: TimeWindow, resolution: Long): ConnectionIO[List[AvgAssetAmounts]] =
       sql.getAvgPoolSnapshot(id, tw, resolution).to[List]
   }
@@ -74,6 +79,13 @@ object PoolsRepo {
         _ <- trace"Going to get pool with id $poolId and min lq value $minLiquidityValue"
         r <- _
         _ <- trace"Pool from db is $r"
+      } yield r
+
+    def getPoolVolumes(period: TimeWindow): Mid[F, List[PoolVolumeDb]] =
+      for {
+        _ <- trace"Going to get total pool volumes for period $period"
+        r <- _
+        _ <- trace"Total pool volumes are $r"
       } yield r
 
     def getPoolVolume(pool: DomainPool, period: FiniteDuration): Mid[F, Option[PoolVolume]] =
