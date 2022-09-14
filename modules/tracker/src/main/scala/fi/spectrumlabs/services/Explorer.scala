@@ -4,6 +4,7 @@ import cats.Functor
 import cats.syntax.functor._
 import cats.tagless.FunctorK
 import fi.spectrumlabs.config.ExplorerConfig
+import fi.spectrumlabs.core.models.BlockInfo
 import fi.spectrumlabs.explorer.models.Transaction
 import fs2.Stream
 import io.circe.Json
@@ -23,6 +24,8 @@ import tofu.syntax.logging._
 
 trait Explorer[S[_], F[_]] {
   def streamTransactions(offset: Long, limit: Int): S[Transaction]
+
+  def streamBlocks(offset: Long, limit: Int): S[BlockInfo]
 }
 
 object Explorer {
@@ -72,6 +75,26 @@ object Explorer {
         .unNone
         .handleErrorWith(err => Stream.eval(info"The error: ${err.getMessage} occurred.") >> Stream.empty)
     }
+
+    def streamBlocks(offset: Long, limit: Int): Stream[F, BlockInfo] = {
+      val req =
+        basicRequest
+          .get(
+            uri"${config.url}"
+              .withPathSegment(Segment("v1/blocks/byGlobalIndex/stream", identity))
+              .addParams("minGix" -> offset.toString, "limit" -> limit.toString)
+          )
+          .response(asStreamAlwaysUnsafe(Fs2Streams[F]))
+          .send(backend)
+          .map(_.body)
+      Stream
+        .force(req)
+        .chunks
+        .parseJsonStream
+        .map(_.as[BlockInfo].toOption)
+        .unNone
+    }
+
   }
 
 }

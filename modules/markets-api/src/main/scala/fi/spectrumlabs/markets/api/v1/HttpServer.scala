@@ -1,6 +1,6 @@
 package fi.spectrumlabs.markets.api.v1
 
-import cats.{~>, Functor, Monad}
+import cats.{Functor, Monad, ~>}
 import cats.data.{Kleisli, OptionT}
 import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Resource, Timer}
 import fi.spectrumlabs.markets.api.configs.HttpConfig
@@ -15,6 +15,7 @@ import tofu.higherKind.Embed
 import tofu.lift.{IsoK, Unlift}
 import tofu.syntax.monadic._
 import cats.syntax.semigroupk._
+import fi.spectrumlabs.http.cache.CacheMiddleware.CachingMiddleware
 
 import scala.concurrent.ExecutionContext
 
@@ -40,11 +41,12 @@ object HttpServer {
     F[_]: Concurrent: ContextShift: Timer: Unlift[*[_], I]
   ](conf: HttpConfig, ec: ExecutionContext)(implicit
     analyticsService: AnalyticsService[F],
-    opts: Http4sServerOptions[F, F]
+    opts: Http4sServerOptions[F, F],
+    cache: CachingMiddleware[F]
   ): Resource[I, Server] = {
     val analyticsR = AnalyticsRoutes.make[F]
     val openApiR   = OpenApiRoutes.make[F]
-    val routes     = unliftRoutes[F, I](analyticsR <+> openApiR)
+    val routes     = unliftRoutes[F, I](cache.middleware(analyticsR <+> openApiR))
     val corsRoutes = CORS.policy.withAllowOriginAll(routes)
     val api        = Router("/" -> corsRoutes).orNotFound
     BlazeServerBuilder[I](ec).bindHttp(conf.port, conf.host).withHttpApp(api).resource

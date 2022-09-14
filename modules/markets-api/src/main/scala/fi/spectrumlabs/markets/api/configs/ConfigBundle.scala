@@ -14,7 +14,8 @@ import tofu.optics.macros.ClassyOptics
 @derive(loggable, pureconfigReader)
 final case class ConfigBundle(
   marketsApi: MarketsApiConfig,
-  redis: RedisConfig,
+  ratesRedis: RedisConfig,
+  httpRedis: RedisConfig,
   pg: PgConfig,
   http: HttpConfig,
   network: NetworkConfig,

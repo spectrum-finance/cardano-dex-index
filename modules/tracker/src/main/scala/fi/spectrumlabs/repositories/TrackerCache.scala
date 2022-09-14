@@ -16,9 +16,13 @@ import tofu.syntax.logging._
 @derive(representableK)
 trait TrackerCache[F[_]] {
 
-  def setLastOffset(offset: Long): F[Unit]
+  def setLastTxOffset(offset: Long): F[Unit]
 
-  def getLastOffset: F[Long]
+  def setLastBlockOffset(offset: Long): F[Unit]
+
+  def getLastTxOffset: F[Long]
+
+  def getLastBlockOffset: F[Long]
 }
 
 object TrackerCache {
@@ -39,17 +43,29 @@ object TrackerCache {
       (err, details) =>
         error"Failed to exec $name in cache. The error is: ${err.getMessage}. Retry details are: ${details.toString}."
 
-    def setLastOffset(offset: Long): F[Unit] =
+    def setLastTxOffset(offset: Long): F[Unit] =
       redis
-        .set(Key, offset)
+        .set(txKey, offset)
         .retryingOnAllErrors(policy, onError("set offset"))
 
-    def getLastOffset: F[Long] =
+    def setLastBlockOffset(offset: Long): F[Unit] =
       redis
-        .get(Key)
+        .set(blockKey, offset)
+        .retryingOnAllErrors(policy, onError("set offset"))
+
+    def getLastTxOffset: F[Long] =
+      redis
+        .get(txKey)
         .map(_.getOrElse(0L))
         .retryingOnAllErrors(policy, onError("get offset"))
 
-    private val Key: String = "tracker-offset-last"
+    def getLastBlockOffset: F[Long] =
+      redis
+        .get(blockKey)
+        .map(_.getOrElse(0L))
+        .retryingOnAllErrors(policy, onError("get offset"))
+
+    private val txKey: String = "tracker-offset-last"
+    private val blockKey: String = "tracker-offset-last"
   }
 }
