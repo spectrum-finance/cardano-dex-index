@@ -3,7 +3,7 @@ package fi.spectrumlabs.programs
 import cats.effect.Timer
 import cats.syntax.foldable._
 import cats.{Defer, Foldable, Functor, FunctorFilter, Monad, SemigroupK}
-import fi.spectrumlabs.config.TrackerConfig
+import fi.spectrumlabs.config.TxTrackerConfig
 import fi.spectrumlabs.core.models.Tx
 import fi.spectrumlabs.core.streaming.{Producer, Record}
 import fi.spectrumlabs.repositories.TrackerCache
@@ -12,14 +12,13 @@ import mouse.any._
 import tofu.Catches
 import tofu.logging.{Logging, Logs}
 import tofu.streams.{Compile, Evals, Pace, Temporal}
+import tofu.syntax.handle._
 import tofu.syntax.logging._
 import tofu.syntax.monadic._
-import tofu.syntax.handle._
 import tofu.syntax.streams.combineK._
 import tofu.syntax.streams.compile._
 import tofu.syntax.streams.emits._
 import tofu.syntax.streams.evals._
-import tofu.syntax.streams.pace._
 import tofu.syntax.streams.temporal._
 
 trait TxTrackerProgram[S[_]] {
@@ -33,7 +32,7 @@ object TxTrackerProgram {
     F[_]: Monad: Timer: Catches,
     I[_]: Functor,
     C[_]: Foldable
-  ](producer: Producer[String, Tx, S], config: TrackerConfig)(implicit
+  ](producer: Producer[String, Tx, S], config: TxTrackerConfig)(implicit
     cache: TrackerCache[F],
     explorer: Explorer[S, F],
     logs: Logs[I, F]
@@ -44,13 +43,14 @@ object TxTrackerProgram {
     S[_]: Monad: Evals[*[_], F]: FunctorFilter: Temporal[*[_], C]: Compile[*[_], F]: SemigroupK: Defer: Pace,
     F[_]: Monad: Logging: Catches: Timer,
     C[_]: Foldable
-  ](producer: Producer[String, Tx, S], config: TrackerConfig)(implicit
+  ](producer: Producer[String, Tx, S], config: TxTrackerConfig)(implicit
     cache: TrackerCache[F],
     explorer: Explorer[S, F]
   ) extends TxTrackerProgram[S] {
 
     def run: S[Unit] =
-      (eval(cache.getLastTxOffset) >>= { offset: Long =>
+      (eval(cache.getLastTxOffset) >>= { lastOffset: Long =>
+        val offset = lastOffset max config.initialOffset
         eval(info"Current offset is: $offset. Going to perform next request.") >>
         explorer
           .streamTransactions(offset, config.limit)
@@ -69,7 +69,7 @@ object TxTrackerProgram {
               .flatMap { _ =>
                 if (batch.size < config.limit)
                   debug"Batch size is less than ${config.limit}. Going to sleep for ${config.throttleRate}" >>
-                    Timer[F].sleep(config.throttleRate)
+                  Timer[F].sleep(config.throttleRate)
                 else debug"Batch size equals ${config.limit}. Going to request next batch"
               }
               .handleWith { err: Throwable =>

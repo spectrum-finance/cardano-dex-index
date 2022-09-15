@@ -86,11 +86,9 @@ object AnalyticsService {
 
     def getPlatformStats(period: TimeWindow): F[PlatformStats] =
       for {
-        pools       <- poolsRepo.getPools
-        validTokens <- tokenFetcher.fetchTokens
-        filteredPools = pools.filter(p => validTokens.contains(p.x) && validTokens.contains(p.y))
-        xRates <- filteredPools.flatTraverse(pool => ratesRepo.get(pool.x, pool.poolId).map(_.map((pool, _)).toList))
-        yRates <- filteredPools.flatTraverse(pool => ratesRepo.get(pool.y, pool.poolId).map(_.map((pool, _)).toList))
+        pools  <- poolsRepo.getPools
+        xRates <- pools.flatTraverse(pool => ratesRepo.get(pool.x, pool.poolId).map(_.map((pool, _)).toList))
+        yRates <- pools.flatTraverse(pool => ratesRepo.get(pool.y, pool.poolId).map(_.map((pool, _)).toList))
         xTvls    = xRates.map { case (pool, rate) => pool.xReserves.dropPenny(rate.decimals) * rate.rate }.sum
         yTvls    = yRates.map { case (pool, rate) => pool.yReserves.dropPenny(rate.decimals) * rate.rate }.sum
         totalTvl = (xTvls + yTvls).setScale(0, RoundingMode.HALF_UP)

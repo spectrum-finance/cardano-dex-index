@@ -26,6 +26,7 @@ object ResolverService {
     pools: PoolsService[F],
     network: Network[F],
     metadataService: MetadataService[F],
+    tokenFetcher: TokenFetcher[F],
     logs: Logs[I, F]
   ): I[ResolverService[F]] =
     logs.forService[ResolverService[F]].map(implicit __ => new Impl[F](config))
@@ -33,16 +34,19 @@ object ResolverService {
   final private class Impl[F[_]: Monad: Logging](config: ResolverConfig)(implicit
     pools: PoolsService[F],
     network: Network[F],
-    metadataService: MetadataService[F]
+    metadataService: MetadataService[F],
+    tokenFetcher: TokenFetcher[F]
   ) extends ResolverService[F] {
 
     def resolve: F[List[ResolvedRate]] =
       network.getAdaPrice
         .flatMap { adaPrice =>
           (for {
-            pools <- pools.getAllLatest(config.minLiquidityValue)
-            info  <- metadataService.getTokensMeta(pools.flatMap(p => p.x.asset :: p.y.asset :: Nil))
-          } yield (pools, info)).map { case (pools, info) =>
+            pools       <- pools.getAllLatest(config.minLiquidityValue)
+            validTokens <- tokenFetcher.fetchTokens
+            filteredPools = pools.filter(p => validTokens.contains(p.x.asset) && validTokens.contains(p.y.asset))
+            info <- metadataService.getTokensMeta(filteredPools.flatMap(p => p.x.asset :: p.y.asset :: Nil))
+          } yield (filteredPools, info)).map { case (pools, info) =>
             val (poolsWithAda, poolsWithoutAda) = pools.partition(_.contains(AdaAssetClass))
 
             val resolvedByAda =

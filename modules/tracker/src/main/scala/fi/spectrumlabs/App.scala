@@ -54,13 +54,13 @@ object App extends EnvApp[AppContext] {
       implicit0(txTracker: TxTrackerProgram[StreamF]) <- Resource.eval(
                                                        TxTrackerProgram.create[StreamF, RunF, InitF, Chunk](
                                                          txProducer,
-                                                         configs.tracker
+                                                         configs.txTracker
                                                        )
                                                      )
       implicit0(blockTracker: BlockTrackerProgram[StreamF]) <- Resource.eval(
                                                        BlockTrackerProgram.create[StreamF, RunF, InitF, Chunk](
                                                          blockProducer,
-                                                         configs.tracker
+                                                         configs.blockTracker
                                                        )
                                                      )
       _ <- Resource.eval(txTracker.run.compile.drain).mapK(ul.liftF)
