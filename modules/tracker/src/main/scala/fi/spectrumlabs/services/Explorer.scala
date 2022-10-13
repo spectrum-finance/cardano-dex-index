@@ -4,8 +4,7 @@ import cats.Functor
 import cats.syntax.functor._
 import cats.tagless.FunctorK
 import fi.spectrumlabs.config.ExplorerConfig
-import fi.spectrumlabs.core.models.BlockInfo
-import fi.spectrumlabs.explorer.models.Transaction
+import fi.spectrumlabs.explorer.models.{BlockInfo, Transaction}
 import fs2.Stream
 import io.circe.Json
 import io.circe.jawn.CirceSupportParser
@@ -15,7 +14,7 @@ import retry.RetryPolicies._
 import retry.implicits.retrySyntaxError
 import retry.{RetryDetails, RetryPolicy, Sleep}
 import sttp.capabilities.fs2.Fs2Streams
-import sttp.client3.{asStreamAlwaysUnsafe, basicRequest, SttpBackend, UriContext}
+import sttp.client3.{SttpBackend, UriContext, asStreamAlwaysUnsafe, basicRequest}
 import sttp.model.Uri.Segment
 import tofu.MonadThrow
 import tofu.fs2.LiftStream
@@ -87,12 +86,14 @@ object Explorer {
           .response(asStreamAlwaysUnsafe(Fs2Streams[F]))
           .send(backend)
           .map(_.body)
+          .retryingOnAllErrors(policy, onError)
       Stream
         .force(req)
         .chunks
         .parseJsonStream
         .map(_.as[BlockInfo].toOption)
         .unNone
+        .handleErrorWith(err => Stream.eval(info"The error: ${err.getMessage} occurred.") >> Stream.empty)
     }
 
   }

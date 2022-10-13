@@ -1,4 +1,4 @@
-package fi.spectrumlabs.core.models
+package fi.spectrumlabs.explorer.models
 
 import derevo.circe.magnolia.decoder
 import derevo.derive

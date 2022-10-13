@@ -2,6 +2,7 @@ package fi.spectrumlabs.core.models
 
 import derevo.circe.magnolia.{decoder, encoder}
 import derevo.derive
+import fi.spectrumlabs.explorer.models.BlockInfo
 import tofu.logging.derivation.loggable
 
 @derive(encoder, decoder, loggable)

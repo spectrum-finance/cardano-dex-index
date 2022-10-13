@@ -2,14 +2,16 @@ package fi.spectrumlabs.markets.api
 
 import cats.effect.{Blocker, Resource}
 import dev.profunktor.redis4cats.RedisCommands
+import dev.profunktor.redis4cats.data.RedisCodec
 import fi.spectrumlabs.core.EnvApp
-import fi.spectrumlabs.core.cache.{Cache, MakeRedisTransaction, Redis}
+import fi.spectrumlabs.core.cache.Cache
+import fi.spectrumlabs.core.cache.Cache.Plain
+import fi.spectrumlabs.core.http.cache.CacheMiddleware.CachingMiddleware
+import fi.spectrumlabs.core.http.cache.{CacheMiddleware, HttpResponseCaching}
 import fi.spectrumlabs.core.network.makeBackend
-import fi.spectrumlabs.core.pg.{doobieLogging, PostgresTransactor}
+import fi.spectrumlabs.core.pg.{PostgresTransactor, doobieLogging}
 import fi.spectrumlabs.core.redis.codecs.stringCodec
 import fi.spectrumlabs.core.redis.mkRedis
-import fi.spectrumlabs.http.cache.CacheMiddleware._
-import fi.spectrumlabs.http.cache.{CacheMiddleware, HttpResponseCaching}
 import fi.spectrumlabs.markets.api.configs.ConfigBundle
 import fi.spectrumlabs.markets.api.context.AppContext
 import fi.spectrumlabs.markets.api.repositories.repos.{PoolsRepo, RatesRepo}
@@ -54,8 +56,10 @@ object App extends EnvApp[AppContext] {
                                                                  configs.ratesRedis,
                                                                  stringCodec
                                                                )
-      implicit0(plainRedis: Redis.Plain[RunF]) <- Redis.make[InitF, RunF](configs.httpRedis)
-      implicit0(mtx: MakeRedisTransaction[RunF]) = MakeRedisTransaction.make[RunF](configs.httpRedis)
+      implicit0(plainRedis: Plain[RunF]) <- mkRedis[Array[Byte], Array[Byte], InitF, RunF](
+                                              configs.ratesRedis,
+                                              RedisCodec.Bytes
+                                            )
       implicit0(cache: Cache[RunF])                       <- Resource.eval(Cache.make[InitF, RunF])
       implicit0(httpRespCache: HttpResponseCaching[RunF]) <- Resource.eval(HttpResponseCaching.make[InitF, RunF])
       implicit0(httpCache: CachingMiddleware[RunF]) = CacheMiddleware.make[RunF]

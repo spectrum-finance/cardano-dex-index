@@ -37,7 +37,7 @@ lazy val dexIndex = project
   .settings(idePackagePrefix := Some("fi.spectrumlabs"))
   .settings(commonSettings)
   .settings(name := "cardano-dex-index")
-  .aggregate(core, tracker, dbWriter, api, explorer, ratesResolver, httpCache)
+  .aggregate(core, tracker, dbWriter, api, explorer, ratesResolver)
 
 lazy val explorer = project
   .in(file("modules/explorer"))
@@ -134,7 +134,7 @@ lazy val api = project
     Libraries.tapirOpenApi,
     Libraries.http4sServer
   ))
-  .dependsOn(core, ratesResolver, httpCache)
+  .dependsOn(core, ratesResolver)
   .settings(assembly / assemblyJarName := "markets-api.jar")
   .enablePlugins(JavaAppPackaging, UniversalPlugin, DockerPlugin)
 
@@ -155,14 +155,4 @@ lazy val ratesResolver = project
   ))
   .dependsOn(core)
   .settings(assembly / assemblyJarName := "rates-resolver.jar")
-  .enablePlugins(JavaAppPackaging, UniversalPlugin, DockerPlugin)
-
-lazy val httpCache = project
-  .in(file("modules/http-cache"))
-  .withId("cardano-http-cache")
-  .settings(name := "cardano-http-cache")
-  .settings(commonSettings)
-  .settings(libraryDependencies ++= List())
-  .dependsOn(core)
-  .settings(assembly / assemblyJarName := "http-cache.jar")
   .enablePlugins(JavaAppPackaging, UniversalPlugin, DockerPlugin)

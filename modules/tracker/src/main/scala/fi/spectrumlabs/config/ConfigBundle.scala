@@ -13,8 +13,8 @@ import fi.spectrumlabs.core.redis.RedisConfig
 @derive(loggable, pureconfigReader)
 final case class ConfigBundle(
   explorer: ExplorerConfig,
-  txTracker: TxTrackerConfig,
-  blockTracker: BlockTrackerConfig,
+  txTracker: TrackerConfig,
+  blockTracker: TrackerConfig,
   redis: RedisConfig,
   producer: ProducerConfig,
   @promote kafka: KafkaConfig

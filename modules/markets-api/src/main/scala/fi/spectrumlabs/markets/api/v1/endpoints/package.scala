@@ -52,7 +52,9 @@ package object endpoints {
         .description("Window upper bound (UNIX timestamp millis)")
         .validateOption(Validator.min(0L)))
       .map { input =>
-        TimeWindow(input._1, input._2)
+        val from = input._1.map(from => FiniteDuration(Duration(from, TimeUnit.SECONDS).toSeconds, SECONDS).toSeconds)
+        val to   = input._2.map(to => FiniteDuration(Duration(to, TimeUnit.SECONDS).toSeconds, SECONDS).toSeconds)
+        TimeWindow(from, to)
       } { case TimeWindow(from, to) => from -> to }
 
   def minutesResolution: EndpointInput[Long] =

@@ -1,17 +1,16 @@
-package fi.spectrumlabs.http.cache
+package fi.spectrumlabs.core.http.cache
 
-import fi.spectrumlabs.http.cache.models.CachedResponse
-import fi.spectrumlabs.http.cache.types.RequestHash32
+import cats.data.OptionT
+import cats.effect.Sync
+import cats.{FlatMap, Monad}
+import fi.spectrumlabs.core.cache.Cache
+import fi.spectrumlabs.core.http.cache.CachedResponse.toResponse
+import fi.spectrumlabs.core.http.cache.types.RequestHash32
 import org.http4s._
 import scodec.bits.ByteVector
 import tofu.logging.Logs
 import tofu.logging.derivation.loggable.generate
 import tofu.syntax.monadic.{TofuFlatMapOps, TofuFunctorOps}
-import cats.data.OptionT
-import cats.effect.Sync
-import cats.{FlatMap, Monad}
-import fi.spectrumlabs.core.cache.Cache
-import fi.spectrumlabs.http.cache.models.CachedResponse.toResponse
 
 trait HttpResponseCaching[F[_]] {
 

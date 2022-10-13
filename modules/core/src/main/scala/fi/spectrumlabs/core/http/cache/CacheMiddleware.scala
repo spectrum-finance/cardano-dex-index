@@ -1,11 +1,11 @@
-package fi.spectrumlabs.http.cache
+package fi.spectrumlabs.core.http.cache
 
 import cats.Monad
 import cats.data.{Kleisli, OptionT}
 import cats.effect.Sync
-import fi.spectrumlabs.http.cache.types.RequestHash32
+import fi.spectrumlabs.core.http.cache.types.RequestHash32
 import org.http4s.HttpRoutes
-import tofu.syntax.monadic._
+import tofu.syntax.monadic.unit
 
 object CacheMiddleware {
 

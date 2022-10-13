@@ -6,7 +6,7 @@ import tofu.logging.derivation.loggable
 import scala.concurrent.duration.FiniteDuration
 
 @derive(pureconfigReader, loggable)
-final case class BlockTrackerConfig(
+final case class TrackerConfig(
   initialOffset: Long,
   limit: Int,
   batchSize: Int,

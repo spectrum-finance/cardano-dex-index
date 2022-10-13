@@ -66,6 +66,6 @@ object TrackerCache {
         .retryingOnAllErrors(policy, onError("get offset"))
 
     private val txKey: String = "tracker-offset-last"
-    private val blockKey: String = "tracker-offset-last"
+    private val blockKey: String = "block-tracker-offset-last"
   }
 }

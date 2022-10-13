@@ -15,7 +15,7 @@ import tofu.higherKind.Embed
 import tofu.lift.{IsoK, Unlift}
 import tofu.syntax.monadic._
 import cats.syntax.semigroupk._
-import fi.spectrumlabs.http.cache.CacheMiddleware.CachingMiddleware
+import fi.spectrumlabs.core.http.cache.CacheMiddleware.CachingMiddleware
 
 import scala.concurrent.ExecutionContext
 

@@ -90,13 +90,6 @@ final class PoolsSql(implicit lh: LogHandler) {
   def getPoolVolumes(tw: TimeWindow): Query0[PoolVolumeDb] =
     sql"""
          |SELECT sum(ex.actual_quote), ex.pool_nft, ex.base FROM executed_swap ex
-         |JOIN (
-         | SELECT pool_nft, count(DISTINCT base) num_assets
-         | FROM executed_swap es
-         | ${timeWindowCond(tw, "where", "es")}
-         | GROUP BY pool_nft
-         | ) sub ON ex.pool_nft = sub.pool_nft
-         |WHERE sub.num_assets = 2
          |${timeWindowCond(tw, "and", "ex")}
          |GROUP by ex.pool_nft, ex.base
        """.stripMargin.query[PoolVolumeDb]

@@ -3,11 +3,11 @@ package fi.spectrumlabs.programs
 import cats.effect.Timer
 import cats.syntax.foldable._
 import cats.{Defer, Foldable, Functor, FunctorFilter, Monad, SemigroupK}
-import fi.spectrumlabs.config.BlockTrackerConfig
-import fi.spectrumlabs.core.models.{Block, Tx}
+import fi.spectrumlabs.config.TrackerConfig
+import fi.spectrumlabs.core.models.Block
 import fi.spectrumlabs.core.streaming.{Producer, Record}
 import fi.spectrumlabs.repositories.TrackerCache
-import fi.spectrumlabs.services.{Explorer, Filter}
+import fi.spectrumlabs.services.Explorer
 import mouse.any._
 import tofu.Catches
 import tofu.logging.{Logging, Logs}
@@ -33,7 +33,7 @@ object BlockTrackerProgram {
     F[_]: Monad: Timer: Catches,
     I[_]: Functor,
     C[_]: Foldable
-  ](producer: Producer[String, Block, S], config: BlockTrackerConfig)(implicit
+  ](producer: Producer[String, Block, S], config: TrackerConfig)(implicit
     cache: TrackerCache[F],
     explorer: Explorer[S, F],
     logs: Logs[I, F]
@@ -44,7 +44,7 @@ object BlockTrackerProgram {
     S[_]: Monad: Evals[*[_], F]: FunctorFilter: Temporal[*[_], C]: Compile[*[_], F]: SemigroupK: Defer: Pace,
     F[_]: Monad: Logging: Catches: Timer,
     C[_]: Foldable
-  ](producer: Producer[String, Block, S], config: BlockTrackerConfig)(implicit
+  ](producer: Producer[String, Block, S], config: TrackerConfig)(implicit
     cache: TrackerCache[F],
     explorer: Explorer[S, F]
   ) extends BlockTrackerProgram[S] {

@@ -2,6 +2,7 @@ package fi.spectrumlabs
 
 import cats.effect.{Blocker, Resource}
 import dev.profunktor.redis4cats.RedisCommands
+import fi.spectrumlabs
 import fi.spectrumlabs.config.{AppContext, ConfigBundle}
 import fi.spectrumlabs.core.EnvApp
 import fi.spectrumlabs.core.models.{Block, Tx}
@@ -63,7 +64,6 @@ object App extends EnvApp[AppContext] {
                                                          configs.blockTracker
                                                        )
                                                      )
-      _ <- Resource.eval(txTracker.run.compile.drain).mapK(ul.liftF)
-      _ <- Resource.eval(blockTracker.run.compile.drain).mapK(ul.liftF)
+      _ <- Resource.eval(fs2.Stream(txTracker.run, blockTracker.run).parJoinUnbounded.compile.drain).mapK(ul.liftF)
     } yield ()
 }

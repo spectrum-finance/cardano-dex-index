@@ -1,12 +1,12 @@
-package fi.spectrumlabs.http.cache.models
+package fi.spectrumlabs.core.http.cache
 
-import cats.implicits._
-import _root_.scodec.interop.cats._
 import _root_.scodec._
 import _root_.scodec.codecs._
+import _root_.scodec.interop.cats._
+import cats.implicits._
 import derevo.derive
-import org.http4s._
 import fs2._
+import org.http4s._
 import org.typelevel.ci._
 import org.typelevel.vault.Vault
 import scodec.bits.ByteVector

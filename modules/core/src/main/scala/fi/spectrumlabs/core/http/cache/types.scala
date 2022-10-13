@@ -1,4 +1,4 @@
-package fi.spectrumlabs.http.cache
+package fi.spectrumlabs.core.http.cache
 
 import io.estatico.newtype.macros.newtype
 import scodec.Codec

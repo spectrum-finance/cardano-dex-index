@@ -3,6 +3,7 @@ package fi.spectrumlabs.markets.api.configs
 import derevo.derive
 import derevo.pureconfig.pureconfigReader
 import fi.spectrumlabs.core.config.ConfigBundleCompanion
+import fi.spectrumlabs.core.http.cache.HttpCacheConfig
 import fi.spectrumlabs.core.pg.PgConfig
 import fi.spectrumlabs.core.redis.RedisConfig
 import fi.spectrumlabs.rates.resolver.config.{NetworkConfig, TokenFetcherConfig}
@@ -19,7 +20,8 @@ final case class ConfigBundle(
   pg: PgConfig,
   http: HttpConfig,
   network: NetworkConfig,
-  tokenFetcher: TokenFetcherConfig
+  tokenFetcher: TokenFetcherConfig,
+  httpCache: HttpCacheConfig
 )
 
 object ConfigBundle extends WithContext.Companion[ConfigBundle] with ConfigBundleCompanion[ConfigBundle]
