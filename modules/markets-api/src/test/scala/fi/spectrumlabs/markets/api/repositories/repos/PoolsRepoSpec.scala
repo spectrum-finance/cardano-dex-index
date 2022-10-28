@@ -27,10 +27,11 @@ class PoolsRepoSpec extends AnyFlatSpec with Matchers with DbTest {
             .flatMap { case (qBase, pool) => xs.map(_.copy(base = qBase.toCoin, poolId = Coin(pool))) }
         swaps.foreach(insertTestExecutedSwap(_).transact(xa).unsafeRunSync())
         basePoolIdOpt.foreach { case (base, pool) =>
+          val expectation = List(PoolVolumeDb(swaps.map(_.actualQuote.value).sum, PoolId(pool), base))
           pools
             .getPoolVolumes(TimeWindow(None, None))
             .transact(xa)
-            .unsafeRunSync() should be(List(PoolVolumeDb(swaps.map(_.actualQuote.value).sum, PoolId(pool), base)))
+            .unsafeRunSync() should be(expectation)
         }
       }
     }

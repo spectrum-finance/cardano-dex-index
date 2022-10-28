@@ -26,7 +26,6 @@ object Dependencies {
     val scodecCoreVersion = "1.11.7"
     val scodecBitsVersion = "1.1.21"
     val scodecCatsVersion = "1.1.0"
-    val scodecTestVersion = "1.1.0"
 
     val betterMonadicFor           = "0.3.1"
     val kindProjector              = "0.13.2"

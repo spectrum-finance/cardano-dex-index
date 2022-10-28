@@ -36,6 +36,12 @@ object Models {
         outColl    <- Gen.posNum[Long]
       } yield TestPool(poolId, assetX, assetY, ts, liquidity, poolFeeNum, poolFeeDen, outColl)
 
+    def genTxOutRef =
+      for {
+        txIdx   <- Gen.posNum[Int]
+        getTxId <- Gen.alphaStr
+      } yield TxOutRef(txIdx, TxOutRefId(getTxId))
+
     def genTestExecutedSwap: Gen[TestExecutedSwap] =
       for {
         base             <- genAssetClass.map(_.toCoin)
@@ -47,11 +53,11 @@ object Models {
         baseAmount       <- Gen.choose(1000000, 1000000000000L).map(Amount(_))
         actualQuote      <- Gen.choose(1000000, 1000000000000L).map(Amount(_))
         minQuoteAmount   <- Gen.choose(1000000, 1000000000000L).map(Amount(_))
-        orderInputId = TxOutRef(0, TxOutRefId(""))
-        userOutputId = TxOutRef(0, TxOutRefId(""))
-        poolInputId  = TxOutRef(0, TxOutRefId(""))
-        poolOutputId = TxOutRef(0, TxOutRefId(""))
-        timestamp <- Gen.choose(1000000000L, 2000000000L)
+        orderInputId     <- genTxOutRef
+        userOutputId     <- genTxOutRef
+        poolInputId      <- genTxOutRef
+        poolOutputId     <- genTxOutRef
+        timestamp        <- Gen.choose(1000000000L, 2000000000L)
       } yield TestExecutedSwap(
         base,
         quote,
