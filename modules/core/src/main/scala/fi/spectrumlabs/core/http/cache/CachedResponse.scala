@@ -76,18 +76,18 @@ object CachedResponse {
 
   implicit val loggableMethod: Loggable[Method] = Loggable.show
 
-  implicit val method: Codec[Method] = string32(StandardCharsets.UTF_8).exmapc(s =>
+  implicit val methodCodec: Codec[Method] = string32(StandardCharsets.UTF_8).exmapc(s =>
     Attempt.fromEither(Method.fromString(s).leftMap(p => Err.apply(p.details)))
   )(m => Attempt.successful(m.name))
 
   implicit val loggableUri: Loggable[Uri] = Loggable.show
 
-  implicit val uri: Codec[Uri] = string32(StandardCharsets.UTF_8)
+  implicit val uriCodec: Codec[Uri] = string32(StandardCharsets.UTF_8)
     .exmapc(s => Attempt.fromEither(Uri.fromString(s).leftMap(p => Err.apply(p.details))))(uri =>
       Attempt.successful(uri.renderString)
     )
 
-  implicit val keyTupleCodec: Codec[(Method, Uri)] = method ~ uri
+  implicit val keyTupleCodec: Codec[(Method, Uri)] = methodCodec ~ uriCodec
 
   implicit val cachedResponseCodec: Codec[CachedResponse] =
     (statusCodec :: httpVersionCodec :: headersCodec :: variableSizeBytesLong(int64, bytes)).as[CachedResponse]

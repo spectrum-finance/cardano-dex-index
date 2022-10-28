@@ -43,10 +43,8 @@ object ResolverService {
         .flatMap { adaPrice =>
           (for {
             pools       <- pools.getAllLatest(config.minLiquidityValue)
-            validTokens <- tokenFetcher.fetchTokens
-            filteredPools = pools.filter(p => validTokens.contains(p.x.asset) && validTokens.contains(p.y.asset))
-            info <- metadataService.getTokensMeta(filteredPools.flatMap(p => p.x.asset :: p.y.asset :: Nil))
-          } yield (filteredPools, info)).map { case (pools, info) =>
+            info <- metadataService.getTokensMeta(pools.flatMap(p => p.x.asset :: p.y.asset :: Nil))
+          } yield (pools, info)).map { case (pools, info) =>
             val (poolsWithAda, poolsWithoutAda) = pools.partition(_.contains(AdaAssetClass))
 
             val resolvedByAda =

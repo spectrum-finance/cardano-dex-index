@@ -26,6 +26,7 @@ object Dependencies {
     val scodecCoreVersion = "1.11.7"
     val scodecBitsVersion = "1.1.21"
     val scodecCatsVersion = "1.1.0"
+    val scodecTestVersion = "1.1.0"
 
     val betterMonadicFor           = "0.3.1"
     val kindProjector              = "0.13.2"
@@ -95,9 +96,10 @@ object Dependencies {
     val flyway = "org.flywaydb" % "flyway-core" % V.FlywayVersion
 
     val Scodec = List(
-      "org.scodec" %% "scodec-core" % V.scodecCoreVersion,
-      "org.scodec" %% "scodec-bits" % V.scodecBitsVersion,
-      "org.scodec" %% "scodec-cats" % V.scodecCatsVersion
+      "org.scodec" %% "scodec-core"    % V.scodecCoreVersion,
+      "org.scodec" %% "scodec-bits"    % V.scodecBitsVersion,
+      "org.scodec" %% "scodec-cats"    % V.scodecCatsVersion,
+      "org.scodec" %% "scodec-testkit" % V.scodecCoreVersion
     )
 
     val testing = List(
