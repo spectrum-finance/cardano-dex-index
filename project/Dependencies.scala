@@ -3,32 +3,36 @@ import sbt._
 object Dependencies {
 
   object V {
-    val tofu            = "0.10.6"
-    val derevo          = "0.12.5"
-    val catsEffect      = "2.5.3"
-    val doobie          = "0.13.4"
-    val pureconfig      = "0.14.1"
-    val tapir           = "0.18.3"
-    val newtype         = "0.4.3"
-    val mouse           = "0.26.2"
-    val enumeratum      = "1.7.0"
-    val enumeratumCirce = "1.7.0"
-    val sttpVersion     = "3.3.11"
-    val redis           = "0.14.0"
-    val jawnFs2Version  = "1.0.0"
-    val fs2KafkaVersion = "1.4.1"
-    val circeVersion    = "0.14.1"
-    val scalaland       = "0.6.1"
-    val http4s          = "0.22.11"
-    val catsRetry       = "2.1.1"
-    val specs2          = "4.16.0"
-    val scalaCheck      = "1.16.0"
+    val tofu              = "0.10.6"
+    val derevo            = "0.12.5"
+    val catsEffect        = "2.5.3"
+    val doobie            = "0.13.4"
+    val pureconfig        = "0.14.1"
+    val tapir             = "0.18.3"
+    val newtype           = "0.4.3"
+    val mouse             = "0.26.2"
+    val enumeratum        = "1.7.0"
+    val enumeratumCirce   = "1.7.0"
+    val sttpVersion       = "3.3.11"
+    val redis             = "0.14.0"
+    val jawnFs2Version    = "1.0.0"
+    val fs2KafkaVersion   = "1.4.1"
+    val circeVersion      = "0.14.1"
+    val scalaland         = "0.6.1"
+    val http4s            = "0.22.11"
+    val catsRetry         = "2.1.1"
+    val specs2            = "4.16.0"
+    val scalaCheck        = "1.16.0"
     val scodecCoreVersion = "1.11.7"
     val scodecBitsVersion = "1.1.21"
     val scodecCatsVersion = "1.1.0"
 
-    val betterMonadicFor = "0.3.1"
-    val kindProjector    = "0.13.2"
+    val betterMonadicFor           = "0.3.1"
+    val kindProjector              = "0.13.2"
+    val TestContainersScalaVersion = "0.40.5"
+    val ScalaTestVersion           = "3.2.11"
+    val ScalaTestPlusVersion       = "3.2.11.0"
+    val FlywayVersion              = "5.1.1"
   }
 
   object Libraries {
@@ -88,10 +92,19 @@ object Dependencies {
     val specs2Core = "org.specs2"     %% "specs2-core" % V.specs2     % Test
     val scalaCheck = "org.scalacheck" %% "scalacheck"  % V.scalaCheck % Test
 
+    val flyway = "org.flywaydb" % "flyway-core" % V.FlywayVersion
+
     val Scodec = List(
       "org.scodec" %% "scodec-core" % V.scodecCoreVersion,
       "org.scodec" %% "scodec-bits" % V.scodecBitsVersion,
       "org.scodec" %% "scodec-cats" % V.scodecCatsVersion
+    )
+
+    val testing = List(
+      "org.scalactic" %% "scalactic"                       % V.ScalaTestVersion,
+      "org.scalatest" %% "scalatest"                       % V.ScalaTestVersion           % Test,
+      "com.dimafeng"  %% "testcontainers-scala-scalatest"  % V.TestContainersScalaVersion % Test,
+      "com.dimafeng"  %% "testcontainers-scala-postgresql" % V.TestContainersScalaVersion % Test
     )
   }
 

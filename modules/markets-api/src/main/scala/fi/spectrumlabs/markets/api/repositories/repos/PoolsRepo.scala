@@ -47,7 +47,7 @@ object PoolsRepo {
         .mapK(txr.trans)
     }
 
-  final private class Impl(sql: PoolsSql) extends PoolsRepo[ConnectionIO] {
+  final class Impl(sql: PoolsSql) extends PoolsRepo[ConnectionIO] {
 
     def getPools: ConnectionIO[List[PoolDb]] =
       sql.getPools.to[List]

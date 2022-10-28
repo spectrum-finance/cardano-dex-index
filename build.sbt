@@ -132,8 +132,10 @@ lazy val api = project
     Libraries.tapirRedoc,
     Libraries.tapirDocs,
     Libraries.tapirOpenApi,
-    Libraries.http4sServer
-  ))
+    Libraries.http4sServer,
+    Libraries.flyway,
+    Libraries.scalaCheck
+  ) ++ Libraries.testing)
   .dependsOn(core, ratesResolver)
   .settings(assembly / assemblyJarName := "markets-api.jar")
   .enablePlugins(JavaAppPackaging, UniversalPlugin, DockerPlugin)
