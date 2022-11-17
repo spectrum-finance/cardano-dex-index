@@ -26,7 +26,6 @@ object ResolverService {
     pools: PoolsService[F],
     network: Network[F],
     metadataService: MetadataService[F],
-    tokenFetcher: TokenFetcher[F],
     logs: Logs[I, F]
   ): I[ResolverService[F]] =
     logs.forService[ResolverService[F]].map(implicit __ => new Impl[F](config))
@@ -34,8 +33,7 @@ object ResolverService {
   final private class Impl[F[_]: Monad: Logging](config: ResolverConfig)(implicit
     pools: PoolsService[F],
     network: Network[F],
-    metadataService: MetadataService[F],
-    tokenFetcher: TokenFetcher[F]
+    metadataService: MetadataService[F]
   ) extends ResolverService[F] {
 
     def resolve: F[List[ResolvedRate]] =

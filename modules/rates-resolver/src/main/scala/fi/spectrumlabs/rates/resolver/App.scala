@@ -53,7 +53,6 @@ object App extends EnvApp[AppContext] {
       implicit0(network: Network[RunF])             <- Resource.eval(Network.create[InitF, RunF](configs.network))
       implicit0(meta: Metadata[RunF])               <- Resource.eval(Metadata.create[InitF, RunF](configs.network))
       implicit0(metaService: MetadataService[RunF]) <- Resource.eval(MetadataService.create[InitF, RunF])
-      implicit0(tokens: TokenFetcher[RunF]) = TokenFetcher.make[RunF](configs.tokenFetcher)
       implicit0(rService: ResolverService[RunF])    <- Resource.eval(ResolverService.create[InitF, RunF](configs.resolver))
 
       resolver <- Resource.eval(Resolver.create[InitF, StreamF, RunF](configs.resolver))

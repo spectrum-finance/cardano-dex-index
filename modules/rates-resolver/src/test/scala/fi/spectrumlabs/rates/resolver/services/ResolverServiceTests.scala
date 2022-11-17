@@ -32,9 +32,8 @@ class ResolverServiceTests extends Specification {
         genAdaPool.sample.get,
         genAdaPool.sample.get
       )
-      val validTokens = pools.flatMap(p => p.x.asset :: p.y.asset :: Nil)
 
-      val (resolver, expectedRates) = genState(pools, adaRate, validTokens)
+      val (resolver, expectedRates) = genState(pools, adaRate)
 
       val res = resolver.resolve.unsafeRunSync().filter(_.asset =!= AdaAssetClass)
 
@@ -56,9 +55,8 @@ class ResolverServiceTests extends Specification {
         genAdaPool.sample.get,
         genAdaPool.sample.get
       )
-      val validTokens = pools.flatMap(p => p.x.asset :: p.y.asset :: Nil)
 
-      val (resolver, expectedRates) = genState(pools, adaRate, validTokens)
+      val (resolver, expectedRates) = genState(pools, adaRate)
 
       val res = resolver.resolve.unsafeRunSync().filter(_.asset =!= AdaAssetClass)
 
@@ -81,9 +79,8 @@ class ResolverServiceTests extends Specification {
         adaPool,
         nonAdaPool
       )
-      val validTokens = pools.flatMap(p => p.x.asset :: p.y.asset :: Nil)
 
-      val (resolver, expectedRates) = genState(pools, adaRate, validTokens)
+      val (resolver, expectedRates) = genState(pools, adaRate)
 
       val res = resolver.resolve.unsafeRunSync().filter(_.asset =!= AdaAssetClass)
 
@@ -109,9 +106,8 @@ class ResolverServiceTests extends Specification {
         adaPool2,
         nonAdaPool
       )
-      val validTokens = pools.flatMap(p => p.x.asset :: p.y.asset :: Nil)
 
-      val (resolver, expectedRates) = genState(pools, adaRate, validTokens)
+      val (resolver, expectedRates) = genState(pools, adaRate)
 
       val res = resolver.resolve.unsafeRunSync().filter(_.asset =!= AdaAssetClass)
 
@@ -127,7 +123,7 @@ class ResolverServiceTests extends Specification {
     }
   }
 
-  private def genState(pools: List[Pool], adaRate: BigDecimal, tokenList: List[AssetClass]): (ResolverService[SyncIO], List[ResolvedRate]) = {
+  private def genState(pools: List[Pool], adaRate: BigDecimal): (ResolverService[SyncIO], List[ResolvedRate]) = {
     val assets: List[AssetClass] =
       pools
         .flatMap(p => p.x.asset :: p.y.asset :: Nil)
@@ -137,7 +133,6 @@ class ResolverServiceTests extends Specification {
     implicit val poolsRepo: PoolsService[SyncIO]      = PoolsServiceMock.create[SyncIO](pools)
     implicit val metaService: MetadataService[SyncIO] = MetadataServiceMock.create[SyncIO](assetsWithDecimals)
     implicit val network: Network[SyncIO]             = NetworkMock.create[SyncIO](adaRate)
-    implicit val tokens: TokenFetcher[SyncIO]         = TokenFetcherMock.create[SyncIO](tokenList)
 
     val resolver: ResolverService[SyncIO] = ResolverService.create[SyncIO, SyncIO](conf).unsafeRunSync()
 
