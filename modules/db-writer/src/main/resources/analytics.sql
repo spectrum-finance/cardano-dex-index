@@ -82,4 +82,4 @@ create table if not exists pool (
 );
 
 create unique index if not exists pool_id on transaction (id);
-create unique index if not exists pool_id_pool_id on transaction (id, pool_id);
+create unique index if not exists pool_id_pool_id on pool (pool_id);
