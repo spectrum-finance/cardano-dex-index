@@ -34,9 +34,6 @@ services:
       - "${PWD}/configs/scripts:/scripts"
       - "${PWD}/configs/marketTracker.dhall:/etc/cardano-markets-tracker/config.dhall:ro"
     #command: /usr/config.yml
-    depends_on:
-      - kafkaV21
-      - cardano-node
     logging:
       options:
         max-size: "10m"

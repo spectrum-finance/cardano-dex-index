@@ -24,17 +24,20 @@ object AddressCredential {
           c.downField("contents").as[String].map(contents => ScriptAddressCredential(contents, "ScriptCredential"))
         case "PubKeyCredential" =>
           c.downField("contents")
-            .as[PubKeyCredentialContent]
+            .as[PubKeyHash]
             .map(contents => PubKeyAddressCredential(contents, "PubKeyCredential"))
       }
   }
 }
 
 final case class ScriptAddressCredential(contents: String, tag: String) extends AddressCredential
-final case class PubKeyAddressCredential(contents: PubKeyCredentialContent, tag: String) extends AddressCredential
+final case class PubKeyAddressCredential(contents: PubKeyHash, tag: String) extends AddressCredential
 
 @derive(encoder, decoder)
-final case class PubKeyCredentialContent(getPubKeyHash: String)
+final case class PubKeyHash(getPubKeyHash: String)
+
+@derive(encoder, decoder)
+final case class StakePubKeyHash(unStakePubKeyHash: PubKeyHash)
 
 @derive(encoder, decoder)
 final case class AddressStakingCredential()

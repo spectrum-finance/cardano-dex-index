@@ -42,8 +42,8 @@ in
     },
   eventSourceConfig =
     { startAt =
-        { slot = 2538148
-        , hash = "438f1ea173969e5f130324843f923f14abc187078452aa7e83de467e17a89cb8"
+        { slot = 9151725
+        , hash = "26cb36001cb8ed7a7ab6060d3e2c4471be27722f98181ee8550696d43fc53de2"
         }
     },
   lederHistoryConfig =
