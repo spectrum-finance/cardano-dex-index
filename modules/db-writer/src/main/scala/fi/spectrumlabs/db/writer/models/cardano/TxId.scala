@@ -4,4 +4,4 @@ import derevo.circe.magnolia.{decoder, encoder}
 import derevo.derive
 
 @derive(encoder, decoder)
-final case class Coin(unAssetClass: AssetClass)
+final case class TxId (getTxId: String)
