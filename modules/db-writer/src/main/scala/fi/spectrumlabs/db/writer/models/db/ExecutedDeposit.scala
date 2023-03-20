@@ -7,6 +7,7 @@ import fi.spectrumlabs.core.models.domain.AssetClass.syntax._
 import fi.spectrumlabs.db.writer.models.streaming.{ExecutedOrderEvent => Executed}
 import cats.syntax.option._
 import fi.spectrumlabs.core.models.domain.{Amount, Coin}
+import fi.spectrumlabs.db.writer.models.cardano.{DepositAction, Order}
 
 final case class ExecutedDeposit(
   poolId: Coin,

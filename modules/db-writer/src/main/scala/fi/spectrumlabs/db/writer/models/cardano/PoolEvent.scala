@@ -5,7 +5,7 @@ import derevo.derive
 
 @derive(encoder, decoder)
 final case class PoolEvent(
-  outCollateral: Int,
+  outCollateral: Long,
   poolCoinLq: CoinWrapper,
   poolCoinX: CoinWrapper,
   poolCoinY: CoinWrapper,

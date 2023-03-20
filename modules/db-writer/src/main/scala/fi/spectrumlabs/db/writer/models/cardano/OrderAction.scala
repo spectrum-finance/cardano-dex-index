@@ -32,6 +32,7 @@ final case class DepositAction(
   adaCollateral: Long,
   depositExFee: ExFee,
   depositPair: DepositPair,
+  depositLq: CoinWrapper,
   depositPoolId: CoinWrapper,
   depositRewardPkh: PubKeyHash,
   depositRewardSPkh: Option[StakePubKeyHash]
