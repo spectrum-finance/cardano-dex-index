@@ -22,7 +22,6 @@ object AppliedTransaction {
     override def apply(c: HCursor): Result[AppliedTransaction] =
       c.values.toRight(DecodingFailure("AppliedTransaction doesn't contain values", List.empty)).flatMap {
         appliedTxValues =>
-          println(appliedTxValues.last)
           appliedTxValues.last.hcursor.values
             .toRight(DecodingFailure("MinimalTx doesn't contain values", List.empty))
             .flatMap { minimalTxValues =>

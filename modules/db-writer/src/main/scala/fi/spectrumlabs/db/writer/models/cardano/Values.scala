@@ -25,15 +25,11 @@ object Values {
   implicit val decoder: Decoder[Values] = new Decoder[Values] {
 
     override def apply(c: HCursor): Result[Values] = {
-      println(c.values)
       c.values.toRight(DecodingFailure("test", List.empty)).flatMap { valuesArray =>
-        println(s"valuesArray: $valuesArray")
-        println(valuesArray.head.as[CurrencySymbol])
         for {
           curSymbol <- valuesArray.head.as[CurrencySymbol]
           tokens <- if (valuesArray.size == 2)
                       {
-                        println(s"valuesArray.last.hcursor.downArray.values: ${valuesArray.last.hcursor.values}")
                         valuesArray.last.hcursor.values
                           .toRight(DecodingFailure("test1", List.empty))
                           .flatMap(l => l.toList.traverse(_.as[TokenValue]))
@@ -59,7 +55,6 @@ object TokenValue {
   implicit val decoder: Decoder[TokenValue] = new Decoder[TokenValue] {
 
     override def apply(c: HCursor): Result[TokenValue] = {
-      println(s"token value cursor: ${c}")
       c.values.toRight(DecodingFailure("No array in tokenValue", List.empty)).flatMap { array =>
         for {
           tokenName <- array.head.as[TokenName]

@@ -13,7 +13,7 @@ import fi.spectrumlabs.db.writer.classes.Handle
 import fi.spectrumlabs.db.writer.config.{ConfigBundle, _}
 import fi.spectrumlabs.db.writer.models._
 import fi.spectrumlabs.db.writer.models.db.{ExecutedDeposit, ExecutedRedeem, ExecutedSwap, Pool}
-import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, ExecutedOrderEvent, PoolEvent}
+import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, ExecutedOrderEvent}
 import fi.spectrumlabs.db.writer.persistence.PersistBundle
 import fi.spectrumlabs.db.writer.programs.{HandlersBundle, WriterProgram}
 import fs2.kafka.RecordDeserializer
@@ -29,7 +29,7 @@ import zio.interop.catz._
 import zio.{ExitCode, URIO, ZIO}
 import fi.spectrumlabs.core.pg.doobieLogging
 import fi.spectrumlabs.core.pg.PostgresTransactor
-import fi.spectrumlabs.db.writer.models.cardano.Order
+import fi.spectrumlabs.db.writer.models.cardano.{Confirmed, Order, PoolEvent}
 
 object App extends EnvApp[AppContext] {
 
@@ -59,10 +59,10 @@ object App extends EnvApp[AppContext] {
 //          String,
 //          Option[Order[_]]
 //        ](configs.executedOpsConsumer, configs.kafka)
-      implicit0(poolsConsumer: Consumer[String, Option[PoolEvent], StreamF, RunF]) =
+      implicit0(poolsConsumer: Consumer[String, Option[Confirmed[PoolEvent]], StreamF, RunF]) =
         makeConsumer[
           String,
-          Option[PoolEvent]
+          Option[Confirmed[PoolEvent]]
         ](configs.poolsConsumer, configs.kafka)
       implicit0(persistBundle: PersistBundle[RunF]) = PersistBundle.create[xa.DB, RunF]
       txHandler          <- makeTxHandler(configs.writer)

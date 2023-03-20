@@ -52,6 +52,7 @@ object Handle {
     def handle(in: NonEmptyList[A]): F[Unit] =
       (in.map(toSchema(_)) |> persist.persist)
         .flatMap(r => info"Finished handle [$handleLogName] process for $r elements. Batch size was ${in.size}.")
+
   }
 
   private final class ImplList[A, B, F[_]: Monad: Logging](persist: Persist[B, F], handleLogName: String)(implicit

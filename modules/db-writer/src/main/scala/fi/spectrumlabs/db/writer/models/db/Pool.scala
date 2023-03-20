@@ -41,21 +41,21 @@ object Pool {
         0
       )
 
-  implicit val toSchema: ToSchema[streaming.PoolEvent, Pool] =
-    (in: streaming.PoolEvent) =>
-      Pool(
-        in.pool.id.toCoin,
-        in.pool.reservesX,
-        in.pool.reservesY,
-        in.pool.liquidity,
-        in.pool.x.toCoin,
-        in.pool.y.toCoin,
-        in.pool.lq.toCoin,
-        in.pool.fee.poolFeeNum,
-        in.pool.fee.poolFeeDen,
-        in.pool.outCollateral,
-        in.outputId,
-        in.timestamp
-      )
+//  implicit val toSchema: ToSchema[streaming.PoolEvent, Pool] =
+//    (in: streaming.PoolEvent) =>
+//      Pool(
+//        in.pool.id.toCoin,
+//        in.pool.reservesX,
+//        in.pool.reservesY,
+//        in.pool.liquidity,
+//        in.pool.x.toCoin,
+//        in.pool.y.toCoin,
+//        in.pool.lq.toCoin,
+//        in.pool.fee.poolFeeNum,
+//        in.pool.fee.poolFeeDen,
+//        in.pool.outCollateral,
+//        in.outputId,
+//        in.timestamp
+//      )
 
 }

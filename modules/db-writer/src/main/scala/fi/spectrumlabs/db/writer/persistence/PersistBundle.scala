@@ -2,6 +2,7 @@ package fi.spectrumlabs.db.writer.persistence
 
 import cats.{Applicative, FlatMap}
 import fi.spectrumlabs.db.writer.models._
+import fi.spectrumlabs.db.writer.models.cardano.{Confirmed, PoolEvent}
 import fi.spectrumlabs.db.writer.models.db._
 import fi.spectrumlabs.db.writer.schema.Schema._
 import tofu.doobie.LiftConnectionIO
