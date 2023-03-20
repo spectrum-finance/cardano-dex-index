@@ -4,6 +4,7 @@ import cats.syntax.option._
 import fi.spectrumlabs.core.models.domain.AssetClass.syntax.AssetClassOps
 import fi.spectrumlabs.core.models.domain.{Amount, Coin}
 import fi.spectrumlabs.db.writer.classes.ToSchema
+import fi.spectrumlabs.db.writer.models.db.{Order => OrderDB}
 import fi.spectrumlabs.db.writer.models.cardano.{DepositAction, Order, SwapAction}
 import fi.spectrumlabs.db.writer.models.orders.{ExFee, StakePKH, TxOutRef}
 
@@ -19,7 +20,7 @@ final case class Swap(
   actualQuote: Amount,
   minQuoteAmount: Amount,
   orderInputId: TxOutRef
-)
+) extends OrderDB
 
 object Swap {
 

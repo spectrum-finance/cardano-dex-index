@@ -29,7 +29,7 @@ import zio.interop.catz._
 import zio.{ExitCode, URIO, ZIO}
 import fi.spectrumlabs.core.pg.doobieLogging
 import fi.spectrumlabs.core.pg.PostgresTransactor
-import fi.spectrumlabs.db.writer.models.cardano.{Confirmed, Order, PoolEvent}
+import fi.spectrumlabs.db.writer.models.cardano.{Action, Confirmed, Order, PoolEvent}
 
 object App extends EnvApp[AppContext] {
 
@@ -54,11 +54,11 @@ object App extends EnvApp[AppContext] {
                                                                              configs.txConsumer,
                                                                              configs.kafka
                                                                            )
-//      implicit0(executedOpsConsumer: Consumer[String, Option[Order[_]], StreamF, RunF]) =
-//        makeConsumer[
-//          String,
-//          Option[Order[_]]
-//        ](configs.executedOpsConsumer, configs.kafka)
+      implicit0(executedOpsConsumer: Consumer[String, Option[Order[Action]], StreamF, RunF]) =
+        makeConsumer[
+          String,
+          Option[Order[Action]]
+        ](configs.executedOpsConsumer, configs.kafka)
       implicit0(poolsConsumer: Consumer[String, Option[Confirmed[PoolEvent]], StreamF, RunF]) =
         makeConsumer[
           String,
@@ -66,7 +66,7 @@ object App extends EnvApp[AppContext] {
         ](configs.poolsConsumer, configs.kafka)
       implicit0(persistBundle: PersistBundle[RunF]) = PersistBundle.create[xa.DB, RunF]
       txHandler          <- makeTxHandler(configs.writer)
-//      executedOpsHandler <- makeOrdersHandler(configs.writer)
+      executedOpsHandler <- makeOrdersHandler(configs.writer)
       poolsHandler       <- makePoolsHandler(configs.writer)
       bundle  = HandlersBundle.make[StreamF](txHandler, List(poolsHandler))
       program = WriterProgram.create[StreamF, RunF](bundle, configs.writer)

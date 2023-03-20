@@ -7,9 +7,10 @@ import fi.spectrumlabs.core.streaming.Consumer
 import fi.spectrumlabs.db.writer.App.{InitF, RunF, StreamF}
 import fi.spectrumlabs.db.writer.classes.Handle
 import fi.spectrumlabs.db.writer.config.WriterConfig
-import fi.spectrumlabs.db.writer.models.cardano.{Confirmed, DepositAction, Order, PoolEvent, RedeemAction, SwapAction}
+import fi.spectrumlabs.db.writer.models.cardano.{Action, Confirmed, DepositAction, Order, PoolEvent, RedeemAction, SwapAction}
 import fi.spectrumlabs.db.writer.models.db.{Deposit, ExecutedDeposit, ExecutedRedeem, ExecutedSwap, Pool, Redeem, Swap}
 import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, ExecutedOrderEvent}
+import fi.spectrumlabs.db.writer.models.db.{Order => OrderDB}
 import fi.spectrumlabs.db.writer.models.{Input, Output, Redeemer, Transaction}
 import fi.spectrumlabs.db.writer.persistence.PersistBundle
 import fi.spectrumlabs.db.writer.programs.Handler
@@ -51,20 +52,17 @@ object Handlers {
 
   def makeOrdersHandler(config: WriterConfig)(implicit
     bundle: PersistBundle[RunF],
-    consumer: Consumer[_, Option[Order[_]], StreamF, RunF],
+    consumer: Consumer[_, Option[Order[Action]], StreamF, RunF],
     logs: Logs[InitF, RunF]
-  ): Resource[InitF, Handler[StreamF]] = ???
-    //Resource.eval {
-//    import bundle._
-//    for {
-//      deposit <-
-//        Handle.createOption[Order[DepositAction], Deposit, InitF, RunF](executedDeposit, DepositHandleName)
-//      swap   <- Handle.createOption[Order[SwapAction], Swap, InitF, RunF](executedSwap, SwapHandleName)
-//      redeem <- Handle.createOption[Order[RedeemAction], Redeem, InitF, RunF](executedRedeem, RedeemHandleName)
-//      implicit0(nelHandlers: NonEmptyList[Handle[Order[_], RunF]]) = NonEmptyList.of(deposit, swap, redeem)
-//      handler <- Handler.create[Order[_], StreamF, RunF, Chunk, InitF](config, ExecutedOrdersHandlerName)
-//    } yield handler
-  //}
+  ): Resource[InitF, Handler[StreamF]] = Resource.eval {
+    import bundle._
+    for {
+      order <-
+        Handle.createOption[Order[Action], OrderDB, InitF, RunF](order, DepositHandleName)
+      implicit0(nelHandlers: NonEmptyList[Handle[Order[Action], RunF]]) = NonEmptyList.of(order)
+      handler <- Handler.create[Order[Action], StreamF, RunF, Chunk, InitF](config, ExecutedOrdersHandlerName)
+    } yield handler
+  }
 
   def makePoolsHandler(config: WriterConfig)(implicit
     bundle: PersistBundle[RunF],

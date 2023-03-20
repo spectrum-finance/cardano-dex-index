@@ -8,6 +8,12 @@ final case class Order[A <: Action](fullTxOut: FullTxOut, order: OrderAction[A])
 
 object Order {
 
+  implicit def commonDecoder: Decoder[Order[Action]] = new Decoder[Order[Action]] {
+
+    override def apply(c: HCursor): Result[Order[Action]] =
+      c.as[Order[SwapAction]].orElse(c.as[Order[DepositAction]]).orElse(c.as[Order[RedeemAction]])
+  }
+
   implicit def decoder[A <: Action](implicit actionDecoder: Decoder[A]): Decoder[Order[A]] = new Decoder[Order[A]] {
 
     override def apply(c: HCursor): Result[Order[A]] =

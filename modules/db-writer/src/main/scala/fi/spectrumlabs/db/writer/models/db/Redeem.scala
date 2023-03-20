@@ -7,6 +7,7 @@ import fi.spectrumlabs.core.models.domain.{Amount, Coin}
 import fi.spectrumlabs.db.writer.classes.ToSchema
 import fi.spectrumlabs.db.writer.models.cardano.{Order, RedeemAction, SwapAction}
 import fi.spectrumlabs.db.writer.models.orders.{ExFee, PublicKeyHash, StakePKH, TxOutRef}
+import fi.spectrumlabs.db.writer.models.db.{Order => OrderDB}
 
 final case class Redeem(
   poolId: Coin,
@@ -20,7 +21,7 @@ final case class Redeem(
   rewardPkh: PublicKeyHash,
   stakePkh: Option[StakePKH],
   orderInputId: TxOutRef
-)
+) extends OrderDB
 
 object Redeem {
 
