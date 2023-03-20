@@ -13,7 +13,7 @@ import fi.spectrumlabs.db.writer.classes.Handle
 import fi.spectrumlabs.db.writer.config.{ConfigBundle, _}
 import fi.spectrumlabs.db.writer.models._
 import fi.spectrumlabs.db.writer.models.db.{ExecutedDeposit, ExecutedRedeem, ExecutedSwap, Pool}
-import fi.spectrumlabs.db.writer.models.streaming.{ExecutedOrderEvent, PoolEvent}
+import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, ExecutedOrderEvent, PoolEvent}
 import fi.spectrumlabs.db.writer.persistence.PersistBundle
 import fi.spectrumlabs.db.writer.programs.{HandlersBundle, WriterProgram}
 import fs2.kafka.RecordDeserializer
@@ -29,6 +29,7 @@ import zio.interop.catz._
 import zio.{ExitCode, URIO, ZIO}
 import fi.spectrumlabs.core.pg.doobieLogging
 import fi.spectrumlabs.core.pg.PostgresTransactor
+import fi.spectrumlabs.db.writer.models.cardano.Order
 
 object App extends EnvApp[AppContext] {
 
@@ -49,15 +50,15 @@ object App extends EnvApp[AppContext] {
                                                        )
                                                      )
       implicit0(logsDb: Logs[InitF, xa.DB]) = Logs.sync[InitF, xa.DB]
-      implicit0(txConsumer: Consumer[String, Option[Tx], StreamF, RunF]) = makeConsumer[String, Option[Tx]](
+      implicit0(txConsumer: Consumer[String, Option[AppliedTransaction], StreamF, RunF]) = makeConsumer[String, Option[AppliedTransaction]](
                                                                              configs.txConsumer,
                                                                              configs.kafka
                                                                            )
-      implicit0(executedOpsConsumer: Consumer[String, Option[ExecutedOrderEvent], StreamF, RunF]) =
-        makeConsumer[
-          String,
-          Option[ExecutedOrderEvent]
-        ](configs.executedOpsConsumer, configs.kafka)
+//      implicit0(executedOpsConsumer: Consumer[String, Option[Order[_]], StreamF, RunF]) =
+//        makeConsumer[
+//          String,
+//          Option[Order[_]]
+//        ](configs.executedOpsConsumer, configs.kafka)
       implicit0(poolsConsumer: Consumer[String, Option[PoolEvent], StreamF, RunF]) =
         makeConsumer[
           String,
@@ -65,9 +66,9 @@ object App extends EnvApp[AppContext] {
         ](configs.poolsConsumer, configs.kafka)
       implicit0(persistBundle: PersistBundle[RunF]) = PersistBundle.create[xa.DB, RunF]
       txHandler          <- makeTxHandler(configs.writer)
-      executedOpsHandler <- makeExecutedOrdersHandler(configs.writer)
+//      executedOpsHandler <- makeOrdersHandler(configs.writer)
       poolsHandler       <- makePoolsHandler(configs.writer)
-      bundle  = HandlersBundle.make[StreamF](txHandler, List(executedOpsHandler, poolsHandler))
+      bundle  = HandlersBundle.make[StreamF](txHandler, List(poolsHandler))
       program = WriterProgram.create[StreamF, RunF](bundle, configs.writer)
       r <- Resource.eval(program.run).mapK(ul.liftF)
     } yield r

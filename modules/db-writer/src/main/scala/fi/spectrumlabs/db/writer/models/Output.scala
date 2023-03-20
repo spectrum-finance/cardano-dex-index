@@ -4,15 +4,17 @@ import cats.data.NonEmptyList
 import fi.spectrumlabs.explorer.models._
 import fi.spectrumlabs.core.models.Tx
 import fi.spectrumlabs.db.writer.classes.ToSchema
+import fi.spectrumlabs.db.writer.models.streaming.AppliedTransaction
 import io.circe.Json
 import io.circe.syntax._
+import cats.syntax.option._
 
 final case class Output(
   txHash: TxHash,
   txIndex: Long,
   ref: OutRef,
   blockHash: BlockHash,
-  index: Int,
+  index: Long,
   addr: Addr,
   rawAddr: Bytea,
   paymentCred: Option[PaymentCred],
@@ -25,6 +27,25 @@ final case class Output(
 
 object Output {
 
+  implicit val toSchemaNew: ToSchema[AppliedTransaction, NonEmptyList[Output]] = (in: AppliedTransaction) =>
+    in.txOutputs.map { output =>
+      Output(
+        TxHash(in.txId.getTxId),
+        0, // todo: remove
+        OutRef(output.fullTxOutRef.txOutRefId.getTxId ++ "#" ++ output.fullTxOutRef.txOutRefIdx.toString),
+        BlockHash(in.blockId),
+        in.slotNo,
+        Addr(output.fullTxOutAddress.addressCredential.toString),
+        Bytea(""), //todo: fill with orig content
+        none,
+        output.fullTxOutValue.asJson,
+        none,
+        none,
+        none,
+        none
+      )
+    }
+
   implicit val toSchema: ToSchema[Tx, NonEmptyList[Output]] = (in: Tx) =>
     in.outputs.map { o =>
       Output(
@@ -32,7 +53,7 @@ object Output {
         in.blockIndex,
         o.ref,
         o.blockHash,
-        o.index,
+        o.index.toLong,
         o.addr,
         o.rawAddr,
         o.paymentCred,

@@ -1,9 +1,9 @@
 package fi.spectrumlabs.db.writer.schema
 
-import fi.spectrumlabs.db.writer.models.db.ExecutedDeposit
+import fi.spectrumlabs.db.writer.models.db.{Deposit, ExecutedDeposit}
 
-class ExecutedDepositSchema extends Schema[ExecutedDeposit] {
-  val tableName: String = "executed_deposit"
+class DepositSchema extends Schema[Deposit] {
+  val tableName: String = "deposit"
 
   val fields: List[String] = List(
     "pool_nft",

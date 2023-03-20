@@ -14,9 +14,9 @@ final case class PersistBundle[F[_]](
   output: Persist[Output, F],
   transaction: Persist[Transaction, F],
   redeemer: Persist[Redeemer, F],
-  executedDeposit: Persist[ExecutedDeposit, F],
-  executedSwap: Persist[ExecutedSwap, F],
-  executedRedeem: Persist[ExecutedRedeem, F],
+  executedDeposit: Persist[Deposit, F],
+  executedSwap: Persist[Swap, F],
+  executedRedeem: Persist[Redeem, F],
   pool: Persist[Pool, F]
 )
 
@@ -31,9 +31,9 @@ object PersistBundle {
       Persist.create[Output, D, F](output),
       Persist.create[Transaction, D, F](transaction),
       Persist.create[Redeemer, D, F](redeemer),
-      Persist.create[ExecutedDeposit, D, F](executedDeposit),
-      Persist.create[ExecutedSwap, D, F](executedSwap),
-      Persist.create[ExecutedRedeem, D, F](executedRedeem),
+      Persist.create[Deposit, D, F](depositSchema),
+      Persist.create[Swap, D, F](swapSchema),
+      Persist.create[Redeem, D, F](redeemSchema),
       Persist.create[Pool, D, F](pool)
     )
 }

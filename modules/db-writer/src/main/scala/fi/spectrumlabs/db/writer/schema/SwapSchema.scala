@@ -1,9 +1,9 @@
 package fi.spectrumlabs.db.writer.schema
 
-import fi.spectrumlabs.db.writer.models.db.ExecutedSwap
+import fi.spectrumlabs.db.writer.models.db.{ExecutedSwap, Swap}
 
-class ExecutedSwapSchema extends Schema[ExecutedSwap] {
-  val tableName: String = "executed_swap"
+class SwapSchema extends Schema[Swap] {
+  val tableName: String = "swap"
 
   val fields: List[String] = List(
     "base",
