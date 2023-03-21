@@ -14,6 +14,7 @@ import tofu.syntax.monadic._
 
 final case class PersistBundle[F[_]](
   input: Persist[Input, F],
+  executedInput: Persist[ExecutedInput, F],
   output: Persist[Output, F],
   transaction: Persist[Transaction, F],
   redeemer: Persist[Redeemer, F],
@@ -26,11 +27,12 @@ final case class PersistBundle[F[_]](
 object PersistBundle {
 
   def create[D[_]: FlatMap: LiftConnectionIO, F[_]: Monad](implicit
-                                                           elh: EmbeddableLogHandler[D],
-                                                           txr: Txr[F, D]
-  ): PersistBundle[F] = {
+    elh: EmbeddableLogHandler[D],
+    txr: Txr[F, D]
+  ): PersistBundle[F] =
     PersistBundle(
       Persist.create[Input, D, F](input),
+      Persist.createForExecuted[D, F](executedInputSchema),
       Persist.create[Output, D, F](output),
       Persist.create[Transaction, D, F](transaction),
       Persist.create[Redeemer, D, F](redeemer),
@@ -39,5 +41,4 @@ object PersistBundle {
       Persist.create[Redeem, D, F](redeemSchema),
       Persist.create[Pool, D, F](pool)
     )
-  }
 }

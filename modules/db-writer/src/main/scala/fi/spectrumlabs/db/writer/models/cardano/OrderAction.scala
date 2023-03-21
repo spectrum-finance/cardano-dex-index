@@ -32,7 +32,7 @@ final case class DepositAction(
   adaCollateral: Long,
   depositExFee: ExFee,
   depositPair: DepositPair,
-  depositLq: CoinWrapper,
+  depositLq: Coin,
   depositPoolId: CoinWrapper,
   depositRewardPkh: PubKeyHash,
   depositRewardSPkh: Option[StakePubKeyHash]
@@ -82,6 +82,8 @@ final case class RedeemAction(
   redeemLq: CoinWrapper,
   redeemLqIn: Long,
   redeemPoolId: CoinWrapper,
+  redeemPoolX: CoinWrapper,
+  redeemPoolY: CoinWrapper,
   redeemRewardPkh: PubKeyHash,
   redeemRewardSPkh: Option[StakePubKeyHash]
 ) extends Action

@@ -6,7 +6,7 @@ import fi.spectrumlabs.core.models.domain.AssetClass.syntax.AssetClassOps
 import fi.spectrumlabs.core.models.domain.{Amount, Coin}
 import fi.spectrumlabs.db.writer.classes.ToSchema
 import fi.spectrumlabs.db.writer.models.cardano.{Order, RedeemAction, RedeemOrder, SwapAction}
-import fi.spectrumlabs.db.writer.models.orders.{ExFee, PublicKeyHash, StakePKH, TxOutRef}
+import fi.spectrumlabs.db.writer.models.orders.{ExFee, PublicKeyHash, StakePKH, StakePubKeyHash, TxOutRef}
 
 final case class Redeem(
   poolId: Coin,
@@ -32,20 +32,22 @@ object Redeem {
     case orderAction: RedeemOrder =>
       Redeem(
         castFromCardano(orderAction.order.action.redeemPoolId.unCoin.unAssetClass).toCoin,
-        Coin("test1"), //todo: fixMe
-        Coin("test2"), //todo: fixMe
-        castFromCardano(orderAction.order.action.redeemPoolId.unCoin.unAssetClass).toCoin,
+        castFromCardano(orderAction.order.action.redeemPoolX.unCoin.unAssetClass).toCoin,
+        castFromCardano(orderAction.order.action.redeemPoolY.unCoin.unAssetClass).toCoin,
+        castFromCardano(orderAction.order.action.redeemLq.unCoin.unAssetClass).toCoin,
         Amount(0), //todo: fixMe
         Amount(0), //todo: fixMe
         Amount(orderAction.order.action.redeemLqIn),
         ExFee(orderAction.order.action.redeemExFee.unExFee),
         PublicKeyHash(orderAction.order.action.redeemRewardPkh.getPubKeyHash),
-        none, //todo: fixme
+        orderAction.order.action.redeemRewardSPkh.map(spkh =>
+          StakePKH(StakePubKeyHash(spkh.unStakePubKeyHash.getPubKeyHash))
+        ), //todo: fixme
         castFromCardano(orderAction.fullTxOut.fullTxOutRef),
         none,
         none,
         none,
-        none,
+        none
       ).some
     case _ => none
   }

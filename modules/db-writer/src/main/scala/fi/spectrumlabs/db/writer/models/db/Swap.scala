@@ -5,7 +5,7 @@ import fi.spectrumlabs.core.models.domain.AssetClass.syntax.AssetClassOps
 import fi.spectrumlabs.core.models.domain.{Amount, Coin}
 import fi.spectrumlabs.db.writer.classes.ToSchema
 import fi.spectrumlabs.db.writer.models.cardano.{DepositAction, Order, SwapAction, SwapOrder}
-import fi.spectrumlabs.db.writer.models.orders.{ExFee, StakePKH, TxOutRef}
+import fi.spectrumlabs.db.writer.models.orders.{ExFee, StakePKH, StakePubKeyHash, TxOutRef}
 
 final case class Swap(
   base: Coin,
@@ -36,7 +36,9 @@ object Swap {
         orderAction.order.action.swapExFee.exFeePerTokenNum,
         orderAction.order.action.swapExFee.exFeePerTokenDen,
         orderAction.order.action.swapRewardPkh.getPubKeyHash,
-        none, //todo: fixme
+        orderAction.order.action.swapRewardSPkh.map(spkh =>
+          StakePKH(StakePubKeyHash(spkh.unStakePubKeyHash.getPubKeyHash))
+        ),
         Amount(orderAction.order.action.swapBaseIn),
         Amount(0), //todo: fixme
         Amount(orderAction.order.action.swapMinQuoteOut),

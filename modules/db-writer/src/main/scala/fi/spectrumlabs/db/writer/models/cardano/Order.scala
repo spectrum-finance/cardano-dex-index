@@ -19,7 +19,7 @@ object SwapOrder {
         for {
           fullTxOut <- orderFields.head.as[FullTxOut]
           value <- if (orderFields.size == 2) orderFields.last.as[OrderAction[SwapAction]]
-          else DecodingFailure("Deposit pair doesn't contain 2 elems", List.empty).asLeft
+                   else DecodingFailure("Deposit pair doesn't contain 2 elems", List.empty).asLeft
         } yield SwapOrder(fullTxOut, value)
       }
   }
@@ -48,7 +48,7 @@ object RedeemOrder {
 
   implicit def decoder: Decoder[RedeemOrder] = new Decoder[RedeemOrder] {
 
-    override def apply(c: HCursor): Result[RedeemOrder] =
+    override def apply(c: HCursor): Result[RedeemOrder] = {
       c.values.toRight(DecodingFailure("Order should contains fields", List.empty)).flatMap { orderFields =>
         for {
           fullTxOut <- orderFields.head.as[FullTxOut]
@@ -56,6 +56,7 @@ object RedeemOrder {
           else DecodingFailure("Deposit pair doesn't contain 2 elems", List.empty).asLeft
         } yield RedeemOrder(fullTxOut, value)
       }
+    }
   }
 }
 

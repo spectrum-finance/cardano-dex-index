@@ -10,7 +10,7 @@ import fi.spectrumlabs.db.writer.config.WriterConfig
 import fi.spectrumlabs.db.writer.models.cardano.{Action, Confirmed, DepositAction, Order, PoolEvent, RedeemAction, SwapAction}
 import fi.spectrumlabs.db.writer.models.db.{Deposit, ExecutedDeposit, ExecutedRedeem, ExecutedSwap, Pool, Redeem, Swap}
 import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, ExecutedOrderEvent}
-import fi.spectrumlabs.db.writer.models.{Input, Output, Redeemer, Transaction}
+import fi.spectrumlabs.db.writer.models.{ExecutedInput, Input, Output, Redeemer, Transaction}
 import fi.spectrumlabs.db.writer.persistence.PersistBundle
 import fi.spectrumlabs.db.writer.programs.Handler
 import fs2.Chunk
@@ -26,6 +26,7 @@ object Handlers {
   val PoolsHandler              = "PoolsHandler"
   val TxHandleName              = "Transaction"
   val InHandleName              = "Input"
+  val ExecutedInput             = "ExecutedInput"
   val OutHandleName             = "Output"
   val ReedHandleName            = "Redeemer"
   val DepositHandleName         = "Deposit"
@@ -42,9 +43,10 @@ object Handlers {
     for {
       txn  <- Handle.createOne[AppliedTransaction, Transaction, InitF, RunF](transaction, TxHandleName)
       in   <- Handle.createNel[AppliedTransaction, Input, InitF, RunF](input, InHandleName)
+      eIn  <- Handle.createNel[AppliedTransaction, ExecutedInput, InitF, RunF](executedInput, ExecutedInput)
       out  <- Handle.createNel[AppliedTransaction, Output, InitF, RunF](output, OutHandleName)
       //reed <- Handle.createList[Tx, Redeemer, InitF, RunF](redeemer, ReedHandleName)
-      implicit0(nelHandlers: NonEmptyList[Handle[AppliedTransaction, RunF]]) = NonEmptyList.of(txn, in, out)
+      implicit0(nelHandlers: NonEmptyList[Handle[AppliedTransaction, RunF]]) = NonEmptyList.of(txn, in, out, eIn)
       handler <- Handler.create[AppliedTransaction, StreamF, RunF, Chunk, InitF](config, TxHandlerName)
     } yield handler
   }
