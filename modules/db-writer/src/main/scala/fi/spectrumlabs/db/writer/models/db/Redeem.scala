@@ -5,9 +5,8 @@ import cats.syntax.option.none
 import fi.spectrumlabs.core.models.domain.AssetClass.syntax.AssetClassOps
 import fi.spectrumlabs.core.models.domain.{Amount, Coin}
 import fi.spectrumlabs.db.writer.classes.ToSchema
-import fi.spectrumlabs.db.writer.models.cardano.{Order, RedeemAction, SwapAction}
+import fi.spectrumlabs.db.writer.models.cardano.{Order, RedeemAction, RedeemOrder, SwapAction}
 import fi.spectrumlabs.db.writer.models.orders.{ExFee, PublicKeyHash, StakePKH, TxOutRef}
-import fi.spectrumlabs.db.writer.models.db.{Order => OrderDB}
 
 final case class Redeem(
   poolId: Coin,
@@ -20,13 +19,17 @@ final case class Redeem(
   exFee: ExFee,
   rewardPkh: PublicKeyHash,
   stakePkh: Option[StakePKH],
-  orderInputId: TxOutRef
-) extends OrderDB
+  orderInputId: TxOutRef,
+  userOutputId: Option[TxOutRef],
+  poolInputId: Option[TxOutRef],
+  poolOutputId: Option[TxOutRef],
+  timestamp: Option[Long]
+)
 
 object Redeem {
 
-  implicit val streamingSchema: ToSchema[Order[RedeemAction], Option[Redeem]] = {
-    case orderAction: Order[RedeemAction] =>
+  implicit val streamingSchema: ToSchema[Order, Option[Redeem]] = {
+    case orderAction: RedeemOrder =>
       Redeem(
         castFromCardano(orderAction.order.action.redeemPoolId.unCoin.unAssetClass).toCoin,
         Coin("test1"), //todo: fixMe
@@ -38,7 +41,12 @@ object Redeem {
         ExFee(orderAction.order.action.redeemExFee.unExFee),
         PublicKeyHash(orderAction.order.action.redeemRewardPkh.getPubKeyHash),
         none, //todo: fixme
-        castFromCardano(orderAction.fullTxOut.fullTxOutRef)
+        castFromCardano(orderAction.fullTxOut.fullTxOutRef),
+        none,
+        none,
+        none,
+        none,
       ).some
+    case _ => none
   }
 }

@@ -54,10 +54,10 @@ object App extends EnvApp[AppContext] {
                                                                              configs.txConsumer,
                                                                              configs.kafka
                                                                            )
-      implicit0(executedOpsConsumer: Consumer[String, Option[Order[Action]], StreamF, RunF]) =
+      implicit0(executedOpsConsumer: Consumer[String, Option[Order], StreamF, RunF]) =
         makeConsumer[
           String,
-          Option[Order[Action]]
+          Option[Order]
         ](configs.executedOpsConsumer, configs.kafka)
       implicit0(poolsConsumer: Consumer[String, Option[Confirmed[PoolEvent]], StreamF, RunF]) =
         makeConsumer[
@@ -68,7 +68,7 @@ object App extends EnvApp[AppContext] {
       txHandler          <- makeTxHandler(configs.writer)
       executedOpsHandler <- makeOrdersHandler(configs.writer)
       poolsHandler       <- makePoolsHandler(configs.writer)
-      bundle  = HandlersBundle.make[StreamF](txHandler, List(poolsHandler))
+      bundle  = HandlersBundle.make[StreamF](txHandler, List(poolsHandler, executedOpsHandler))
       program = WriterProgram.create[StreamF, RunF](bundle, configs.writer)
       r <- Resource.eval(program.run).mapK(ul.liftF)
     } yield r
