@@ -24,7 +24,7 @@ final case class Redeem(
   poolInputId: Option[TxOutRef],
   poolOutputId: Option[TxOutRef],
   timestamp: Option[Long]
-)
+) extends DBOrder
 
 object Redeem {
 

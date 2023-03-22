@@ -4,6 +4,8 @@ import cats.data.NonEmptyList
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.{Functor, Monad}
+import fi.spectrumlabs.db.writer.models.ExecutedInput
+import fi.spectrumlabs.db.writer.models.streaming.AppliedTransaction
 import fi.spectrumlabs.db.writer.persistence.Persist
 import mouse.any._
 import tofu.logging.{Logging, Logs}
@@ -95,5 +97,10 @@ object Handle {
         case Nil =>
           info"Nothing to extract [$handleLogName]. Batch contains 0 elements to persist."
       }
+  }
+
+  // draft for executed inputs handler
+  private final class ExecutedOrdersHandler[F[_]: Monad: Logging](handleLogName: String) extends Handle[AppliedTransaction, F] {
+    override def handle(in: NonEmptyList[AppliedTransaction]): F[Unit] = ???
   }
 }

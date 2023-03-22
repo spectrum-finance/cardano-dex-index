@@ -23,7 +23,7 @@ final case class Swap(
   poolInputId: Option[TxOutRef],
   poolOutputId: Option[TxOutRef],
   timestamp: Option[Long]
-)
+) extends DBOrder
 
 object Swap {
 

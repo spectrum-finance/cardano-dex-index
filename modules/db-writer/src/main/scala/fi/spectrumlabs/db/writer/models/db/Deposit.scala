@@ -24,7 +24,7 @@ final case class Deposit(
   poolInputId: Option[TxOutRef],
   poolOutputId: Option[TxOutRef],
   timestamp: Option[Long]
-)
+) extends DBOrder
 
 object Deposit {
 
