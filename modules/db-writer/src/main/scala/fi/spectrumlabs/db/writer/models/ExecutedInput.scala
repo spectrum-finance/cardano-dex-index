@@ -10,13 +10,15 @@ final case class ExecutedInput(txHash: TxHash, slot: Long, outRef: OutRef, outIn
 
 object ExecutedInput {
 
-  implicit val toSchemaNew: ToSchema[AppliedTransaction, NonEmptyList[ExecutedInput]] = (in: AppliedTransaction) =>
-    in.txInputs.map { input =>
-      ExecutedInput(
-        TxHash(in.txId.getTxId),
-        in.slotNo,
-        OutRef(input.txInRef.txOutRefId.getTxId),
-        input.txInRef.txOutRefIdx.toInt
-      )
-    }
+  implicit val toSchemaNew: ToSchema[AppliedTransaction, NonEmptyList[ExecutedInput]] = {
+    case (in: AppliedTransaction) =>
+      in.txInputs.map { input =>
+        ExecutedInput(
+          TxHash(in.txId.getTxId),
+          in.slotNo,
+          OutRef(input.txInRef.txOutRefId.getTxId),
+          input.txInRef.txOutRefIdx.toInt
+        )
+      }
+  }
 }

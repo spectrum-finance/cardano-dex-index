@@ -13,7 +13,7 @@ import fi.spectrumlabs.db.writer.classes.Handle
 import fi.spectrumlabs.db.writer.config.{ConfigBundle, _}
 import fi.spectrumlabs.db.writer.models._
 import fi.spectrumlabs.db.writer.models.db.{ExecutedDeposit, ExecutedRedeem, ExecutedSwap, Pool}
-import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, ExecutedOrderEvent}
+import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, ExecutedOrderEvent, TxEvent}
 import fi.spectrumlabs.db.writer.persistence.PersistBundle
 import fi.spectrumlabs.db.writer.programs.{HandlersBundle, WriterProgram}
 import fs2.kafka.RecordDeserializer
@@ -30,6 +30,7 @@ import zio.{ExitCode, URIO, ZIO}
 import fi.spectrumlabs.core.pg.doobieLogging
 import fi.spectrumlabs.core.pg.PostgresTransactor
 import fi.spectrumlabs.db.writer.models.cardano.{Action, Confirmed, Order, PoolEvent}
+import fi.spectrumlabs.db.writer.repositories.OrdersRepository
 
 object App extends EnvApp[AppContext] {
 
@@ -50,7 +51,7 @@ object App extends EnvApp[AppContext] {
                                                        )
                                                      )
       implicit0(logsDb: Logs[InitF, xa.DB]) = Logs.sync[InitF, xa.DB]
-      implicit0(txConsumer: Consumer[String, Option[AppliedTransaction], StreamF, RunF]) = makeConsumer[String, Option[AppliedTransaction]](
+      implicit0(txConsumer: Consumer[String, Option[TxEvent], StreamF, RunF]) = makeConsumer[String, Option[TxEvent]](
                                                                              configs.txConsumer,
                                                                              configs.kafka
                                                                            )
@@ -65,7 +66,8 @@ object App extends EnvApp[AppContext] {
           Option[Confirmed[PoolEvent]]
         ](configs.poolsConsumer, configs.kafka)
       implicit0(persistBundle: PersistBundle[RunF]) = PersistBundle.create[xa.DB, RunF]
-      txHandler          <- makeTxHandler(configs.writer)
+      ordersRepo <- Resource.eval(OrdersRepository.make[InitF, RunF, xa.DB])
+      txHandler          <- makeTxHandler(configs.writer, ordersRepo)
       executedOpsHandler <- makeOrdersHandler(configs.writer)
       poolsHandler       <- makePoolsHandler(configs.writer)
       bundle  = HandlersBundle.make[StreamF](txHandler, List(poolsHandler, executedOpsHandler))

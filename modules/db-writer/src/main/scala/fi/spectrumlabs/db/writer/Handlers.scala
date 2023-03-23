@@ -7,12 +7,21 @@ import fi.spectrumlabs.core.streaming.Consumer
 import fi.spectrumlabs.db.writer.App.{InitF, RunF, StreamF}
 import fi.spectrumlabs.db.writer.classes.Handle
 import fi.spectrumlabs.db.writer.config.WriterConfig
-import fi.spectrumlabs.db.writer.models.cardano.{Action, Confirmed, DepositAction, Order, PoolEvent, RedeemAction, SwapAction}
+import fi.spectrumlabs.db.writer.models.cardano.{
+  Action,
+  Confirmed,
+  DepositAction,
+  Order,
+  PoolEvent,
+  RedeemAction,
+  SwapAction
+}
 import fi.spectrumlabs.db.writer.models.db.{Deposit, ExecutedDeposit, ExecutedRedeem, ExecutedSwap, Pool, Redeem, Swap}
-import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, ExecutedOrderEvent}
+import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, ExecutedOrderEvent, TxEvent}
 import fi.spectrumlabs.db.writer.models.{ExecutedInput, Input, Output, Redeemer, Transaction}
 import fi.spectrumlabs.db.writer.persistence.PersistBundle
 import fi.spectrumlabs.db.writer.programs.Handler
+import fi.spectrumlabs.db.writer.repositories.OrdersRepository
 import fs2.Chunk
 import tofu.WithContext
 import tofu.fs2Instances._
@@ -21,33 +30,34 @@ import zio.interop.catz._
 
 object Handlers {
 
-  val TxHandlerName             = "Tx"
-  val OrdersHandlerName         = "Order"
-  val PoolsHandler              = "PoolsHandler"
-  val TxHandleName              = "Transaction"
-  val InHandleName              = "Input"
-  val ExecutedInput             = "ExecutedInput"
-  val OutHandleName             = "Output"
-  val ReedHandleName            = "Redeemer"
-  val DepositHandleName         = "Deposit"
-  val SwapHandleName            = "Swap"
-  val RedeemHandleName          = "Redeem"
-  val PoolHandleName            = "Pool"
+  val TxHandlerName     = "Tx"
+  val OrdersHandlerName = "Order"
+  val PoolsHandler      = "PoolsHandler"
+  val TxHandleName      = "Transaction"
+  val InHandleName      = "Input"
+  val ExecutedInput     = "ExecutedInput"
+  val OutHandleName     = "Output"
+  val ReedHandleName    = "Redeemer"
+  val DepositHandleName = "Deposit"
+  val SwapHandleName    = "Swap"
+  val RedeemHandleName  = "Redeem"
+  val PoolHandleName    = "Pool"
 
-  def makeTxHandler(config: WriterConfig)(implicit
+  def makeTxHandler(config: WriterConfig, ordersRepository: OrdersRepository[RunF])(implicit
     bundle: PersistBundle[RunF],
-    consumer: Consumer[_, Option[AppliedTransaction], StreamF, RunF],
+    consumer: Consumer[_, Option[TxEvent], StreamF, RunF],
     logs: Logs[InitF, RunF]
   ): Resource[InitF, Handler[StreamF]] = Resource.eval {
     import bundle._
     for {
-      txn  <- Handle.createOne[AppliedTransaction, Transaction, InitF, RunF](transaction, TxHandleName)
-      in   <- Handle.createNel[AppliedTransaction, Input, InitF, RunF](input, InHandleName)
-      eIn  <- Handle.createNel[AppliedTransaction, ExecutedInput, InitF, RunF](executedInput, ExecutedInput)
-      out  <- Handle.createNel[AppliedTransaction, Output, InitF, RunF](output, OutHandleName)
+      txn <- Handle.createOne[TxEvent, Transaction, InitF, RunF](transaction, TxHandleName)
+      in  <- Handle.createNel[TxEvent, Input, InitF, RunF](input, InHandleName)
+      eIn <- Handle.createExecuted[InitF, RunF](ordersRepository)
+      //eIn <- Handle.createNel[AppliedTransaction, ExecutedInput, InitF, RunF](executedInput, ExecutedInput)
+      out <- Handle.createNel[TxEvent, Output, InitF, RunF](output, OutHandleName)
       //reed <- Handle.createList[Tx, Redeemer, InitF, RunF](redeemer, ReedHandleName)
-      implicit0(nelHandlers: NonEmptyList[Handle[AppliedTransaction, RunF]]) = NonEmptyList.of(txn, in, out, eIn)
-      handler <- Handler.create[AppliedTransaction, StreamF, RunF, Chunk, InitF](config, TxHandlerName)
+      implicit0(nelHandlers: NonEmptyList[Handle[TxEvent, RunF]]) = NonEmptyList.of(txn, in, out, eIn)
+      handler <- Handler.create[TxEvent, StreamF, RunF, Chunk, InitF](config, TxHandlerName)
     } yield handler
   }
 

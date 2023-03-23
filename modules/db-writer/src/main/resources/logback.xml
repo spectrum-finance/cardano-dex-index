@@ -35,8 +35,8 @@
     <logger name="fi.spectrumlabs" level="TRACE"/>
     <logger name="org.apache.kafka" level="ERROR"/>
     <logger name="sttp.client3.asynchttpclient" level="ERROR"/>
-    <root level="INFO">
-        <appender-ref ref="STDOUT"/>
+    <root level="TRACE">
+        <appender-ref ref="FILE"/>
     </root>
 
 </configuration>

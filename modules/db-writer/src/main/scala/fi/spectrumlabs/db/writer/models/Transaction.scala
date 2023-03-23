@@ -4,7 +4,7 @@ import fi.spectrumlabs.explorer.models.{BlockHash, TxHash}
 import fi.spectrumlabs.db.writer.classes.ToSchema
 import io.circe.Json
 import fi.spectrumlabs.core.models.Tx
-import fi.spectrumlabs.db.writer.models.streaming.AppliedTransaction
+import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, TxEvent}
 import io.circe.syntax._
 import cats.syntax.option._
 
@@ -21,7 +21,7 @@ final case class Transaction(
 
 object Transaction {
 
-  implicit val toSchemaNew: ToSchema[AppliedTransaction, Transaction] = (in: AppliedTransaction) =>
+  implicit val toSchemaNew: ToSchema[TxEvent, Transaction] = { case (in: AppliedTransaction) =>
     Transaction(
       BlockHash(in.blockId),
       in.slotNo,
@@ -32,6 +32,7 @@ object Transaction {
       0, //todo: fixme
       0 //todo:fixme
     )
+  }
 
   implicit val toSchema: ToSchema[Tx, Transaction] = (in: Tx) =>
     Transaction(

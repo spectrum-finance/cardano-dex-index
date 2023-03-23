@@ -4,14 +4,14 @@ import cats.data.NonEmptyList
 import fi.spectrumlabs.explorer.models.{OutRef, TxHash}
 import fi.spectrumlabs.core.models.Tx
 import fi.spectrumlabs.db.writer.classes.ToSchema
-import fi.spectrumlabs.db.writer.models.streaming.AppliedTransaction
+import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, TxEvent}
 import cats.syntax.option._
 
 final case class Input(txHash: TxHash, txIndex: Long, outFef: OutRef, outIndex: Int, redeemerIndex: Option[Int])
 
 object Input {
 
-  implicit val toSchemaNew: ToSchema[AppliedTransaction, NonEmptyList[Input]] = (in: AppliedTransaction) =>
+  implicit val toSchemaNew: ToSchema[TxEvent, NonEmptyList[Input]] = { case (in: AppliedTransaction) =>
     in.txInputs.map { input =>
       Input(
         TxHash(in.txId.getTxId),
@@ -21,6 +21,7 @@ object Input {
         none[Int] //todo: fixme
       )
     }
+  }
 
   implicit val toSchema: ToSchema[Tx, NonEmptyList[Input]] = (in: Tx) =>
     in.inputs.map { i =>

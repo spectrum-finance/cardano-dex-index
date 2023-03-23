@@ -4,10 +4,11 @@ import cats.data.NonEmptyList
 import fi.spectrumlabs.explorer.models._
 import fi.spectrumlabs.core.models.Tx
 import fi.spectrumlabs.db.writer.classes.ToSchema
-import fi.spectrumlabs.db.writer.models.streaming.AppliedTransaction
+import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, TxEvent}
 import io.circe.Json
 import io.circe.syntax._
 import cats.syntax.option._
+import doobie.Read
 
 final case class Output(
   txHash: TxHash,
@@ -27,11 +28,13 @@ final case class Output(
 
 object Output {
 
-  implicit val toSchemaNew: ToSchema[AppliedTransaction, NonEmptyList[Output]] = (in: AppliedTransaction) =>
+  implicit val read: Read[Output] = ???
+
+  implicit val toSchemaNew: ToSchema[TxEvent, NonEmptyList[Output]] = { case (in: AppliedTransaction) =>
     in.txOutputs.map { output =>
       Output(
-        TxHash(in.txId.getTxId),
-        0, // todo: remove
+        TxHash(output.fullTxOutRef.txOutRefId.getTxId),
+        output.fullTxOutRef.txOutRefIdx,
         OutRef(output.fullTxOutRef.txOutRefId.getTxId ++ "#" ++ output.fullTxOutRef.txOutRefIdx.toString),
         BlockHash(in.blockId),
         in.slotNo,
@@ -45,6 +48,7 @@ object Output {
         none
       )
     }
+  }
 
   implicit val toSchema: ToSchema[Tx, NonEmptyList[Output]] = (in: Tx) =>
     in.outputs.map { o =>
