@@ -17,7 +17,8 @@ final case class ConfigBundle(
   executedOpsConsumer: ConsumerConfig,
   poolsConsumer: ConsumerConfig,
   kafka: KafkaConfig,
-  writer: WriterConfig
+  writer: WriterConfig,
+  cardanoConfig: CardanoConfig
 )
 
 object ConfigBundle extends WithContext.Companion[ConfigBundle] with ConfigBundleCompanion[ConfigBundle]

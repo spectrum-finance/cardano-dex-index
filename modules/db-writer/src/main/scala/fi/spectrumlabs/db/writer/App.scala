@@ -30,7 +30,7 @@ import zio.{ExitCode, URIO, ZIO}
 import fi.spectrumlabs.core.pg.doobieLogging
 import fi.spectrumlabs.core.pg.PostgresTransactor
 import fi.spectrumlabs.db.writer.models.cardano.{Action, Confirmed, Order, PoolEvent}
-import fi.spectrumlabs.db.writer.repositories.{InputsRepository, OrdersRepository, OutputsRepository}
+import fi.spectrumlabs.db.writer.repositories.{InputsRepository, OrdersRepository, OutputsRepository, PoolsRepository, TransactionRepository}
 
 object App extends EnvApp[AppContext] {
 
@@ -69,9 +69,11 @@ object App extends EnvApp[AppContext] {
       ordersRepo  <- Resource.eval(OrdersRepository.make[InitF, RunF, xa.DB])
       inputsRepo  <- Resource.eval(InputsRepository.make[InitF, RunF, xa.DB])
       outputsRepo <- Resource.eval(OutputsRepository.make[InitF, RunF, xa.DB])
-      txHandler          <- makeTxHandler(configs.writer, ordersRepo, inputsRepo, outputsRepo)
+      poolsRepo <- Resource.eval(PoolsRepository.make[InitF, RunF, xa.DB])
+      txRepository <- Resource.eval(TransactionRepository.make[InitF, RunF, xa.DB])
+      txHandler          <- makeTxHandler(configs.writer, configs.cardanoConfig, ordersRepo, inputsRepo, outputsRepo, poolsRepo, txRepository)
       executedOpsHandler <- makeOrdersHandler(configs.writer)
-      poolsHandler       <- makePoolsHandler(configs.writer)
+      poolsHandler       <- makePoolsHandler(configs.writer, poolsRepo, txRepository)
       bundle  = HandlersBundle.make[StreamF](txHandler, List(poolsHandler, executedOpsHandler))
       program = WriterProgram.create[StreamF, RunF](bundle, configs.writer)
       r <- Resource.eval(program.run).mapK(ul.liftF)

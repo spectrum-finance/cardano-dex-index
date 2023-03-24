@@ -5,23 +5,32 @@ import cats.syntax.flatMap._
 import cats.syntax.applicative._
 import cats.syntax.functor._
 import cats.{Functor, Monad}
-import fi.spectrumlabs.db.writer.models.ExecutedInput
+import fi.spectrumlabs.db.writer.models.{ExecutedInput, Output, Transaction}
 import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, TxEvent, UnAppliedTransaction}
 import fi.spectrumlabs.db.writer.persistence.Persist
-import fi.spectrumlabs.db.writer.repositories.{InputsRepository, OrdersRepository, OutputsRepository}
+import fi.spectrumlabs.db.writer.repositories.{
+  InputsRepository,
+  OrdersRepository,
+  OutputsRepository,
+  PoolsRepository,
+  TransactionRepository
+}
 import mouse.any._
 import tofu.logging.{Logging, Logs}
 import tofu.syntax.logging._
 import cats.syntax.traverse._
 import fi.spectrumlabs.db.writer.classes.OrdersInfo.{DepositOrderInfo, RedeemOrderInfo, SwapOrderInfo}
+import fi.spectrumlabs.db.writer.config.CardanoConfig
 import fi.spectrumlabs.db.writer.models.cardano.{
   AddressCredential,
+  Confirmed,
   FullTxOutValue,
+  PoolEvent,
   PubKeyAddressCredential,
   ScriptAddressCredential,
   TxInput
 }
-import fi.spectrumlabs.db.writer.models.db.{Deposit, Redeem, Swap}
+import fi.spectrumlabs.db.writer.models.db.{Deposit, Pool, Redeem, Swap}
 
 /** Keeps both ToSchema from A to B and Persist for B.
   * Contains evidence that A can be mapped into B and B can be persisted.
@@ -40,6 +49,26 @@ object Handle {
     handleLogName: String
   )(implicit toSchema: ToSchema[A, B], logs: Logs[I, F]): I[Handle[A, F]] =
     logs.forService[Handle[A, F]].map(implicit __ => new ImplOne[A, B, F](persist, handleLogName))
+
+  def createForOutputs[I[_]: Functor, F[_]: Monad](
+    poolsRepository: PoolsRepository[F],
+    transactionRepo: TransactionRepository[F],
+    logs: Logs[I, F],
+    persist: Persist[Output, F]
+  ): I[Handle[TxEvent, F]] =
+    logs
+      .forService[Handle[Output, F]]
+      .map(implicit __ => new OutputsHandler[F](poolsRepository, transactionRepo, "outputsHandler", persist))
+
+  def createForPools[I[_]: Functor, F[_]: Monad](
+    poolsRepository: PoolsRepository[F],
+    transactionRepo: TransactionRepository[F],
+    logs: Logs[I, F],
+    persist: Persist[Pool, F]
+  ): I[Handle[Confirmed[PoolEvent], F]] =
+    logs
+      .forService[Handle[Confirmed[PoolEvent], F]]
+      .map(implicit __ => new HandlerForPools[F](poolsRepository, transactionRepo, "poolsHandler", persist))
 
   def createList[A, B, I[_]: Functor, F[_]: Monad](persist: Persist[B, F], handleLogName: String)(implicit
     toSchema: ToSchema[A, List[B]],
@@ -60,10 +89,20 @@ object Handle {
     logs.forService[Handle[A, F]].map(implicit __ => new ImplOption[A, B, F](persist, handleLogName))
 
   def createExecuted[I[_]: Functor, F[_]: Monad](
+    cardanoConfig: CardanoConfig,
     ordersRepository: OrdersRepository[F]
   )(implicit logs: Logs[I, F]): I[Handle[TxEvent, F]] =
     logs.forService[ExecutedOrdersHandler[F]].map { implicit logs =>
-      new ExecutedOrdersHandler[F](ordersRepository, "executedOrders")
+      new ExecutedOrdersHandler[F](cardanoConfig, ordersRepository, "executedOrders")
+    }
+
+  def createForTransaction[I[_]: Functor, F[_]: Monad](
+    logs: Logs[I, F],
+    persist: Persist[Transaction, F],
+    cardanoConfig: CardanoConfig
+  ): I[Handle[TxEvent, F]] =
+    logs.forService[ExecutedOrdersHandler[F]].map { implicit logging =>
+      new TransactionHandler[F]("transactions", persist, cardanoConfig)
     }
 
   def createForRollbacks[I[_]: Functor, F[_]: Monad](
@@ -127,8 +166,69 @@ object Handle {
       }
   }
 
+  final private class HandlerForPools[F[_]: Monad: Logging](
+    poolsRepository: PoolsRepository[F],
+    transactionRepo: TransactionRepository[F],
+    handleLogName: String,
+    persist: Persist[Pool, F]
+  ) extends Handle[Confirmed[PoolEvent], F] {
+
+    override def handle(in: NonEmptyList[Confirmed[PoolEvent]]): F[Unit] =
+      in.map(Pool.toSchemaNew.apply)
+        .toList
+        .traverse { pool =>
+          persist.persist(NonEmptyList.one(pool)) >> (for {
+            tx <- OptionT(transactionRepo.getTxByHash(pool.outputId.txOutRefId.getTxId))
+            _ <-
+              OptionT.liftF(
+                poolsRepository
+                  .updatePoolTimestamp(
+                    pool.outputId.txOutRefId.getTxId ++ "#" ++ pool.outputId.txOutRefIdx.toString,
+                    tx.timestamp
+                  )
+              )
+          } yield ()).value
+        }
+        .void
+  }
+
+  private final class TransactionHandler[F[_]: Monad: Logging](
+    handleLogName: String,
+    persist: Persist[Transaction, F],
+    cardanoConfig: CardanoConfig
+  ) extends Handle[TxEvent, F] {
+
+    override def handle(in: NonEmptyList[TxEvent]): F[Unit] =
+      persist
+        .persist(
+          in.map(Transaction.toSchemaNew.apply)
+            .map(prevTx => prevTx.copy(timestamp = prevTx.timestamp + cardanoConfig.startTimeInSeconds))
+        )
+        .void
+  }
+
+  private final class OutputsHandler[F[_]: Monad: Logging](
+    poolsRepository: PoolsRepository[F],
+    transactionRepo: TransactionRepository[F],
+    handleLogName: String,
+    persist: Persist[Output, F]
+  ) extends Handle[TxEvent, F] {
+
+    override def handle(in: NonEmptyList[TxEvent]): F[Unit] = {
+      in.flatMap(Output.toSchemaNew.apply).toList traverse { elem =>
+        val outputsList = NonEmptyList.one(elem)
+        persist.persist(outputsList) >> (for {
+          _  <- OptionT(poolsRepository.getPoolByOutputId(elem.ref.value))
+          tx <- OptionT(transactionRepo.getTxByHash(elem.txHash.value))
+          _  <- OptionT.liftF(poolsRepository.updatePoolTimestamp(elem.ref.value, tx.timestamp))
+        } yield ()).value.void
+      }
+    }.void
+  }
+
   // draft for executed inputs handler
   private final class ExecutedOrdersHandler[F[_]: Monad: Logging](
+    cardanoConfig: CardanoConfig,
     ordersRepository: OrdersRepository[F],
     handleLogName: String
   ) extends Handle[TxEvent, F] {
@@ -170,7 +270,7 @@ object Handle {
       userRewardOut.fullTxOutRef.txOutRefId.getTxId ++ "#" ++ userRewardOut.fullTxOutRef.txOutRefIdx.toString,
       poolIn.txInRef.txOutRefId.getTxId ++ "#" ++ poolIn.txInRef.txOutRefIdx.toString,
       poolOut.fullTxOutRef.txOutRefId.getTxId ++ "#" ++ poolOut.fullTxOutRef.txOutRefIdx.toString,
-      tx.slotNo,
+      tx.slotNo + cardanoConfig.startTimeInSeconds,
       input.txInRef.txOutRefId.getTxId ++ "#" ++ input.txInRef.txOutRefIdx.toString
     )).value
 
@@ -193,7 +293,7 @@ object Handle {
       userRewardOut.fullTxOutRef.txOutRefId.getTxId ++ "#" ++ userRewardOut.fullTxOutRef.txOutRefIdx.toString,
       poolIn.txInRef.txOutRefId.getTxId ++ "#" ++ poolIn.txInRef.txOutRefIdx.toString,
       poolOut.fullTxOutRef.txOutRefId.getTxId ++ "#" ++ poolOut.fullTxOutRef.txOutRefIdx.toString,
-      tx.slotNo,
+      tx.slotNo + cardanoConfig.startTimeInSeconds,
       input.txInRef.txOutRefId.getTxId ++ "#" ++ input.txInRef.txOutRefIdx.toString
     )).value
 
@@ -221,7 +321,7 @@ object Handle {
         userRewardOut.fullTxOutRef.txOutRefId.getTxId ++ "#" ++ userRewardOut.fullTxOutRef.txOutRefIdx.toString,
         poolIn.txInRef.txOutRefId.getTxId ++ "#" ++ poolIn.txInRef.txOutRefIdx.toString,
         poolOut.fullTxOutRef.txOutRefId.getTxId ++ "#" ++ poolOut.fullTxOutRef.txOutRefIdx.toString,
-        tx.slotNo,
+        tx.slotNo + cardanoConfig.startTimeInSeconds,
         input.txInRef.txOutRefId.getTxId ++ "#" ++ input.txInRef.txOutRefIdx.toString
       )
 

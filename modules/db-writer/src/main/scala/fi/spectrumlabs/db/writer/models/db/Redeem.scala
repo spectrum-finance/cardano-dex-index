@@ -42,7 +42,7 @@ object Redeem {
         PublicKeyHash(orderAction.order.action.redeemRewardPkh.getPubKeyHash),
         orderAction.order.action.redeemRewardSPkh.map(spkh =>
           StakePKH(StakePubKeyHash(spkh.unStakePubKeyHash.getPubKeyHash))
-        ), //todo: fixme
+        ),
         castFromCardano(orderAction.fullTxOut.fullTxOutRef),
         none,
         none,

@@ -24,7 +24,7 @@ object InputsRepository {
     txr: Txr[F, DB],
     logs: Logs[I, F]
   ): I[InputsRepository[F]] =
-    logs.forService[OrdersRepository[F]].map { implicit logging =>
+    logs.forService[InputsRepository[F]].map { implicit logging =>
       new InputsRepositoryTracingMid[F] attach(new LiveCIO().mapK(LiftConnectionIO[DB].liftF andThen txr.trans))
     }
 

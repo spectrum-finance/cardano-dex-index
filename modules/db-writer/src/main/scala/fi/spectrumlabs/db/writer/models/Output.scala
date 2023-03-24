@@ -8,8 +8,12 @@ import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, TxEvent}
 import io.circe.Json
 import io.circe.syntax._
 import cats.syntax.option._
-import doobie.Read
+import derevo.circe.magnolia.{decoder, encoder}
+import derevo.derive
+import doobie.{Get, Read}
+import tofu.logging.derivation.{loggable, show}
 
+@derive(decoder, encoder)
 final case class Output(
   txHash: TxHash,
   txIndex: Long,
@@ -28,7 +32,9 @@ final case class Output(
 
 object Output {
 
-  implicit val read: Read[Output] = ???
+  implicit val getJson: Get[Json] = Get[String].map(_ => Json.Null)
+
+  // implicit val read: Read[Output] = ???
 
   implicit val toSchemaNew: ToSchema[TxEvent, NonEmptyList[Output]] = { case (in: AppliedTransaction) =>
     in.txOutputs.map { output =>

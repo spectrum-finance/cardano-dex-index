@@ -7,7 +7,11 @@ import fi.spectrumlabs.core.models.Tx
 import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, TxEvent}
 import io.circe.syntax._
 import cats.syntax.option._
+import derevo.circe.magnolia.{decoder, encoder}
+import derevo.derive
+import tofu.logging.derivation.{loggable, show}
 
+@derive(decoder, encoder)
 final case class Transaction(
   blockHash: BlockHash,
   blockIndex: Long,
@@ -30,7 +34,7 @@ object Transaction {
       none,
       none,
       0, //todo: fixme
-      0 //todo:fixme
+      in.slotNo //todo:fixme
     )
   }
 
