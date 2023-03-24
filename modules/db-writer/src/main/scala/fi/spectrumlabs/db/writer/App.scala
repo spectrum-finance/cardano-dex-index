@@ -30,7 +30,7 @@ import zio.{ExitCode, URIO, ZIO}
 import fi.spectrumlabs.core.pg.doobieLogging
 import fi.spectrumlabs.core.pg.PostgresTransactor
 import fi.spectrumlabs.db.writer.models.cardano.{Action, Confirmed, Order, PoolEvent}
-import fi.spectrumlabs.db.writer.repositories.OrdersRepository
+import fi.spectrumlabs.db.writer.repositories.{InputsRepository, OrdersRepository, OutputsRepository}
 
 object App extends EnvApp[AppContext] {
 
@@ -66,8 +66,10 @@ object App extends EnvApp[AppContext] {
           Option[Confirmed[PoolEvent]]
         ](configs.poolsConsumer, configs.kafka)
       implicit0(persistBundle: PersistBundle[RunF]) = PersistBundle.create[xa.DB, RunF]
-      ordersRepo <- Resource.eval(OrdersRepository.make[InitF, RunF, xa.DB])
-      txHandler          <- makeTxHandler(configs.writer, ordersRepo)
+      ordersRepo  <- Resource.eval(OrdersRepository.make[InitF, RunF, xa.DB])
+      inputsRepo  <- Resource.eval(InputsRepository.make[InitF, RunF, xa.DB])
+      outputsRepo <- Resource.eval(OutputsRepository.make[InitF, RunF, xa.DB])
+      txHandler          <- makeTxHandler(configs.writer, ordersRepo, inputsRepo, outputsRepo)
       executedOpsHandler <- makeOrdersHandler(configs.writer)
       poolsHandler       <- makePoolsHandler(configs.writer)
       bundle  = HandlersBundle.make[StreamF](txHandler, List(poolsHandler, executedOpsHandler))

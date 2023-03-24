@@ -66,6 +66,15 @@ object Handle {
       new ExecutedOrdersHandler[F](ordersRepository, "executedOrders")
     }
 
+  def createForRollbacks[I[_]: Functor, F[_]: Monad](
+    ordersRepository: OrdersRepository[F],
+    inputsRepository: InputsRepository[F],
+    outputsRepository: OutputsRepository[F]
+  )(implicit logs: Logs[I, F]): I[Handle[TxEvent, F]] =
+    logs.forService[ExecutedOrdersHandler[F]].map { implicit logs =>
+      new HandlerForUnAppliedTxs[F](ordersRepository, inputsRepository, outputsRepository, "unAppliedOrders")
+    }
+
   private final class ImplOne[A, B, F[_]: Monad: Logging](persist: Persist[B, F], handleLogName: String)(implicit
     toSchema: ToSchema[A, B]
   ) extends Handle[A, F] {

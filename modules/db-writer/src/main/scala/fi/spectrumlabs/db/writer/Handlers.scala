@@ -21,7 +21,7 @@ import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, ExecutedO
 import fi.spectrumlabs.db.writer.models.{ExecutedInput, Input, Output, Redeemer, Transaction}
 import fi.spectrumlabs.db.writer.persistence.PersistBundle
 import fi.spectrumlabs.db.writer.programs.Handler
-import fi.spectrumlabs.db.writer.repositories.OrdersRepository
+import fi.spectrumlabs.db.writer.repositories.{InputsRepository, OrdersRepository, OutputsRepository}
 import fs2.Chunk
 import tofu.WithContext
 import tofu.fs2Instances._
@@ -43,7 +43,12 @@ object Handlers {
   val RedeemHandleName  = "Redeem"
   val PoolHandleName    = "Pool"
 
-  def makeTxHandler(config: WriterConfig, ordersRepository: OrdersRepository[RunF])(implicit
+  def makeTxHandler(
+    config: WriterConfig,
+    ordersRepository: OrdersRepository[RunF],
+    inputsRepository: InputsRepository[RunF],
+    outputsRepository: OutputsRepository[RunF]
+  )(implicit
     bundle: PersistBundle[RunF],
     consumer: Consumer[_, Option[TxEvent], StreamF, RunF],
     logs: Logs[InitF, RunF]
@@ -54,9 +59,10 @@ object Handlers {
       in  <- Handle.createNel[TxEvent, Input, InitF, RunF](input, InHandleName)
       eIn <- Handle.createExecuted[InitF, RunF](ordersRepository)
       //eIn <- Handle.createNel[AppliedTransaction, ExecutedInput, InitF, RunF](executedInput, ExecutedInput)
-      out <- Handle.createNel[TxEvent, Output, InitF, RunF](output, OutHandleName)
+      out       <- Handle.createNel[TxEvent, Output, InitF, RunF](output, OutHandleName)
+      unApplied <- Handle.createForRollbacks[InitF, RunF](ordersRepository, inputsRepository, outputsRepository)
       //reed <- Handle.createList[Tx, Redeemer, InitF, RunF](redeemer, ReedHandleName)
-      implicit0(nelHandlers: NonEmptyList[Handle[TxEvent, RunF]]) = NonEmptyList.of(txn, in, out, eIn)
+      implicit0(nelHandlers: NonEmptyList[Handle[TxEvent, RunF]]) = NonEmptyList.of(txn, in, out, eIn, unApplied)
       handler <- Handler.create[TxEvent, StreamF, RunF, Chunk, InitF](config, TxHandlerName)
     } yield handler
   }
