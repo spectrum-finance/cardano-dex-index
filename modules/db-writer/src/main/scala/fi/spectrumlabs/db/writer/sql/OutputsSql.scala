@@ -31,5 +31,5 @@ object OutputsSql {
          |      data_hash,
          |      data,
          |      data_bin,
-         |      spent_by_tx_hash from output where tx_hash = $txHash """.stripMargin.queryWithLogHandler(LogHandler.jdkLogHandler)
+         |      spent_by_tx_hash from output where tx_hash = $txHash """.stripMargin.query
 }

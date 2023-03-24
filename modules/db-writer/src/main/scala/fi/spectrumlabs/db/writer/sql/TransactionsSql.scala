@@ -23,5 +23,5 @@ object TransactionsSql {
          |    invalid_hereafter,
          |    metadata,
          |    size,
-         |    timestamp from transaction where hash = $txHash""".stripMargin.queryWithLogHandler(LogHandler.jdkLogHandler)
+         |    timestamp from transaction where hash = $txHash""".stripMargin.query
 }

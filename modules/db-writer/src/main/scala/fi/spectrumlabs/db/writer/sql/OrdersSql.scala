@@ -26,7 +26,7 @@ object OrdersSql {
           |     user_output_id,
           |     pool_input_id,
           |     pool_output_id,
-          |     timestamp from deposit where order_input_id = $txOutRef""".stripMargin.queryWithLogHandler[Deposit](LogHandler.jdkLogHandler)
+          |     timestamp from deposit where order_input_id = $txOutRef""".stripMargin.query
 
   def getSwapOrderSQL(txOutRef: String): Query0[Swap] =
     sql"""select base,
@@ -44,7 +44,7 @@ object OrdersSql {
           |  pool_input_id,
           |  pool_output_id,
           |  timestamp from swap where order_input_id = $txOutRef""".stripMargin
-      .queryWithLogHandler[Swap](LogHandler.jdkLogHandler)
+      .query[Swap]
 
   def getRedeemOrderSQL(txOutRef: String): Query0[Redeem] =
     sql"""select pool_nft,
@@ -61,7 +61,7 @@ object OrdersSql {
           |      user_output_id,
           |      pool_input_id,
           |      pool_output_id,
-          |      timestamp from redeem where order_input_id = $txOutRef""".stripMargin.queryWithLogHandler[Redeem](LogHandler.jdkLogHandler)
+          |      timestamp from redeem where order_input_id = $txOutRef""".stripMargin.query
 
   def updateExecutedSwapOrderSQL(
     actualQuote: Long,

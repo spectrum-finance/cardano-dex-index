@@ -21,7 +21,7 @@ object PoolSql {
          |    pool_fee_den,
          |    out_collateral,
          |    output_id,
-         |    timestamp from pool where output_id = $outputId""".stripMargin.queryWithLogHandler(LogHandler.jdkLogHandler)
+         |    timestamp from pool where output_id = $outputId""".stripMargin.query
 
   def updatePoolTimestampSQL(outputId: String, newTimestamp: Long): Update0 = {
     implicit val logHandler = LogHandler.jdkLogHandler
