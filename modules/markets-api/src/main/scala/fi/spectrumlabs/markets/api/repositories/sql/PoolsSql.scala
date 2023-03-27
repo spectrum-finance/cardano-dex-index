@@ -80,7 +80,7 @@ final class PoolsSql(implicit lh: LogHandler) {
          |		SELECT
          |			sum(actual_quote)
          |		FROM
-         |			swao
+         |			swap
          |		WHERE
          |			pool_nft = ${pool.id}
          |			AND base = ${pool.y.asset.show}
@@ -89,7 +89,7 @@ final class PoolsSql(implicit lh: LogHandler) {
 
   def getPoolVolumes(tw: TimeWindow): Query0[PoolVolumeDb] =
     sql"""
-         |SELECT sum(ex.actual_quote), ex.pool_nft, ex.base FROM swao ex
+         |SELECT sum(ex.actual_quote), ex.pool_nft, ex.base FROM swap ex
          |${timeWindowCond(tw, "and", "ex")}
          |GROUP by ex.pool_nft, ex.base
        """.stripMargin.query[PoolVolumeDb]
