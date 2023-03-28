@@ -64,11 +64,14 @@ object Handle {
     poolsRepository: PoolsRepository[F],
     transactionRepo: TransactionRepository[F],
     logs: Logs[I, F],
-    persist: Persist[Pool, F]
+    persist: Persist[Pool, F],
+    cardanoConfig: CardanoConfig
   ): I[Handle[Confirmed[PoolEvent], F]] =
     logs
       .forService[Handle[Confirmed[PoolEvent], F]]
-      .map(implicit __ => new HandlerForPools[F](poolsRepository, transactionRepo, "poolsHandler", persist))
+      .map(implicit __ =>
+        new HandlerForPools[F](poolsRepository, transactionRepo, "poolsHandler", persist, cardanoConfig)
+      )
 
   def createList[A, B, I[_]: Functor, F[_]: Monad](persist: Persist[B, F], handleLogName: String)(implicit
     toSchema: ToSchema[A, List[B]],
@@ -87,6 +90,14 @@ object Handle {
     logs: Logs[I, F]
   ): I[Handle[A, F]] =
     logs.forService[Handle[A, F]].map(implicit __ => new ImplOption[A, B, F](persist, handleLogName))
+
+  def createOptionExcl[A, B, I[_]: Functor, F[_]: Monad](persist: Persist[B, F], handleLogName: String)(
+    toSchema: ToSchema[A, Option[B]],
+    logs: Logs[I, F]
+  ): I[Handle[A, F]] = {
+    implicit val implSchema = toSchema
+    logs.forService[Handle[A, F]].map(implicit __ => new ImplOption[A, B, F](persist, handleLogName))
+  }
 
   def createExecuted[I[_]: Functor, F[_]: Monad](
     cardanoConfig: CardanoConfig,
@@ -171,12 +182,14 @@ object Handle {
     poolsRepository: PoolsRepository[F],
     transactionRepo: TransactionRepository[F],
     handleLogName: String,
-    persist: Persist[Pool, F]
+    persist: Persist[Pool, F],
+    cardanoConfig: CardanoConfig
   ) extends Handle[Confirmed[PoolEvent], F] {
 
     override def handle(in: NonEmptyList[Confirmed[PoolEvent]]): F[Unit] =
-      in.map(Pool.toSchemaNew.apply)
+      in.map(Pool.toSchemaNew(cardanoConfig).apply)
         .toList
+        .filter(pool => cardanoConfig.supportedPools.contains(pool.id))
         .traverse { pool =>
           persist.persist(NonEmptyList.one(pool)) >> (for {
             tx <- OptionT(transactionRepo.getTxByHash(pool.outputId.txOutRefId.getTxId))

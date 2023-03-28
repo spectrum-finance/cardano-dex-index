@@ -5,6 +5,7 @@ import cats.syntax.option.none
 import fi.spectrumlabs.core.models.domain.AssetClass.syntax.AssetClassOps
 import fi.spectrumlabs.core.models.domain.{Amount, Coin}
 import fi.spectrumlabs.db.writer.classes.ToSchema
+import fi.spectrumlabs.db.writer.config.CardanoConfig
 import fi.spectrumlabs.db.writer.models.cardano.{Order, RedeemAction, RedeemOrder, SwapAction}
 import fi.spectrumlabs.db.writer.models.orders.{ExFee, PublicKeyHash, StakePKH, StakePubKeyHash, TxOutRef}
 
@@ -28,8 +29,11 @@ final case class Redeem(
 
 object Redeem {
 
-  implicit val streamingSchema: ToSchema[Order, Option[Redeem]] = {
-    case orderAction: RedeemOrder =>
+  def streamingSchema(config: CardanoConfig): ToSchema[Order, Option[Redeem]] = {
+    case orderAction: RedeemOrder
+        if config.supportedPools.contains(
+          castFromCardano(orderAction.order.action.redeemPoolId.unCoin.unAssetClass).toCoin
+        ) =>
       Redeem(
         castFromCardano(orderAction.order.action.redeemPoolId.unCoin.unAssetClass).toCoin,
         castFromCardano(orderAction.order.action.redeemPoolX.unCoin.unAssetClass).toCoin,

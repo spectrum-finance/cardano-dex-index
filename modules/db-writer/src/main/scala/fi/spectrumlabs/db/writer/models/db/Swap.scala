@@ -4,6 +4,7 @@ import cats.syntax.option._
 import fi.spectrumlabs.core.models.domain.AssetClass.syntax.AssetClassOps
 import fi.spectrumlabs.core.models.domain.{Amount, Coin}
 import fi.spectrumlabs.db.writer.classes.ToSchema
+import fi.spectrumlabs.db.writer.config.CardanoConfig
 import fi.spectrumlabs.db.writer.models.cardano.{DepositAction, Order, SwapAction, SwapOrder}
 import fi.spectrumlabs.db.writer.models.orders.{ExFee, StakePKH, StakePubKeyHash, TxOutRef}
 
@@ -27,8 +28,11 @@ final case class Swap(
 
 object Swap {
 
-  implicit val streamingSchema: ToSchema[Order, Option[Swap]] = {
-    case orderAction: SwapOrder =>
+  def streamingSchema(config: CardanoConfig): ToSchema[Order, Option[Swap]] = {
+    case orderAction: SwapOrder
+        if config.supportedPools.contains(
+          castFromCardano(orderAction.order.action.swapBase.unCoin.unAssetClass).toCoin
+        ) =>
       Swap(
         castFromCardano(orderAction.order.action.swapBase.unCoin.unAssetClass).toCoin,
         castFromCardano(orderAction.order.action.swapQuote.unCoin.unAssetClass).toCoin,
@@ -46,7 +50,7 @@ object Swap {
         none,
         none,
         none,
-        none,
+        none
       ).some
     case _ => none
   }

@@ -3,6 +3,7 @@ package fi.spectrumlabs.db.writer.models.db
 import fi.spectrumlabs.core.models.domain.AssetClass.syntax._
 import fi.spectrumlabs.core.models.domain.{Amount, Coin}
 import fi.spectrumlabs.db.writer.classes.ToSchema
+import fi.spectrumlabs.db.writer.config.CardanoConfig
 import fi.spectrumlabs.db.writer.models.cardano.{Confirmed, PoolEvent}
 import fi.spectrumlabs.db.writer.models.orders._
 import fi.spectrumlabs.db.writer.models.streaming
@@ -24,7 +25,7 @@ final case class Pool(
 
 object Pool {
 
-  implicit val toSchemaNew: ToSchema[Confirmed[PoolEvent], Pool] =
+  def toSchemaNew(config: CardanoConfig): ToSchema[Confirmed[PoolEvent], Pool] =
     (in: Confirmed[PoolEvent]) =>
       Pool(
         castFromCardano(in.element.poolId.unCoin.unAssetClass).toCoin,
@@ -41,7 +42,7 @@ object Pool {
         0
       )
 
-//  implicit val toSchema: ToSchema[streaming.PoolEvent, Pool] =
+  //  implicit val toSchema: ToSchema[streaming.PoolEvent, Pool] =
 //    (in: streaming.PoolEvent) =>
 //      Pool(
 //        in.pool.id.toCoin,

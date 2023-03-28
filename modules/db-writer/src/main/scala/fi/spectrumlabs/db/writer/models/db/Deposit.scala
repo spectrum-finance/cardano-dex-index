@@ -6,6 +6,7 @@ import fi.spectrumlabs.db.writer.models.cardano.{DepositAction, DepositOrder, Or
 import fi.spectrumlabs.db.writer.models.orders.{ExFee, StakePKH, StakePubKeyHash, TxOutRef}
 import cats.syntax.option._
 import fi.spectrumlabs.core.models.domain.AssetClass.syntax._
+import fi.spectrumlabs.db.writer.config.CardanoConfig
 
 final case class Deposit(
   poolId: Coin,
@@ -28,8 +29,9 @@ final case class Deposit(
 
 object Deposit {
 
-  implicit val streamingSchema: ToSchema[Order, Option[Deposit]] = {
-    case orderAction: DepositOrder =>
+  def streamingSchema(config: CardanoConfig): ToSchema[Order, Option[Deposit]] = {
+    case orderAction: DepositOrder
+        if config.supportedPools.contains(castFromCardano(orderAction.order.poolId.unCoin.unAssetClass).toCoin.value) =>
       Deposit(
         castFromCardano(orderAction.order.poolId.unCoin.unAssetClass).toCoin,
         castFromCardano(orderAction.order.action.depositPair.firstElem.coin.unAssetClass).toCoin,
