@@ -17,16 +17,17 @@ object CacheMiddleware {
   final class CachingMiddleware[F[_]: Monad: Sync](caching: HttpResponseCaching[F]) {
 
     def middleware(routes: HttpRoutes[F]): HttpRoutes[F] = Kleisli { req =>
-      OptionT(caching.process(req)).orElse {
-        for {
-          resp        <- routes(req)
-          requestHash <- OptionT.liftF(RequestHash32(req))
-          _ <- OptionT.liftF {
-                 if (resp.status.isSuccess) caching.saveResponse(requestHash, resp)
-                 else unit
-               }
-        } yield resp
-      }
+      routes(req) //todo: revert cache
+//      OptionT(caching.process(req)).orElse {
+//        for {
+//          resp        <- routes(req)
+//          requestHash <- OptionT.liftF(RequestHash32(req))
+//          _ <- OptionT.liftF {
+//                 if (resp.status.isSuccess) caching.saveResponse(requestHash, resp)
+//                 else unit
+//               }
+//        } yield resp
+//      }
     }
   }
 }
