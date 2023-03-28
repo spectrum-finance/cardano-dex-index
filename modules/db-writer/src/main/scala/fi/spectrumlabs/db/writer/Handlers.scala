@@ -50,7 +50,7 @@ object Handlers {
   ): Resource[InitF, Handler[StreamF]] = Resource.eval {
     import bundle._
     for {
-      txn <- Handle.createForTransaction(logs, transaction, cardanoConfig)
+      txn <- Handle.createForTransaction(logs, poolsRepository, transaction, cardanoConfig)
       in  <- Handle.createNel[TxEvent, Input, InitF, RunF](input, InHandleName)
       eIn <- Handle.createExecuted[InitF, RunF](cardanoConfig, ordersRepository)
       //eIn <- Handle.createNel[AppliedTransaction, ExecutedInput, InitF, RunF](executedInput, ExecutedInput)

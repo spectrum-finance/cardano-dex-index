@@ -98,11 +98,12 @@ object Handle {
 
   def createForTransaction[I[_]: Functor, F[_]: Monad](
     logs: Logs[I, F],
+    poolsRepo: PoolsRepository[F],
     persist: Persist[Transaction, F],
     cardanoConfig: CardanoConfig
   ): I[Handle[TxEvent, F]] =
     logs.forService[ExecutedOrdersHandler[F]].map { implicit logging =>
-      new TransactionHandler[F]("transactions", persist, cardanoConfig)
+      new TransactionHandler[F]("transactions", poolsRepo, persist, cardanoConfig)
     }
 
   def createForRollbacks[I[_]: Functor, F[_]: Monad](
@@ -194,6 +195,7 @@ object Handle {
 
   private final class TransactionHandler[F[_]: Monad: Logging](
     handleLogName: String,
+    poolRepo: PoolsRepository[F], //only for testing, change pool model in haskell part
     persist: Persist[Transaction, F],
     cardanoConfig: CardanoConfig
   ) extends Handle[TxEvent, F] {
@@ -204,7 +206,27 @@ object Handle {
           in.map(Transaction.toSchemaNew.apply)
             .map(prevTx => prevTx.copy(timestamp = prevTx.timestamp + cardanoConfig.startTimeInSeconds))
         )
-        .void
+        .void >> in.traverse {
+        case (tx: AppliedTransaction) =>
+          tx.txOutputs.traverse { output =>
+            OptionT(
+              poolRepo.getPoolByOutputId(
+                output.fullTxOutRef.txOutRefId.getTxId ++ "#" ++ output.fullTxOutRef.txOutRefIdx.toString
+              )
+            )
+              .flatMap { _ =>
+                OptionT.liftF(
+                  poolRepo.updatePoolTimestamp(
+                    output.fullTxOutRef.txOutRefId.getTxId ++ "#" ++ output.fullTxOutRef.txOutRefIdx.toString,
+                    tx.slotNo + cardanoConfig.startTimeInSeconds
+                  )
+                )
+              }
+              .value
+              .void
+          }.void
+        case _ => ().pure[F]
+      }.void
   }
 
   private final class OutputsHandler[F[_]: Monad: Logging](
