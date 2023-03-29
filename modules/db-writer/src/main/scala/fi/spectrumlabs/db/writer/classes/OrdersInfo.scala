@@ -1,32 +1,34 @@
 package fi.spectrumlabs.db.writer.classes
 
+import fi.spectrumlabs.db.writer.models.cardano.FullTxOutRef
+
 object OrdersInfo {
 
-  final case class SwapOrderInfo(
+  final case class ExecutedSwapOrderInfo(
     actualQuote: Long,
-    userOutputId: String,
-    poolInputId: String,
-    poolOutputId: String,
+    userOutputRef: FullTxOutRef,
+    poolInputRef: FullTxOutRef,
+    poolOutputRef: FullTxOutRef,
     timestamp: Long,
-    orderInputId: String
+    orderInputRef: FullTxOutRef
   )
 
-  final case class DepositOrderInfo(
+  final case class ExecutedDepositOrderInfo(
     amountLq: Long,
-    userOutputId: String,
-    poolInputId: String,
-    poolOutputId: String,
+    userOutputRef: FullTxOutRef,
+    poolInputRef: FullTxOutRef,
+    poolOutputRef: FullTxOutRef,
     timestamp: Long,
-    orderInputId: String
+    orderInputRef: FullTxOutRef
   )
 
-  final case class RedeemOrderInfo(
+  final case class ExecutedRedeemOrderInfo(
     amountX: Long,
     amountY: Long,
-    userOutputId: String,
-    poolInputId: String,
-    poolOutputId: String,
+    userOutputRef: FullTxOutRef,
+    poolInputRef: FullTxOutRef,
+    poolOutputRef: FullTxOutRef,
     timestamp: Long,
-    orderInputId: String
+    orderInputRef: FullTxOutRef
   )
 }

@@ -39,24 +39,6 @@ object Pool {
         in.element.poolFee.poolFeeDen,
         Amount(in.element.outCollateral),
         castFromCardano(in.txOut.fullTxOutRef),
-        0
+        0 //todo: zero in current iteration. Replace after updating cardano models
       )
-
-  //  implicit val toSchema: ToSchema[streaming.PoolEvent, Pool] =
-//    (in: streaming.PoolEvent) =>
-//      Pool(
-//        in.pool.id.toCoin,
-//        in.pool.reservesX,
-//        in.pool.reservesY,
-//        in.pool.liquidity,
-//        in.pool.x.toCoin,
-//        in.pool.y.toCoin,
-//        in.pool.lq.toCoin,
-//        in.pool.fee.poolFeeNum,
-//        in.pool.fee.poolFeeDen,
-//        in.pool.outCollateral,
-//        in.outputId,
-//        in.timestamp
-//      )
-
 }

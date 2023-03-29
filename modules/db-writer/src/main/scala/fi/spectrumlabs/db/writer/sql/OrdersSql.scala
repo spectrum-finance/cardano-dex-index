@@ -5,11 +5,13 @@ import doobie.util.query.Query0
 import fi.spectrumlabs.db.writer.models.db.{Deposit, Redeem, Swap}
 import doobie.implicits._
 import doobie.util.update.Update0
+import fi.spectrumlabs.db.writer.classes.OrdersInfo.{ExecutedDepositOrderInfo, ExecutedRedeemOrderInfo, ExecutedSwapOrderInfo}
+import fi.spectrumlabs.db.writer.models.cardano.FullTxOutRef
 
 //todo: current version is only for testing
 object OrdersSql {
 
-  def getDepositOrderSQL(txOutRef: String): Query0[Deposit] =
+  def getDepositOrderSQL(txOutRef: FullTxOutRef): Query0[Deposit] =
     sql"""select
           |     pool_nft,
           |     coin_x,
@@ -28,7 +30,7 @@ object OrdersSql {
           |     pool_output_id,
           |     timestamp from deposit where order_input_id = $txOutRef""".stripMargin.query
 
-  def getSwapOrderSQL(txOutRef: String): Query0[Swap] =
+  def getSwapOrderSQL(txOutRef: FullTxOutRef): Query0[Swap] =
     sql"""select base,
           |  quote,
           |  pool_nft,
@@ -46,7 +48,7 @@ object OrdersSql {
           |  timestamp from swap where order_input_id = $txOutRef""".stripMargin
       .query[Swap]
 
-  def getRedeemOrderSQL(txOutRef: String): Query0[Redeem] =
+  def getRedeemOrderSQL(txOutRef: FullTxOutRef): Query0[Redeem] =
     sql"""select pool_nft,
           |      coin_x,
           |      coin_y,
@@ -63,20 +65,13 @@ object OrdersSql {
           |      pool_output_id,
           |      timestamp from redeem where order_input_id = $txOutRef""".stripMargin.query
 
-  def updateExecutedSwapOrderSQL(
-    actualQuote: Long,
-    userOutputId: String,
-    poolInputId: String,
-    poolOutputId: String,
-    timestamp: Long,
-    orderInputId: String
-  ): Update0 =
-    Update[(Long, String, String, String, Long, String)](
+  def updateExecutedSwapOrderSQL(swapOrderInfo: ExecutedSwapOrderInfo): Update0 =
+    Update[ExecutedSwapOrderInfo](
       s"""
          |update swap
          |set actual_quote=?, user_output_id=?, pool_input_id=?, pool_output_Id=?, timestamp=?
          |where order_input_id=?""".stripMargin
-    ).toUpdate0((actualQuote, userOutputId, poolInputId, poolOutputId, timestamp, orderInputId))
+    ).toUpdate0(swapOrderInfo)
 
   def deleteExecutedSwapOrderSQL(txOutRef: String): Update0 =
     Update[String](
@@ -86,20 +81,13 @@ object OrdersSql {
          |where order_input_id=?""".stripMargin
     ).toUpdate0(txOutRef)
 
-  def updateExecutedDepositOrderSQL(
-    amountLq: Long,
-    userOutputId: String,
-    poolInputId: String,
-    poolOutputId: String,
-    timestamp: Long,
-    orderInputId: String
-  ): Update0 =
-    Update[(Long, String, String, String, Long, String)](
+  def updateExecutedDepositOrderSQL(depositOrderInfo: ExecutedDepositOrderInfo): Update0 =
+    Update[ExecutedDepositOrderInfo](
       s"""
          |update deposit
          |set amount_lq=?, user_output_id=?, pool_input_id=?, pool_output_Id=?, timestamp=?
          |where order_input_id=?""".stripMargin
-    ).toUpdate0((amountLq, userOutputId, poolInputId, poolOutputId, timestamp, orderInputId))
+    ).toUpdate0(depositOrderInfo)
 
   def deleteExecutedDepositOrderSQL(txOutRef: String): Update0 =
     Update[String](
@@ -109,21 +97,13 @@ object OrdersSql {
          |where order_input_id=?""".stripMargin
     ).toUpdate0(txOutRef)
 
-  def updateExecutedRedeemOrderSQL(
-    amountX: Long,
-    amountY: Long,
-    userOutputId: String,
-    poolInputId: String,
-    poolOutputId: String,
-    timestamp: Long,
-    orderInputId: String
-  ): Update0 =
-    Update[(Long, Long, String, String, String, Long, String)](
+  def updateExecutedRedeemOrderSQL(redeemOrderInfo: ExecutedRedeemOrderInfo): Update0 =
+    Update[ExecutedRedeemOrderInfo](
       s"""
          |update redeem
          |set amount_x=?, amount_y=?, user_output_id=?, pool_input_id=?, pool_output_Id=?, timestamp=?
          |where order_input_id=?""".stripMargin
-    ).toUpdate0((amountX, amountY, userOutputId, poolInputId, poolOutputId, timestamp, orderInputId))
+    ).toUpdate0(redeemOrderInfo)
 
   def deleteExecutedRedeemOrderSQL(txOutRef: String): Update0 =
     Update[String](

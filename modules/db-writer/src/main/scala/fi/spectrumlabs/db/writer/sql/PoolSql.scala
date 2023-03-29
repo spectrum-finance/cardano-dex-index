@@ -6,10 +6,11 @@ import fi.spectrumlabs.db.writer.models.db.Pool
 import doobie.implicits._
 import doobie.util.log.LogHandler
 import doobie.util.update.Update0
+import fi.spectrumlabs.db.writer.models.cardano.FullTxOutRef
 
 object PoolSql {
 
-  def getPoolByOutputIdSQL(outputId: String): Query0[Pool] =
+  def getPoolByOutputIdSQL(outputId: FullTxOutRef): Query0[Pool] =
     sql"""select pool_id,
          |    reserves_x,
          |    reserves_y,
@@ -23,9 +24,9 @@ object PoolSql {
          |    output_id,
          |    timestamp from pool where output_id = $outputId""".stripMargin.query
 
-  def updatePoolTimestampSQL(outputId: String, newTimestamp: Long): Update0 = {
+  def updatePoolTimestampSQL(outputId: FullTxOutRef, newTimestamp: Long): Update0 = {
     implicit val logHandler = LogHandler.jdkLogHandler
-    Update[(Long, String)](
+    Update[(Long, FullTxOutRef)](
       "update pool set timestamp = ? where output_id = ?"
     ).toUpdate0((newTimestamp, outputId))
   }

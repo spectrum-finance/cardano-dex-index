@@ -31,7 +31,7 @@ object Swap {
   def streamingSchema(config: CardanoConfig): ToSchema[Order, Option[Swap]] = {
     case orderAction: SwapOrder
         if config.supportedPools.contains(
-          castFromCardano(orderAction.order.action.swapBase.unCoin.unAssetClass).toCoin
+          castFromCardano(orderAction.order.action.swapPoolId.unCoin.unAssetClass).toCoin
         ) =>
       Swap(
         castFromCardano(orderAction.order.action.swapBase.unCoin.unAssetClass).toCoin,

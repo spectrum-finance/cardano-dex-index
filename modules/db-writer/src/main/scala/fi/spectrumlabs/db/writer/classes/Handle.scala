@@ -3,6 +3,7 @@ package fi.spectrumlabs.db.writer.classes
 import cats.data.{NonEmptyList, OptionT}
 import cats.syntax.flatMap._
 import cats.syntax.applicative._
+import cats.syntax.traverse._
 import cats.syntax.functor._
 import cats.{Functor, Monad}
 import fi.spectrumlabs.db.writer.models.{ExecutedInput, Output, Transaction}
@@ -19,11 +20,12 @@ import mouse.any._
 import tofu.logging.{Logging, Logs}
 import tofu.syntax.logging._
 import cats.syntax.traverse._
-import fi.spectrumlabs.db.writer.classes.OrdersInfo.{DepositOrderInfo, RedeemOrderInfo, SwapOrderInfo}
+import fi.spectrumlabs.db.writer.classes.OrdersInfo.{ExecutedDepositOrderInfo, ExecutedRedeemOrderInfo, ExecutedSwapOrderInfo}
 import fi.spectrumlabs.db.writer.config.CardanoConfig
 import fi.spectrumlabs.db.writer.models.cardano.{
   AddressCredential,
   Confirmed,
+  FullTxOutRef,
   FullTxOutValue,
   PoolEvent,
   PubKeyAddressCredential,
@@ -197,7 +199,7 @@ object Handle {
               OptionT.liftF(
                 poolsRepository
                   .updatePoolTimestamp(
-                    pool.outputId.txOutRefId.getTxId ++ "#" ++ pool.outputId.txOutRefIdx.toString,
+                    FullTxOutRef.fromTxOutRef(pool.outputId),
                     tx.timestamp
                   )
               )
@@ -208,7 +210,7 @@ object Handle {
 
   private final class TransactionHandler[F[_]: Monad: Logging](
     handleLogName: String,
-    poolRepo: PoolsRepository[F], //only for testing, change pool model in haskell part
+    poolRepo: PoolsRepository[F], //only for first iteration, change pool model in haskell part
     persist: Persist[Transaction, F],
     cardanoConfig: CardanoConfig
   ) extends Handle[TxEvent, F] {
@@ -222,21 +224,9 @@ object Handle {
         .void >> in.traverse {
         case (tx: AppliedTransaction) =>
           tx.txOutputs.traverse { output =>
-            OptionT(
-              poolRepo.getPoolByOutputId(
-                output.fullTxOutRef.txOutRefId.getTxId ++ "#" ++ output.fullTxOutRef.txOutRefIdx.toString
-              )
-            )
-              .flatMap { _ =>
-                OptionT.liftF(
-                  poolRepo.updatePoolTimestamp(
-                    output.fullTxOutRef.txOutRefId.getTxId ++ "#" ++ output.fullTxOutRef.txOutRefIdx.toString,
-                    tx.slotNo + cardanoConfig.startTimeInSeconds
-                  )
-                )
-              }
-              .value
-              .void
+            (OptionT(poolRepo.getPoolByOutputId(output.fullTxOutRef)) >> OptionT.liftF(
+              poolRepo.updatePoolTimestamp(output.fullTxOutRef, tx.slotNo + cardanoConfig.startTimeInSeconds)
+            )).value.void
           }.void
         case _ => ().pure[F]
       }.void
@@ -253,9 +243,10 @@ object Handle {
       in.flatMap(Output.toSchemaNew.apply).toList traverse { elem =>
         val outputsList = NonEmptyList.one(elem)
         persist.persist(outputsList) >> (for {
-          _  <- OptionT(poolsRepository.getPoolByOutputId(elem.ref.value))
-          tx <- OptionT(transactionRepo.getTxByHash(elem.txHash.value))
-          _  <- OptionT.liftF(poolsRepository.updatePoolTimestamp(elem.ref.value, tx.timestamp))
+          ref <- OptionT.fromOption(FullTxOutRef.fromString(elem.ref.value).toOption)
+          _   <- OptionT(poolsRepository.getPoolByOutputId(ref))
+          tx  <- OptionT(transactionRepo.getTxByHash(elem.txHash.value))
+          _   <- OptionT.liftF(poolsRepository.updatePoolTimestamp(ref, tx.timestamp))
         } yield ()).value.void
       }
     }.void
@@ -268,96 +259,79 @@ object Handle {
     handleLogName: String
   ) extends Handle[TxEvent, F] {
 
-    def flattenValues(fullTxOutValue: FullTxOutValue): Map[String, Long] =
-      fullTxOutValue.getValue.flatMap { values =>
-        values.tokens.map(tokenValue =>
-          s"${values.curSymbol.unCurrencySymbol}.${tokenValue.tokenName.unTokenName}" -> tokenValue.value
-        )
-      }.toMap
-
     def checkForPubkey(pubkey2check: String, addressCredential: AddressCredential): Boolean =
       addressCredential match {
-        case ScriptAddressCredential(contents, tag) => false
         case PubKeyAddressCredential(contents, tag) => contents.getPubKeyHash == pubkey2check
+        case _                                      => false
       }
 
     private def resolveDepositOrder(
       deposit: Deposit,
       input: TxInput,
       tx: AppliedTransaction
-    ): F[Option[DepositOrderInfo]] = (for {
+    ): Option[ExecutedDepositOrderInfo] = for {
       userRewardOut <-
-        OptionT.fromOption(tx.txOutputs.find { txOut =>
-          val fValues = flattenValues(txOut.fullTxOutValue)
-          fValues.contains(deposit.coinLq.value) && checkForPubkey(
+        tx.txOutputs.find { txOut =>
+          txOut.fullTxOutValue.contains(deposit.coinLq) && checkForPubkey(
             deposit.rewardPkh,
             txOut.fullTxOutAddress.addressCredential
           )
-        })
-      amountLq <- OptionT.fromOption(flattenValues(userRewardOut.fullTxOutValue).find(_._1 == deposit.coinLq.value))
-      poolIn   <- OptionT.fromOption((tx.txInputs.filterNot(_.txInRef == input.txInRef).headOption))
-      poolOut <- OptionT.fromOption(tx.txOutputs.find { txOut =>
-                   val fValues = flattenValues(txOut.fullTxOutValue)
-                   fValues.contains(deposit.poolId.value)
-                 })
-    } yield DepositOrderInfo(
+        }
+      amountLq <- userRewardOut.fullTxOutValue.find(deposit.coinLq)
+      poolIn   <- tx.txInputs.filterNot(_.txInRef == input.txInRef).headOption
+      poolOut <- tx.txOutputs.find(
+                   _.fullTxOutValue.contains(deposit.poolId)
+                 )
+    } yield ExecutedDepositOrderInfo(
       amountLq._2,
-      userRewardOut.fullTxOutRef.txOutRefId.getTxId ++ "#" ++ userRewardOut.fullTxOutRef.txOutRefIdx.toString,
-      poolIn.txInRef.txOutRefId.getTxId ++ "#" ++ poolIn.txInRef.txOutRefIdx.toString,
-      poolOut.fullTxOutRef.txOutRefId.getTxId ++ "#" ++ poolOut.fullTxOutRef.txOutRefIdx.toString,
+      userRewardOut.fullTxOutRef,
+      poolIn.txInRef,
+      poolOut.fullTxOutRef,
       tx.slotNo + cardanoConfig.startTimeInSeconds,
-      input.txInRef.txOutRefId.getTxId ++ "#" ++ input.txInRef.txOutRefIdx.toString
-    )).value
+      input.txInRef
+    )
 
-    private def resolveSwapOrder(swap: Swap, input: TxInput, tx: AppliedTransaction): F[Option[SwapOrderInfo]] = (for {
-      userRewardOut <- OptionT.fromOption(tx.txOutputs.find { txOut =>
-                         val fValues = flattenValues(txOut.fullTxOutValue)
-                         fValues.contains(swap.quote.value) && checkForPubkey(
+    private def resolveSwapOrder(swap: Swap, input: TxInput, tx: AppliedTransaction): Option[ExecutedSwapOrderInfo] = for {
+      userRewardOut <- tx.txOutputs.find { txOut =>
+                         txOut.fullTxOutValue.contains(swap.quote) && checkForPubkey(
                            swap.rewardPkh,
                            txOut.fullTxOutAddress.addressCredential
                          )
-                       })
-      actualQuote <- OptionT.fromOption(flattenValues(userRewardOut.fullTxOutValue).find(_._1 == swap.quote.value))
-      poolIn      <- OptionT.fromOption(tx.txInputs.filterNot(_.txInRef == input.txInRef).headOption)
-      poolOut <- OptionT.fromOption(tx.txOutputs.find { txOut =>
-                   val fValues = flattenValues(txOut.fullTxOutValue)
-                   fValues.contains(swap.poolId.value)
-                 })
-    } yield SwapOrderInfo(
+                       }
+      actualQuote <- userRewardOut.fullTxOutValue.find(swap.quote)
+      poolIn      <- tx.txInputs.filterNot(_.txInRef == input.txInRef).headOption
+      poolOut     <- tx.txOutputs.find(_.fullTxOutValue.contains(swap.poolId))
+    } yield ExecutedSwapOrderInfo(
       actualQuote._2,
-      userRewardOut.fullTxOutRef.txOutRefId.getTxId ++ "#" ++ userRewardOut.fullTxOutRef.txOutRefIdx.toString,
-      poolIn.txInRef.txOutRefId.getTxId ++ "#" ++ poolIn.txInRef.txOutRefIdx.toString,
-      poolOut.fullTxOutRef.txOutRefId.getTxId ++ "#" ++ poolOut.fullTxOutRef.txOutRefIdx.toString,
+      userRewardOut.fullTxOutRef,
+      poolIn.txInRef,
+      poolOut.fullTxOutRef,
       tx.slotNo + cardanoConfig.startTimeInSeconds,
-      input.txInRef.txOutRefId.getTxId ++ "#" ++ input.txInRef.txOutRefIdx.toString
-    )).value
+      input.txInRef
+    )
 
-    private def resolveRedeemOrder(redeem: Redeem, input: TxInput, tx: AppliedTransaction): Option[RedeemOrderInfo] =
+    private def resolveRedeemOrder(redeem: Redeem, input: TxInput, tx: AppliedTransaction): Option[ExecutedRedeemOrderInfo] =
       for {
         userRewardOut <- tx.txOutputs.find { txOut =>
-                           val fValues = flattenValues(txOut.fullTxOutValue)
-                           fValues.contains(redeem.coinX.value) && fValues.contains(
-                             redeem.coinY.value
+                           txOut.fullTxOutValue.contains(redeem.coinX) && txOut.fullTxOutValue.contains(
+                             redeem.coinY
                            ) && checkForPubkey(
                              redeem.rewardPkh.getPubKeyHash,
                              txOut.fullTxOutAddress.addressCredential
                            )
                          }
-        actualX <- flattenValues(userRewardOut.fullTxOutValue).find(_._1 == redeem.coinX.value)
-        actualY <- flattenValues(userRewardOut.fullTxOutValue).find(_._1 == redeem.coinY.value)
+        actualX <- userRewardOut.fullTxOutValue.find(redeem.coinX)
+        actualY <- userRewardOut.fullTxOutValue.find(redeem.coinY)
         poolIn  <- tx.txInputs.filterNot(_.txInRef == input.txInRef).headOption
-        poolOut <- tx.txOutputs.find { txOut =>
-                     val fValues = flattenValues(txOut.fullTxOutValue)
-                     fValues.contains(redeem.poolId.value)
-                   }
-      } yield RedeemOrderInfo(
+        poolOut <- tx.txOutputs.find(_.fullTxOutValue.contains(redeem.poolId))
+      } yield ExecutedRedeemOrderInfo(
         actualX._2,
         actualY._2,
-        userRewardOut.fullTxOutRef.txOutRefId.getTxId ++ "#" ++ userRewardOut.fullTxOutRef.txOutRefIdx.toString,
-        poolIn.txInRef.txOutRefId.getTxId ++ "#" ++ poolIn.txInRef.txOutRefIdx.toString,
-        poolOut.fullTxOutRef.txOutRefId.getTxId ++ "#" ++ poolOut.fullTxOutRef.txOutRefIdx.toString,
+        userRewardOut.fullTxOutRef,
+        poolIn.txInRef,
+        poolOut.fullTxOutRef,
         tx.slotNo + cardanoConfig.startTimeInSeconds,
-        input.txInRef.txOutRefId.getTxId ++ "#" ++ input.txInRef.txOutRefIdx.toString
+        input.txInRef
       )
 
     override def handle(in: NonEmptyList[TxEvent]): F[Unit] =
@@ -365,69 +339,19 @@ object Handle {
         case _: UnAppliedTransaction => ().pure[F]
         case tx: AppliedTransaction =>
           tx.txInputs.traverse { txInput =>
-            ordersRepository.getOrder(
-              txInput.txInRef.txOutRefId.getTxId ++ "#" ++ txInput.txInRef.txOutRefIdx.toString
-            ) flatMap {
+            ordersRepository.getOrder(txInput.txInRef) flatMap {
               case Some(deposit: Deposit) =>
-                info"Deposit order in tx: ${tx.toString}" >> (resolveDepositOrder(deposit, txInput, tx) flatMap {
-                  case Some(
-                        DepositOrderInfo(amountLq, userOutputId, poolInputId, poolOutputId, timestamp, orderInputId)
-                      ) =>
-                    ordersRepository
-                      .updateExecutedDepositOrder(
-                        amountLq,
-                        userOutputId,
-                        poolInputId,
-                        poolOutputId,
-                        timestamp,
-                        orderInputId
-                      )
-                      .void
-                  case None => ().pure[F]
-                })
+                resolveDepositOrder(deposit, txInput, tx).traverse { deposit =>
+                  info"Deposit order in tx: ${tx.toString}" >> ordersRepository.updateExecutedDepositOrder(deposit)
+                }.void
               case Some(swap: Swap) =>
-                info"Swap order in tx: ${tx.toString}" >> (resolveSwapOrder(swap, txInput, tx) flatMap {
-                  case Some(
-                        SwapOrderInfo(actualQuote, userOutputId, poolInputId, poolOutputId, timestamp, orderInputId)
-                      ) =>
-                    ordersRepository
-                      .updateExecutedSwapOrder(
-                        actualQuote,
-                        userOutputId,
-                        poolInputId,
-                        poolOutputId,
-                        timestamp,
-                        orderInputId
-                      )
-                      .void
-                  case None => ().pure[F]
-                })
+                resolveSwapOrder(swap, txInput, tx).traverse { swap =>
+                  info"Swap order in tx: ${tx.toString}" >> ordersRepository.updateExecutedSwapOrder(swap)
+                }.void
               case Some(redeem: Redeem) =>
-                info"Redeem order in tx: ${tx.toString}" >> (resolveRedeemOrder(redeem, txInput, tx) match {
-                  case Some(
-                        RedeemOrderInfo(
-                          amountX,
-                          amountY,
-                          userOutputId,
-                          poolInputId,
-                          poolOutputId,
-                          timestamp,
-                          orderInputId
-                        )
-                      ) =>
-                    ordersRepository
-                      .updateExecutedRedeemOrder(
-                        amountX,
-                        amountY,
-                        userOutputId,
-                        poolInputId,
-                        poolOutputId,
-                        timestamp,
-                        orderInputId
-                      )
-                      .void
-                  case None => ().pure[F]
-                })
+                resolveRedeemOrder(redeem, txInput, tx).traverse { redeem =>
+                  info"Redeem order in tx: ${tx.toString}" >> ordersRepository.updateExecutedRedeemOrder(redeem)
+                }.void
               case _ => ().pure[F]
             }
           }.void
