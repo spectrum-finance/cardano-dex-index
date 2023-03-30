@@ -174,9 +174,9 @@ object Handle {
       in.map(toSchema(_)).toList.flatten match {
         case x :: xs =>
           (NonEmptyList.of(x, xs: _*) |> persist.persist)
-            .flatMap(r => info"Finished handle [$handleLogName] process for $r elements. Batch size was ${in.size}.")
+            .flatMap(r => info"Finished handle [$handleLogName] process for $r elements. Batch size was ${in.size}. ${in.toString()}")
         case Nil =>
-          info"Nothing to extract [$handleLogName]. Batch contains 0 elements to persist."
+          info"Nothing to extract ${in.toString()} [$handleLogName]. Batch contains 0 elements to persist."
       }
   }
 
