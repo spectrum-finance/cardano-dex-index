@@ -12,7 +12,7 @@ import fi.spectrumlabs.db.writer.config._
 import fi.spectrumlabs.db.writer.classes.Handle
 import fi.spectrumlabs.db.writer.config.{ConfigBundle, _}
 import fi.spectrumlabs.db.writer.models._
-import fi.spectrumlabs.db.writer.models.db.{ExecutedDeposit, ExecutedRedeem, ExecutedSwap, Pool}
+import fi.spectrumlabs.db.writer.models.db.Pool
 import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, ExecutedOrderEvent, TxEvent}
 import fi.spectrumlabs.db.writer.persistence.PersistBundle
 import fi.spectrumlabs.db.writer.programs.{HandlersBundle, WriterProgram}

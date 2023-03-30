@@ -16,7 +16,7 @@ import fi.spectrumlabs.db.writer.models.cardano.{
   RedeemAction,
   SwapAction
 }
-import fi.spectrumlabs.db.writer.models.db.{Deposit, ExecutedDeposit, ExecutedRedeem, ExecutedSwap, Pool, Redeem, Swap}
+import fi.spectrumlabs.db.writer.models.db.{Deposit, Redeem, Swap}
 import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, ExecutedOrderEvent, TxEvent}
 import fi.spectrumlabs.db.writer.models.{ExecutedInput, Input, Output, Redeemer, Transaction}
 import fi.spectrumlabs.db.writer.persistence.PersistBundle
@@ -64,13 +64,11 @@ object Handlers {
   ): Resource[InitF, Handler[StreamF]] = Resource.eval {
     import bundle._
     for {
-      txn <- Handle.createForTransaction(logs, poolsRepository, transaction, cardanoConfig)
-      in  <- Handle.createNel[TxEvent, Input, InitF, RunF](input, InHandleName)
-      eIn <- Handle.createExecuted[InitF, RunF](cardanoConfig, ordersRepository)
-      //eIn <- Handle.createNel[AppliedTransaction, ExecutedInput, InitF, RunF](executedInput, ExecutedInput)
+      txn       <- Handle.createForTransaction(logs, poolsRepository, transaction, cardanoConfig)
+      in        <- Handle.createNel[TxEvent, Input, InitF, RunF](input, InHandleName)
+      eIn       <- Handle.createExecuted[InitF, RunF](cardanoConfig, ordersRepository)
       out       <- Handle.createForOutputs[InitF, RunF](poolsRepository, transactionRepository, logs, output)
       unApplied <- Handle.createForRollbacks[InitF, RunF](ordersRepository, inputsRepository, outputsRepository)
-      //reed <- Handle.createList[Tx, Redeemer, InitF, RunF](redeemer, ReedHandleName)
       implicit0(nelHandlers: NonEmptyList[Handle[TxEvent, RunF]]) = NonEmptyList.of(txn, in, out, eIn, unApplied)
       handler <- Handler.create[TxEvent, StreamF, RunF, Chunk, InitF](config, TxHandlerName)
     } yield handler
@@ -84,9 +82,18 @@ object Handlers {
     import bundle._
     for {
       deposit <-
-        Handle.createOptionExcl[Order, Deposit, InitF, RunF](deposit, DepositHandleName)(Deposit.streamingSchema(cardanoConfig), logs)
-      swap   <- Handle.createOptionExcl[Order, Swap, InitF, RunF](swap, SwapHandleName)(Swap.streamingSchema(cardanoConfig), logs)
-      redeem <- Handle.createOptionExcl[Order, Redeem, InitF, RunF](redeem, RedeemHandleName)(Redeem.streamingSchema(cardanoConfig), logs)
+        Handle.createOptionExcl[Order, Deposit, InitF, RunF](deposit, DepositHandleName)(
+          Deposit.streamingSchema(cardanoConfig),
+          logs
+        )
+      swap <- Handle.createOptionExcl[Order, Swap, InitF, RunF](swap, SwapHandleName)(
+                Swap.streamingSchema(cardanoConfig),
+                logs
+              )
+      redeem <- Handle.createOptionExcl[Order, Redeem, InitF, RunF](redeem, RedeemHandleName)(
+                  Redeem.streamingSchema(cardanoConfig),
+                  logs
+                )
       implicit0(nelHandlers: NonEmptyList[Handle[Order, RunF]]) = NonEmptyList.of(deposit, swap, redeem)
       handler <- Handler.create[Order, StreamF, RunF, Chunk, InitF](config, OrdersHandlerName)
     } yield handler
@@ -104,7 +111,8 @@ object Handlers {
   ): Resource[InitF, Handler[StreamF]] = Resource.eval {
     import bundle._
     for {
-      poolHandler <- Handle.createForPools[InitF, RunF](poolsRepository, transactionRepository, logs, pool, cardanoConfig)
+      poolHandler <-
+        Handle.createForPools[InitF, RunF](poolsRepository, transactionRepository, logs, pool, cardanoConfig)
       implicit0(nelHandlers: NonEmptyList[Handle[Confirmed[PoolEvent], RunF]]) = NonEmptyList.of(poolHandler)
       handler <- Handler.create[Confirmed[PoolEvent], StreamF, RunF, Chunk, InitF](config, PoolsHandler)
     } yield handler

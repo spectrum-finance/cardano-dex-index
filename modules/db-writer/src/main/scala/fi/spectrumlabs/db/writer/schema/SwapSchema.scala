@@ -1,6 +1,6 @@
 package fi.spectrumlabs.db.writer.schema
 
-import fi.spectrumlabs.db.writer.models.db.{ExecutedSwap, Swap}
+import fi.spectrumlabs.db.writer.models.db.Swap
 
 class SwapSchema extends Schema[Swap] {
   val tableName: String = "swap"
