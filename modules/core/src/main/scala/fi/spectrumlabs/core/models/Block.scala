@@ -2,7 +2,6 @@ package fi.spectrumlabs.core.models
 
 import derevo.circe.magnolia.{decoder, encoder}
 import derevo.derive
-import fi.spectrumlabs.explorer.models.BlockInfo
 import tofu.logging.derivation.loggable
 
 @derive(encoder, decoder, loggable)
@@ -12,12 +11,3 @@ final case class Block(
   timestamp: Long
 )
 
-object Block {
-
-  def fromExplorer(block: BlockInfo): Block =
-    Block(
-      block.id,
-      block.height,
-      block.timestamp
-    )
-}

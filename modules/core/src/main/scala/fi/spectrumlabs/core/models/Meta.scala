@@ -2,7 +2,7 @@ package fi.spectrumlabs.core.models
 
 import derevo.circe.magnolia.{decoder, encoder}
 import derevo.derive
-import fi.spectrumlabs.explorer.models.{Bytea, Metadata => M}
+import fi.spectrumlabs.core.models.{Metadata => M}
 import io.circe.Json
 import io.scalaland.chimney.dsl._
 

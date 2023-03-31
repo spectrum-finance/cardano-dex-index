@@ -2,8 +2,6 @@ package fi.spectrumlabs.core.models
 
 import derevo.circe.magnolia.{decoder, encoder}
 import derevo.derive
-import fi.spectrumlabs.explorer.models.TxOutput
-import fi.spectrumlabs.explorer.models._
 import io.circe.Json
 import io.scalaland.chimney.dsl._
 
@@ -22,9 +20,3 @@ final case class Output(
   dataBin: Option[Bytea],
   spentByTxHash: Option[TxHash]
 )
-
-object Output {
-
-  def fromExplorer(out: TxOutput): Output =
-    out.into[Output].transform
-}

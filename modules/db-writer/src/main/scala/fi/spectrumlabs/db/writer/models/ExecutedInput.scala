@@ -2,9 +2,9 @@ package fi.spectrumlabs.db.writer.models
 
 import cats.data.NonEmptyList
 import cats.syntax.option.none
+import fi.spectrumlabs.core.models.{OutRef, TxHash}
 import fi.spectrumlabs.db.writer.classes.ToSchema
 import fi.spectrumlabs.db.writer.models.streaming.AppliedTransaction
-import fi.spectrumlabs.explorer.models.{OutRef, TxHash}
 
 final case class ExecutedInput(txHash: TxHash, slot: Long, outRef: OutRef, outIndex: Int)
 

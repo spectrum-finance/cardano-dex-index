@@ -6,8 +6,6 @@ import doobie.Put
 import doobie.util.Get
 import cats.syntax.either._
 import fi.spectrumlabs.db.writer.models.orders.TxOutRef
-import fi.spectrumlabs.explorer.models.OutRef
-
 import scala.util.{Failure, Success, Try}
 
 @derive(encoder, decoder)

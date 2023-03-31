@@ -1,8 +1,7 @@
 package fi.spectrumlabs.db.writer.models
 
 import cats.data.NonEmptyList
-import fi.spectrumlabs.explorer.models._
-import fi.spectrumlabs.core.models.Tx
+import fi.spectrumlabs.core.models.{Addr, BlockHash, Bytea, Hash32, OutRef, PaymentCred, TxHash}
 import fi.spectrumlabs.db.writer.classes.ToSchema
 import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, TxEvent}
 import io.circe.Json
@@ -55,24 +54,4 @@ object Output {
       )
     }
   }
-
-  implicit val toSchema: ToSchema[Tx, NonEmptyList[Output]] = (in: Tx) =>
-    in.outputs.map { o =>
-      Output(
-        in.hash,
-        in.blockIndex,
-        o.ref,
-        o.blockHash,
-        o.index.toLong,
-        o.addr,
-        o.rawAddr,
-        o.paymentCred,
-        o.value.asJson,
-        o.dataHash,
-        o.data,
-        o.dataBin,
-        o.spentByTxHash
-      )
-    }
-
 }

@@ -1,8 +1,7 @@
 package fi.spectrumlabs.db.writer.models
 
 import cats.data.NonEmptyList
-import fi.spectrumlabs.explorer.models.{OutRef, TxHash}
-import fi.spectrumlabs.core.models.Tx
+import fi.spectrumlabs.core.models.{OutRef, TxHash}
 import fi.spectrumlabs.db.writer.classes.ToSchema
 import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, TxEvent}
 import cats.syntax.option._
@@ -22,15 +21,4 @@ object Input {
       )
     }
   }
-
-  implicit val toSchema: ToSchema[Tx, NonEmptyList[Input]] = (in: Tx) =>
-    in.inputs.map { i =>
-      Input(
-        in.hash,
-        in.blockIndex,
-        i.out.ref,
-        i.out.index,
-        i.redeemer.map(_.index)
-      )
-    }
 }

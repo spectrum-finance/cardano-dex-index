@@ -37,21 +37,7 @@ lazy val dexIndex = project
   .settings(idePackagePrefix := Some("fi.spectrumlabs"))
   .settings(commonSettings)
   .settings(name := "cardano-dex-index")
-  .aggregate(core, tracker, dbWriter, api, explorer, ratesResolver)
-
-lazy val explorer = project
-  .in(file("modules/explorer"))
-  .withId("explorer")
-  .settings(name := "explorer")
-  .settings(libraryDependencies ++= List(
-    Libraries.derevoCirce,
-    Libraries.tofuDerivation,
-    Libraries.newtype,
-    Libraries.tofuLogging,
-    Libraries.tofuDoobie,
-    Libraries.enumeratum
-  ))
-  .settings(commonSettings)
+  .aggregate(core, dbWriter, api, ratesResolver)
 
 lazy val core = project
   .in(file("modules/core"))
@@ -82,24 +68,6 @@ lazy val core = project
   ) ++ Libraries.Scodec)
   .dependsOn(explorer)
   .settings(commonSettings)
-
-lazy val tracker = project
-  .in(file("modules/tracker"))
-  .withId("cardano-markets-tracker")
-  .settings(name := "cardano-markets-tracker")
-  .settings(commonSettings)
-  .settings(libraryDependencies ++=  List(
-    Libraries.derevoCats,
-    Libraries.derevoCatsTagless,
-    Libraries.jawnFs2,
-    Libraries.enumeratumCirce,
-    Libraries.mouse,
-    Libraries.pureconfig,
-    Libraries.catsRetry
-  ))
-  .dependsOn(core)
-  .settings(assembly / assemblyJarName := "tracker.jar")
-  .enablePlugins(JavaAppPackaging, UniversalPlugin, DockerPlugin)
 
 lazy val dbWriter = project
   .in(file("modules/db-writer"))

@@ -1,20 +1,12 @@
-package fi.spectrumlabs.explorer
+package fi.spectrumlabs.core
 
 import derevo.circe.magnolia.{decoder, encoder}
 import derevo.derive
-import doobie._
+import doobie.{Get, Put}
 import io.estatico.newtype.macros.newtype
 import tofu.logging.derivation.loggable
 
 package object models {
-
-  @derive(loggable, encoder, decoder)
-  @newtype case class BlockHash(value: String)
-
-  object BlockHash {
-    implicit val get: Get[BlockHash] = deriving
-    implicit val put: Put[BlockHash] = deriving
-  }
 
   @derive(loggable, encoder, decoder)
   @newtype case class TxHash(value: String)
@@ -22,6 +14,14 @@ package object models {
   object TxHash {
     implicit val get: Get[TxHash] = deriving
     implicit val put: Put[TxHash] = deriving
+  }
+
+  @derive(loggable, encoder, decoder)
+  @newtype case class BlockHash(value: String)
+
+  object BlockHash {
+    implicit val get: Get[BlockHash] = deriving
+    implicit val put: Put[BlockHash] = deriving
   }
 
   @derive(loggable, encoder, decoder)
@@ -41,14 +41,6 @@ package object models {
   }
 
   @derive(loggable, encoder, decoder)
-  @newtype case class PaymentCred(value: String)
-
-  object PaymentCred {
-    implicit val get: Get[PaymentCred] = deriving
-    implicit val put: Put[PaymentCred] = deriving
-  }
-
-  @derive(loggable, encoder, decoder)
   @newtype case class PolicyId(value: String)
 
   object PolicyId {
@@ -65,26 +57,26 @@ package object models {
   }
 
   @derive(loggable, encoder, decoder)
-  @newtype case class Hash32(value: String)
-
-  object Hash32 {
-    implicit val get: Get[Hash32] = deriving
-    implicit val put: Put[Hash32] = deriving
-  }
-
-  @derive(loggable, encoder, decoder)
-  @newtype case class Hash28(value: String)
-
-  object Hash28 {
-    implicit val get: Get[Hash28] = deriving
-    implicit val put: Put[Hash28] = deriving
-  }
-
-  @derive(loggable, encoder, decoder)
   @newtype case class Addr(value: String)
 
   object Addr {
     implicit val get: Get[Addr] = deriving
     implicit val put: Put[Addr] = deriving
+  }
+
+  @derive(loggable, encoder, decoder)
+  @newtype case class PaymentCred(value: String)
+
+  object PaymentCred {
+    implicit val get: Get[PaymentCred] = deriving
+    implicit val put: Put[PaymentCred] = deriving
+  }
+
+  @derive(loggable, encoder, decoder)
+  @newtype case class Hash32(value: String)
+
+  object Hash32 {
+    implicit val get: Get[Hash32] = deriving
+    implicit val put: Put[Hash32] = deriving
   }
 }

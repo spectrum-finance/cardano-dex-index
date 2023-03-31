@@ -27,7 +27,6 @@ object Schema {
   implicit val input: InputSchema                        = new InputSchema
   implicit val output: OutputSchema                      = new OutputSchema
   implicit val transaction: TransactionSchema            = new TransactionSchema
-  implicit val redeemer: RedeemerSchema                  = new RedeemerSchema
   implicit val depositSchema: DepositSchema              = new DepositSchema
   implicit val swapSchema: SwapSchema                    = new SwapSchema
   implicit val redeemSchema: RedeemSchema                = new RedeemSchema

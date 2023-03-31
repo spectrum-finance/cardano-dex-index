@@ -2,7 +2,6 @@ package fi.spectrumlabs.db.writer
 
 import cats.effect.{Blocker, Resource}
 import fi.spectrumlabs.core.EnvApp
-import fi.spectrumlabs.core.models.Tx
 import fi.spectrumlabs.core.streaming.Consumer.Aux
 import fi.spectrumlabs.core.streaming.config.{ConsumerConfig, KafkaConfig}
 import fi.spectrumlabs.core.streaming.serde._

@@ -2,7 +2,6 @@ package fi.spectrumlabs.db.writer
 
 import cats.data.NonEmptyList
 import cats.effect.Resource
-import fi.spectrumlabs.core.models.Tx
 import fi.spectrumlabs.core.streaming.Consumer
 import fi.spectrumlabs.db.writer.App.{InitF, RunF, StreamF}
 import fi.spectrumlabs.db.writer.classes.Handle
@@ -18,7 +17,7 @@ import fi.spectrumlabs.db.writer.models.cardano.{
 }
 import fi.spectrumlabs.db.writer.models.db.{Deposit, Redeem, Swap}
 import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, ExecutedOrderEvent, TxEvent}
-import fi.spectrumlabs.db.writer.models.{ExecutedInput, Input, Output, Redeemer, Transaction}
+import fi.spectrumlabs.db.writer.models.{ExecutedInput, Input, Output, Transaction}
 import fi.spectrumlabs.db.writer.persistence.PersistBundle
 import fi.spectrumlabs.db.writer.programs.Handler
 import fi.spectrumlabs.db.writer.repositories.{
@@ -43,7 +42,6 @@ object Handlers {
   val InHandleName      = "Input"
   val ExecutedInput     = "ExecutedInput"
   val OutHandleName     = "Output"
-  val ReedHandleName    = "Redeemer"
   val DepositHandleName = "Deposit"
   val SwapHandleName    = "Swap"
   val RedeemHandleName  = "Redeem"
