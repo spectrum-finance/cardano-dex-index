@@ -6,6 +6,7 @@ import cats.syntax.applicative._
 import cats.syntax.traverse._
 import cats.syntax.functor._
 import cats.{Functor, Monad}
+import cats.syntax.option._
 import fi.spectrumlabs.db.writer.models.{ExecutedInput, Output, Transaction}
 import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, TxEvent, UnAppliedTransaction}
 import fi.spectrumlabs.db.writer.persistence.Persist
@@ -358,41 +359,47 @@ object Handle {
       deposit: Deposit,
       tx: AppliedTransaction
     ): Option[FullTxOutRef] =
-      tx.txOutputs
-        .find { txOut =>
-          txOut.fullTxOutValue
-            .contains(deposit.coinX) && txOut.fullTxOutValue.contains(deposit.coinY) && checkForPubkey(
-            deposit.rewardPkh,
-            txOut.fullTxOutAddress.addressCredential
-          )
-        }
-        .map(_.fullTxOutRef)
+      if (tx.txOutputs.find(_.fullTxOutValue.contains(deposit.poolId)).isEmpty)
+        tx.txOutputs
+          .find { txOut =>
+            txOut.fullTxOutValue
+              .contains(deposit.coinX) && txOut.fullTxOutValue.contains(deposit.coinY) && checkForPubkey(
+              deposit.rewardPkh,
+              txOut.fullTxOutAddress.addressCredential
+            )
+          }
+          .map(_.fullTxOutRef)
+      else none
 
     private def resolveSwapRefund(
       swap: Swap,
       tx: AppliedTransaction
     ): Option[FullTxOutRef] =
-      tx.txOutputs
-        .find { txOut =>
-          txOut.fullTxOutValue.contains(swap.base) && checkForPubkey(
-            swap.rewardPkh,
-            txOut.fullTxOutAddress.addressCredential
-          )
-        }
-        .map(_.fullTxOutRef)
+      if (tx.txOutputs.find(_.fullTxOutValue.contains(swap.poolId)).isEmpty)
+        tx.txOutputs
+          .find { txOut =>
+            txOut.fullTxOutValue.contains(swap.base) && checkForPubkey(
+              swap.rewardPkh,
+              txOut.fullTxOutAddress.addressCredential
+            )
+          }
+          .map(_.fullTxOutRef)
+      else none
 
     private def resolveRedeemRefund(
       redeem: Redeem,
       tx: AppliedTransaction
     ): Option[FullTxOutRef] =
-      tx.txOutputs
-        .find { txOut =>
-          txOut.fullTxOutValue.contains(redeem.coinLq) && checkForPubkey(
-            redeem.rewardPkh.getPubKeyHash,
-            txOut.fullTxOutAddress.addressCredential
-          )
-        }
-        .map(_.fullTxOutRef)
+      if (tx.txOutputs.find(_.fullTxOutValue.contains(redeem.poolId)).isEmpty)
+        tx.txOutputs
+          .find { txOut =>
+            txOut.fullTxOutValue.contains(redeem.coinLq) && checkForPubkey(
+              redeem.rewardPkh.getPubKeyHash,
+              txOut.fullTxOutAddress.addressCredential
+            )
+          }
+          .map(_.fullTxOutRef)
+      else none
 
     override def handle(in: NonEmptyList[TxEvent]): F[Unit] =
       in.traverse {
