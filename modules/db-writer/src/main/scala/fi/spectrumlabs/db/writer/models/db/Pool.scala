@@ -39,6 +39,6 @@ object Pool {
         in.element.poolFee.poolFeeDen,
         Amount(in.element.outCollateral),
         castFromCardano(in.txOut.fullTxOutRef),
-        0 //todo: zero in current iteration. Replace after updating cardano models
+        config.startTimeInSeconds + in.slotNo
       )
 }

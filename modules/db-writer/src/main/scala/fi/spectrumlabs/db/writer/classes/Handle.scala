@@ -199,17 +199,7 @@ object Handle {
         .toList
         .filter(pool => cardanoConfig.supportedPools.contains(pool.id))
         .traverse { pool =>
-          persist.persist(NonEmptyList.one(pool)) >> (for {
-            tx <- OptionT(transactionRepo.getTxByHash(pool.outputId.txOutRefId.getTxId))
-            _ <-
-              OptionT.liftF(
-                poolsRepository
-                  .updatePoolTimestamp(
-                    FullTxOutRef.fromTxOutRef(pool.outputId),
-                    tx.timestamp
-                  )
-              )
-          } yield ()).value
+          persist.persist(NonEmptyList.one(pool))
         }
         .void
   }
@@ -227,15 +217,7 @@ object Handle {
           in.map(Transaction.toSchemaNew.apply)
             .map(prevTx => prevTx.copy(timestamp = prevTx.timestamp + cardanoConfig.startTimeInSeconds))
         )
-        .void >> in.traverse {
-        case (tx: AppliedTransaction) =>
-          tx.txOutputs.traverse { output =>
-            (OptionT(poolRepo.getPoolByOutputId(output.fullTxOutRef)) >> OptionT.liftF(
-              poolRepo.updatePoolTimestamp(output.fullTxOutRef, tx.slotNo + cardanoConfig.startTimeInSeconds)
-            )).value.void
-          }.void
-        case _ => ().pure[F]
-      }.void
+        .void
   }
 
   final private class OutputsHandler[F[_]: Monad: Logging](
@@ -248,12 +230,7 @@ object Handle {
     override def handle(in: NonEmptyList[TxEvent]): F[Unit] = {
       in.flatMap(Output.toSchemaNew.apply).toList traverse { elem =>
         val outputsList = NonEmptyList.one(elem)
-        persist.persist(outputsList) >> (for {
-          ref <- OptionT.fromOption(FullTxOutRef.fromString(elem.ref.value).toOption)
-          _   <- OptionT(poolsRepository.getPoolByOutputId(ref))
-          tx  <- OptionT(transactionRepo.getTxByHash(elem.txHash.value))
-          _   <- OptionT.liftF(poolsRepository.updatePoolTimestamp(ref, tx.timestamp))
-        } yield ()).value.void
+        persist.persist(outputsList)
       }
     }.void
   }

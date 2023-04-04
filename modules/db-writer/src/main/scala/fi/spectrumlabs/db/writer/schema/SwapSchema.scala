@@ -20,6 +20,9 @@ class SwapSchema extends Schema[Swap] {
     "user_output_id",
     "pool_input_Id",
     "pool_output_Id",
-    "timestamp"
+    "redeem_output_Id",
+    "creation_timestamp",
+    "execution_timestamp",
+    "order_status"
   )
 }

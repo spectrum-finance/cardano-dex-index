@@ -24,7 +24,10 @@ create table if not exists deposit (
     user_output_id Text,
     pool_input_Id Text,
     pool_output_Id Text,
-    timestamp BIGINT
+    redeem_output_Id Text,
+    creation_timestamp BIGINT,
+    execution_timestamp BIGINT,
+    order_status TEXT
 );
 
 create table if not exists redeem (
@@ -43,7 +46,10 @@ create table if not exists redeem (
     user_output_id Text,
     pool_input_Id Text,
     pool_output_Id Text,
-    timestamp BIGINT
+    redeem_output_Id Text,
+    creation_timestamp BIGINT,
+    execution_timestamp BIGINT,
+    order_status TEXT
 );
 
 create table if not exists swap (
@@ -62,7 +68,10 @@ create table if not exists swap (
     user_output_id Text,
     pool_input_Id Text,
     pool_output_Id Text,
-    timestamp BIGINT
+    redeem_output_Id Text,
+    creation_timestamp BIGINT,
+    execution_timestamp BIGINT,
+    order_status TEXT
 );
 
 create table if not exists pool (

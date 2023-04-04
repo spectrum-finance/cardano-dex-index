@@ -7,17 +7,13 @@ import fi.spectrumlabs.db.writer.App.{InitF, RunF, StreamF}
 import fi.spectrumlabs.db.writer.classes.Handle
 import fi.spectrumlabs.db.writer.config.{CardanoConfig, WriterConfig}
 import fi.spectrumlabs.db.writer.models.cardano.{
-  Action,
   Confirmed,
-  DepositAction,
   Order,
   PoolEvent,
-  RedeemAction,
-  SwapAction
 }
 import fi.spectrumlabs.db.writer.models.db.{Deposit, Redeem, Swap}
-import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, ExecutedOrderEvent, TxEvent}
-import fi.spectrumlabs.db.writer.models.{ExecutedInput, Input, Output, Transaction}
+import fi.spectrumlabs.db.writer.models.streaming.TxEvent
+import fi.spectrumlabs.db.writer.models.Input
 import fi.spectrumlabs.db.writer.persistence.PersistBundle
 import fi.spectrumlabs.db.writer.programs.Handler
 import fi.spectrumlabs.db.writer.repositories.{

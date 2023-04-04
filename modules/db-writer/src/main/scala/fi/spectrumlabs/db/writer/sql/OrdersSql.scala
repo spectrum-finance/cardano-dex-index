@@ -32,7 +32,10 @@ object OrdersSql {
           |     user_output_id,
           |     pool_input_id,
           |     pool_output_id,
-          |     timestamp from deposit where order_input_id = $txOutRef""".stripMargin.query
+          |     redeem_output_Id,
+          |     creation_timestamp,
+          |     execution_timestamp,
+          |     order_status from deposit where order_input_id = $txOutRef""".stripMargin.query
 
   def getUserDepositOrdersSQL(userPkh: String): Query0[Deposit] =
     sql"""select
@@ -51,7 +54,10 @@ object OrdersSql {
          |     user_output_id,
          |     pool_input_id,
          |     pool_output_id,
-         |     timestamp from deposit where reward_pkh = $userPkh""".stripMargin.query
+         |     redeem_output_Id,
+         |     creation_timestamp,
+         |     execution_timestamp,
+         |     order_status from deposit where reward_pkh = $userPkh""".stripMargin.query
 
   def getSwapOrderSQL(txOutRef: FullTxOutRef): Query0[Swap] =
     sql"""select base,
@@ -68,7 +74,10 @@ object OrdersSql {
           |  user_output_id,
           |  pool_input_id,
           |  pool_output_id,
-          |  timestamp from swap where order_input_id = $txOutRef""".stripMargin
+          |  redeem_output_Id,
+          |  creation_timestamp,
+          |  execution_timestamp,
+          |  order_status from swap where order_input_id = $txOutRef""".stripMargin
       .query[Swap]
 
   def getUserSwapOrdersSQL(userPkh: String): Query0[Swap] =
@@ -86,7 +95,10 @@ object OrdersSql {
          |  user_output_id,
          |  pool_input_id,
          |  pool_output_id,
-         |  timestamp from swap where reward_pkh = $userPkh""".stripMargin
+         |  redeem_output_Id,
+         |  creation_timestamp,
+         |  execution_timestamp,
+         |  order_status from swap where reward_pkh = $userPkh""".stripMargin
       .query[Swap]
 
   def getRedeemOrderSQL(txOutRef: FullTxOutRef): Query0[Redeem] =
@@ -104,7 +116,10 @@ object OrdersSql {
           |      user_output_id,
           |      pool_input_id,
           |      pool_output_id,
-          |      timestamp from redeem where order_input_id = $txOutRef""".stripMargin.query
+          |      redeem_output_Id,
+          |      creation_timestamp,
+          |      execution_timestamp,
+          |      order_status from redeem where order_input_id = $txOutRef""".stripMargin.query
 
   def getUserRedeemOrdersSQL(userPkh: String): Query0[Redeem] =
     sql"""select pool_nft,
@@ -121,13 +136,16 @@ object OrdersSql {
          |      user_output_id,
          |      pool_input_id,
          |      pool_output_id,
-         |      timestamp from redeem where reward_pkh = $userPkh""".stripMargin.query
+         |      redeem_output_Id,
+         |      creation_timestamp,
+         |      execution_timestamp,
+         |      order_status from redeem where reward_pkh = $userPkh""".stripMargin.query
 
   def updateExecutedSwapOrderSQL(swapOrderInfo: ExecutedSwapOrderInfo): Update0 =
     Update[ExecutedSwapOrderInfo](
       s"""
          |update swap
-         |set actual_quote=?, user_output_id=?, pool_input_id=?, pool_output_Id=?, timestamp=?
+         |set actual_quote=?, user_output_id=?, pool_input_id=?, pool_output_Id=?, execution_timestamp=?
          |where order_input_id=?""".stripMargin
     ).toUpdate0(swapOrderInfo)
 
@@ -135,7 +153,7 @@ object OrdersSql {
     Update[String](
       s"""
          |update swap
-         |set actual_quote=null, user_output_id=null, pool_input_id=null, pool_output_Id=null, timestamp=null
+         |set actual_quote=null, user_output_id=null, pool_input_id=null, pool_output_Id=null, execution_timestamp=null
          |where order_input_id=?""".stripMargin
     ).toUpdate0(txOutRef)
 
@@ -143,7 +161,7 @@ object OrdersSql {
     Update[ExecutedDepositOrderInfo](
       s"""
          |update deposit
-         |set amount_lq=?, user_output_id=?, pool_input_id=?, pool_output_Id=?, timestamp=?
+         |set amount_lq=?, user_output_id=?, pool_input_id=?, pool_output_Id=?, execution_timestamp=?
          |where order_input_id=?""".stripMargin
     ).toUpdate0(depositOrderInfo)
 
@@ -151,7 +169,7 @@ object OrdersSql {
     Update[String](
       s"""
          |update deposit
-         |set user_output_id=null, pool_input_Id=null, pool_output_Id=null, timestamp=null
+         |set user_output_id=null, pool_input_Id=null, pool_output_Id=null, execution_timestamp=null
          |where order_input_id=?""".stripMargin
     ).toUpdate0(txOutRef)
 
@@ -159,7 +177,7 @@ object OrdersSql {
     Update[ExecutedRedeemOrderInfo](
       s"""
          |update redeem
-         |set amount_x=?, amount_y=?, user_output_id=?, pool_input_id=?, pool_output_Id=?, timestamp=?
+         |set amount_x=?, amount_y=?, user_output_id=?, pool_input_id=?, pool_output_Id=?, execution_timestamp=?
          |where order_input_id=?""".stripMargin
     ).toUpdate0(redeemOrderInfo)
 
@@ -167,7 +185,7 @@ object OrdersSql {
     Update[String](
       s"""
          |update redeem
-         |set user_output_id=null, pool_input_Id=null, pool_output_Id=null, timestamp=null
+         |set user_output_id=null, pool_input_Id=null, pool_output_Id=null, execution_timestamp=null
          |where order_input_id=?""".stripMargin
     ).toUpdate0(txOutRef)
 }

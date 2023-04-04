@@ -1,6 +1,7 @@
 package fi.spectrumlabs.db.writer.schema
 
-import fi.spectrumlabs.db.writer.models.db.Deposit
+import fi.spectrumlabs.db.writer.models.db.{Deposit, OrderStatus}
+import fi.spectrumlabs.db.writer.models.orders.TxOutRef
 
 class DepositSchema extends Schema[Deposit] {
   val tableName: String = "deposit"
@@ -21,6 +22,9 @@ class DepositSchema extends Schema[Deposit] {
     "user_output_id",
     "pool_input_Id",
     "pool_output_Id",
-    "timestamp"
+    "redeem_output_id",
+    "creation_timestamp",
+    "execution_timestamp",
+    "order_status"
   )
 }

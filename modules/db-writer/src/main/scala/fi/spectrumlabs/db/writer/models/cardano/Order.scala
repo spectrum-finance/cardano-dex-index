@@ -9,52 +9,59 @@ import derevo.derive
 //todo: refactor
 sealed trait Order
 
-final case class SwapOrder(fullTxOut: FullTxOut, order: OrderAction[SwapAction]) extends Order
+final case class SwapOrder(fullTxOut: FullTxOut, order: OrderAction[SwapAction], slotNo: Long) extends Order
 object SwapOrder {
 
   implicit def decoder: Decoder[SwapOrder] = new Decoder[SwapOrder] {
 
-    override def apply(c: HCursor): Result[SwapOrder] =
-      c.values.toRight(DecodingFailure("Order should contains fields", List.empty)).flatMap { orderFields =>
-        for {
-          fullTxOut <- orderFields.head.as[FullTxOut]
-          value <- if (orderFields.size == 2) orderFields.last.as[OrderAction[SwapAction]]
-                   else DecodingFailure("Deposit pair doesn't contain 2 elems", List.empty).asLeft
-        } yield SwapOrder(fullTxOut, value)
+    override def apply(c: HCursor): Result[SwapOrder] = {
+      c.downField("slotNo").as[Long].flatMap { slotNo =>
+        c.downField("event").values.toRight(DecodingFailure("Order should contains fields", List.empty)).flatMap { orderFields =>
+          for {
+            fullTxOut <- orderFields.head.as[FullTxOut]
+            value <- if (orderFields.size == 2) orderFields.last.as[OrderAction[SwapAction]]
+            else DecodingFailure("Deposit pair doesn't contain 2 elems", List.empty).asLeft
+          } yield SwapOrder(fullTxOut, value, slotNo)
+        }
       }
+    }
   }
 }
 
-final case class DepositOrder(fullTxOut: FullTxOut, order: OrderAction[DepositAction]) extends Order
+final case class DepositOrder(fullTxOut: FullTxOut, order: OrderAction[DepositAction], slotNo: Long) extends Order
 
 object DepositOrder {
 
   implicit def decoder: Decoder[DepositOrder] = new Decoder[DepositOrder] {
 
     override def apply(c: HCursor): Result[DepositOrder] =
-      c.values.toRight(DecodingFailure("Order should contains fields", List.empty)).flatMap { orderFields =>
-        for {
-          fullTxOut <- orderFields.head.as[FullTxOut]
-          value <- if (orderFields.size == 2) orderFields.last.as[OrderAction[DepositAction]]
-          else DecodingFailure("Deposit pair doesn't contain 2 elems", List.empty).asLeft
-        } yield DepositOrder(fullTxOut, value)
+      c.downField("slotNo").as[Long].flatMap { slotNo =>
+        c.downField("event").values.toRight(DecodingFailure("Order should contains fields", List.empty)).flatMap { orderFields =>
+          for {
+            fullTxOut <- orderFields.head.as[FullTxOut]
+            value <- if (orderFields.size == 2) orderFields.last.as[OrderAction[DepositAction]]
+            else DecodingFailure("Deposit pair doesn't contain 2 elems", List.empty).asLeft
+          } yield DepositOrder(fullTxOut, value, slotNo)
+        }
       }
   }
 }
 
-final case class RedeemOrder(fullTxOut: FullTxOut, order: OrderAction[RedeemAction]) extends Order
+final case class RedeemOrder(fullTxOut: FullTxOut, order: OrderAction[RedeemAction], slotNo: Long) extends Order
 
 object RedeemOrder {
 
   implicit def decoder: Decoder[RedeemOrder] = new Decoder[RedeemOrder] {
 
     override def apply(c: HCursor): Result[RedeemOrder] = {
-      c.values.toRight(DecodingFailure("Order should contains fields", List.empty)).flatMap { orderFields =>
-        for {
-          fullTxOut <- orderFields.head.as[FullTxOut]
-          value <- if (orderFields.size == 2) orderFields.last.as[OrderAction[RedeemAction]]
-          else DecodingFailure("Deposit pair doesn't contain 2 elems", List.empty).asLeft
-        } yield RedeemOrder(fullTxOut, value)
+      c.downField("slotNo").as[Long].flatMap { slotNo =>
+        c.downField("event").values.toRight(DecodingFailure("Order should contains fields", List.empty)).flatMap { orderFields =>
+          for {
+            fullTxOut <- orderFields.head.as[FullTxOut]
+            value <- if (orderFields.size == 2) orderFields.last.as[OrderAction[RedeemAction]]
+            else DecodingFailure("Deposit pair doesn't contain 2 elems", List.empty).asLeft
+          } yield RedeemOrder(fullTxOut, value, slotNo)
+        }
       }
     }
   }

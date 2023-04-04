@@ -1,6 +1,7 @@
 package fi.spectrumlabs.db.writer.schema
 
-import fi.spectrumlabs.db.writer.models.db.Redeem
+import fi.spectrumlabs.db.writer.models.db.{OrderStatus, Redeem}
+import fi.spectrumlabs.db.writer.models.orders.TxOutRef
 
 class RedeemSchema extends Schema[Redeem] {
   val tableName: String = "redeem"
@@ -20,6 +21,9 @@ class RedeemSchema extends Schema[Redeem] {
     "user_output_id",
     "pool_input_Id",
     "pool_output_Id",
-    "timestamp"
+    "redeem_output_Id",
+    "creation_timestamp",
+    "execution_timestamp",
+    "order_status"
   )
 }

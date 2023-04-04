@@ -24,7 +24,10 @@ final case class Redeem(
   userOutputId: Option[TxOutRef],
   poolInputId: Option[TxOutRef],
   poolOutputId: Option[TxOutRef],
-  timestamp: Option[Long]
+  redeemOutputId: Option[TxOutRef],
+  creationTimestamp: Long,
+  executionTimestamp: Option[Long],
+  orderStatus: OrderStatus
 ) extends DBOrder
 
 object Redeem {
@@ -51,7 +54,10 @@ object Redeem {
         none,
         none,
         none,
-        none
+        none,
+        config.startTimeInSeconds + orderAction.slotNo,
+        none,
+        OrderStatus.Pending
       ).some
     case _ => none
   }

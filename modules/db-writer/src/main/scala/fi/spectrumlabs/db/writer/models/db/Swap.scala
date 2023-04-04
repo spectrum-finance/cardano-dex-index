@@ -23,7 +23,10 @@ final case class Swap(
   userOutputId: Option[TxOutRef],
   poolInputId: Option[TxOutRef],
   poolOutputId: Option[TxOutRef],
-  timestamp: Option[Long]
+  redeemOutputId: Option[TxOutRef],
+  creationTimestamp: Long,
+  executionTimestamp: Option[Long],
+  orderStatus: OrderStatus
 ) extends DBOrder
 
 object Swap {
@@ -50,7 +53,10 @@ object Swap {
         none,
         none,
         none,
-        none
+        none,
+        orderAction.slotNo + config.startTimeInSeconds,
+        none,
+        OrderStatus.Pending
       ).some
     case _ => none
   }
