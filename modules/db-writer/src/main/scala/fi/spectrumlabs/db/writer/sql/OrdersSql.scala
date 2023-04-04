@@ -5,12 +5,9 @@ import doobie.util.query.Query0
 import fi.spectrumlabs.db.writer.models.db.{Deposit, Redeem, Swap}
 import doobie.implicits._
 import doobie.util.update.Update0
-import fi.spectrumlabs.db.writer.classes.OrdersInfo.{
-  ExecutedDepositOrderInfo,
-  ExecutedRedeemOrderInfo,
-  ExecutedSwapOrderInfo
-}
+import fi.spectrumlabs.db.writer.classes.OrdersInfo.{ExecutedDepositOrderInfo, ExecutedRedeemOrderInfo, ExecutedSwapOrderInfo}
 import fi.spectrumlabs.db.writer.models.cardano.FullTxOutRef
+import fi.spectrumlabs.db.writer.models.orders.TxOutRef
 
 //todo: current version is only for testing
 object OrdersSql {
@@ -149,6 +146,14 @@ object OrdersSql {
          |where order_input_id=?""".stripMargin
     ).toUpdate0(swapOrderInfo)
 
+  def refundSwapOrderSQL(refundOutputId: TxOutRef, refundTimestamp: Long, swapInputId: TxOutRef): Update0 =
+    Update[(TxOutRef, Long, TxOutRef)](
+      s"""
+         |update swap
+         |set redeem_output_id=?, execution_timestamp=?, order_status='Refunded'
+         |where order_input_id=?""".stripMargin
+    ).toUpdate0((refundOutputId, refundTimestamp, swapInputId))
+
   def deleteExecutedSwapOrderSQL(txOutRef: String): Update0 =
     Update[String](
       s"""
@@ -165,6 +170,14 @@ object OrdersSql {
          |where order_input_id=?""".stripMargin
     ).toUpdate0(depositOrderInfo)
 
+  def refundDepositOrderSQL(refundOutputId: TxOutRef, refundTimestamp: Long, depositInputId: TxOutRef): Update0 =
+    Update[(TxOutRef, Long, TxOutRef)](
+      s"""
+         |update deposit
+         |set redeem_output_id=?, execution_timestamp=?, order_status='Refunded'
+         |where order_input_id=?""".stripMargin
+    ).toUpdate0((refundOutputId, refundTimestamp, depositInputId))
+
   def deleteExecutedDepositOrderSQL(txOutRef: String): Update0 =
     Update[String](
       s"""
@@ -180,6 +193,14 @@ object OrdersSql {
          |set amount_x=?, amount_y=?, user_output_id=?, pool_input_id=?, pool_output_Id=?, execution_timestamp=?, order_status='Evaluated'
          |where order_input_id=?""".stripMargin
     ).toUpdate0(redeemOrderInfo)
+
+  def refundRedeemOrderSQL(refundOutputId: TxOutRef, refundTimestamp: Long, redeemInputId: TxOutRef): Update0 =
+    Update[(TxOutRef, Long, TxOutRef)](
+      s"""
+         |update redeem
+         |set redeem_output_id=?, execution_timestamp=?, order_status='Refunded'
+         |where order_input_id=?""".stripMargin
+    ).toUpdate0((refundOutputId, refundTimestamp, redeemInputId))
 
   def deleteExecutedRedeemOrderSQL(txOutRef: String): Update0 =
     Update[String](

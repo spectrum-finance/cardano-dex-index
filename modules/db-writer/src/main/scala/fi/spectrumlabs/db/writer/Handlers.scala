@@ -6,11 +6,7 @@ import fi.spectrumlabs.core.streaming.Consumer
 import fi.spectrumlabs.db.writer.App.{InitF, RunF, StreamF}
 import fi.spectrumlabs.db.writer.classes.Handle
 import fi.spectrumlabs.db.writer.config.{CardanoConfig, WriterConfig}
-import fi.spectrumlabs.db.writer.models.cardano.{
-  Confirmed,
-  Order,
-  PoolEvent,
-}
+import fi.spectrumlabs.db.writer.models.cardano.{Confirmed, Order, PoolEvent}
 import fi.spectrumlabs.db.writer.models.db.{Deposit, Redeem, Swap}
 import fi.spectrumlabs.db.writer.models.streaming.TxEvent
 import fi.spectrumlabs.db.writer.models.Input
@@ -61,9 +57,17 @@ object Handlers {
       txn       <- Handle.createForTransaction(logs, poolsRepository, transaction, cardanoConfig)
       in        <- Handle.createNel[TxEvent, Input, InitF, RunF](input, InHandleName)
       eIn       <- Handle.createExecuted[InitF, RunF](cardanoConfig, ordersRepository)
+      refunds   <- Handle.createRefunded[InitF, RunF](cardanoConfig, ordersRepository)
       out       <- Handle.createForOutputs[InitF, RunF](poolsRepository, transactionRepository, logs, output)
       unApplied <- Handle.createForRollbacks[InitF, RunF](ordersRepository, inputsRepository, outputsRepository)
-      implicit0(nelHandlers: NonEmptyList[Handle[TxEvent, RunF]]) = NonEmptyList.of(txn, in, out, eIn, unApplied)
+      implicit0(nelHandlers: NonEmptyList[Handle[TxEvent, RunF]]) = NonEmptyList.of(
+        txn,
+        in,
+        out,
+        eIn,
+        unApplied,
+        refunds
+      )
       handler <- Handler.create[TxEvent, StreamF, RunF, Chunk, InitF](config, TxHandlerName)
     } yield handler
   }

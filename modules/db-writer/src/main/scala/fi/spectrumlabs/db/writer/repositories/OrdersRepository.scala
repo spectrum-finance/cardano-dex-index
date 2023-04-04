@@ -11,12 +11,9 @@ import tofu.higherKind.derived.representableK
 import tofu.logging.{Logging, Logs}
 import tofu.syntax.monadic._
 import cats.tagless.syntax.functorK._
-import fi.spectrumlabs.db.writer.classes.OrdersInfo.{
-  ExecutedDepositOrderInfo,
-  ExecutedRedeemOrderInfo,
-  ExecutedSwapOrderInfo
-}
+import fi.spectrumlabs.db.writer.classes.OrdersInfo.{ExecutedDepositOrderInfo, ExecutedRedeemOrderInfo, ExecutedSwapOrderInfo}
 import fi.spectrumlabs.db.writer.models.cardano.FullTxOutRef
+import fi.spectrumlabs.db.writer.models.orders.TxOutRef
 import tofu.syntax.logging._
 
 @derive(representableK)
@@ -28,13 +25,19 @@ trait OrdersRepository[F[_]] {
 
   def updateExecutedSwapOrder(swapOrderInfo: ExecutedSwapOrderInfo): F[Int]
 
+  def refundSwapOrder(orderTxOutRef: TxOutRef, refundTxOutRef: TxOutRef, timestamp: Long): F[Int]
+
   def deleteExecutedSwapOrder(txOutRef: String): F[Int]
 
   def updateExecutedDepositOrder(depositOrderInfo: ExecutedDepositOrderInfo): F[Int]
 
+  def refundDepositOrder(orderTxOutRef: TxOutRef, refundTxOutRef: TxOutRef, timestamp: Long): F[Int]
+
   def deleteExecutedDepositOrder(txOutRef: String): F[Int]
 
   def updateExecutedRedeemOrder(redeemOrderInfo: ExecutedRedeemOrderInfo): F[Int]
+
+  def refundRedeemOrder(orderTxOutRef: TxOutRef, refundTxOutRef: TxOutRef, timestamp: Long): F[Int]
 
   def deleteExecutedRedeemOrder(txOutRef: String): F[Int]
 }
@@ -78,10 +81,31 @@ object OrdersRepository {
       deleteExecutedRedeemOrderSQL(txOutRef).run
 
     override def getUserOrdersByPkh(userPkh: String): ConnectionIO[List[DBOrder]] = for {
-      swapOrders <- getUserSwapOrdersSQL(userPkh).to[List]
+      swapOrders    <- getUserSwapOrdersSQL(userPkh).to[List]
       depositOrders <- getUserDepositOrdersSQL(userPkh).to[List]
-      redeemOrders <- getUserRedeemOrdersSQL(userPkh).to[List]
+      redeemOrders  <- getUserRedeemOrdersSQL(userPkh).to[List]
     } yield (swapOrders ++ depositOrders ++ redeemOrders)
+
+    override def refundSwapOrder(
+      orderTxOutRef: TxOutRef,
+      refundTxOutRef: TxOutRef,
+      timestamp: Long
+    ): ConnectionIO[Int] =
+      refundSwapOrderSQL(refundTxOutRef, timestamp, orderTxOutRef).run
+
+    override def refundDepositOrder(
+      orderTxOutRef: TxOutRef,
+      refundTxOutRef: TxOutRef,
+      timestamp: Long
+    ): ConnectionIO[Int] =
+      refundDepositOrderSQL(refundTxOutRef, timestamp, orderTxOutRef).run
+
+    override def refundRedeemOrder(
+      orderTxOutRef: TxOutRef,
+      refundTxOutRef: TxOutRef,
+      timestamp: Long
+    ): ConnectionIO[Int] =
+      refundRedeemOrderSQL(refundTxOutRef, timestamp, orderTxOutRef).run
   }
 
   final private class OrdersRepositoryTracingMid[F[_]: Logging: Monad] extends OrdersRepository[Mid[F, *]] {
@@ -112,5 +136,26 @@ object OrdersRepository {
 
     override def getUserOrdersByPkh(userPkh: String): Mid[F, List[DBOrder]] =
       info"Going to get order for pkh $userPkh from db" *> _
+
+    override def refundSwapOrder(
+      orderTxOutRef: TxOutRef,
+      refundTxOutRef: TxOutRef,
+      timestamp: Long
+    ): Mid[F, Int] =
+      info"Going to set swap order $orderTxOutRef from db to refund status" *> _
+
+    override def refundDepositOrder(
+      orderTxOutRef: TxOutRef,
+      refundTxOutRef: TxOutRef,
+      timestamp: Long
+    ): Mid[F, Int] =
+      info"Going to set deposit order $orderTxOutRef from db to refund status" *> _
+
+    override def refundRedeemOrder(
+      orderTxOutRef: TxOutRef,
+      refundTxOutRef: TxOutRef,
+      timestamp: Long
+    ): Mid[F, Int] =
+      info"Going to set redeem order $orderTxOutRef from db to refund status" *> _
   }
 }

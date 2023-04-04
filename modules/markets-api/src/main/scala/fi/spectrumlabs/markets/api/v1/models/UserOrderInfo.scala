@@ -9,6 +9,7 @@ import sttp.tapir.Schema
 import cats.syntax.option._
 import fi.spectrumlabs.db.writer.models.orders.TxOutRef
 import cats.syntax.show._
+import scala.concurrent.duration._
 
 @derive(encoder, decoder)
 sealed trait UserOrderInfo
@@ -17,17 +18,25 @@ object UserOrderInfo {
 
   implicit val schema: Schema[UserOrderInfo] = Schema.derived
 
+  val FiveMin = 5.minutes.toSeconds
+
   //todo: check values
-  def fromDbOrder(dbOrder: DBOrder): Option[UserOrderInfo] = dbOrder match {
+  def fromDbOrder(dbOrder: DBOrder, curTime: Long): Option[UserOrderInfo] = dbOrder match {
     case deposit: Deposit =>
       for {
         assetX  <- AssetClass.fromString(deposit.coinX.value)
         assetY  <- AssetClass.fromString(deposit.coinY.value)
         assetLq <- AssetClass.fromString(deposit.coinLq.value)
+        needRefund = curTime - deposit.creationTimestamp > FiveMin
+        status =
+          if (needRefund) OrderStatus.NeedRefund
+          else if (deposit.poolOutputId.isDefined) OrderStatus.Evaluated
+          else if (deposit.redeemOutputId.isDefined) OrderStatus.Refunded
+          else OrderStatus.Register
       } yield DepositOrderInfo(
         deposit.orderInputId.show,
         deposit.poolId.value,
-        if (deposit.poolOutputId.isDefined) OrderStatus.Evaluated else OrderStatus.Register,
+        status,
         AssetAmount(assetX, deposit.amountX),
         AssetAmount(assetY, deposit.amountY),
         deposit.amountX.value.toString.some,
@@ -46,10 +55,16 @@ object UserOrderInfo {
         assetX  <- AssetClass.fromString(redeem.coinX.value)
         assetY  <- AssetClass.fromString(redeem.coinY.value)
         assetLq <- AssetClass.fromString(redeem.coinLq.value)
+        needRefund = curTime - redeem.creationTimestamp > FiveMin
+        status =
+          if (needRefund) OrderStatus.NeedRefund
+          else if (redeem.poolOutputId.isDefined) OrderStatus.Evaluated
+          else if (redeem.redeemOutputId.isDefined) OrderStatus.Refunded
+          else OrderStatus.Register
       } yield RedeemOrderInfo(
         redeem.orderInputId.show,
         redeem.poolId.value,
-        if (redeem.poolOutputId.isDefined) OrderStatus.Evaluated else OrderStatus.Register,
+        status,
         AssetAmount(assetLq, redeem.amountLq),
         AssetAmount(assetX, redeem.amountX).some,
         AssetAmount(assetY, redeem.amountY).some,
@@ -65,10 +80,16 @@ object UserOrderInfo {
       for {
         assetX <- AssetClass.fromString(swap.base.value)
         assetY <- AssetClass.fromString(swap.quote.value)
+        needRefund = curTime - swap.creationTimestamp > FiveMin
+        status =
+          if (needRefund) OrderStatus.NeedRefund
+          else if (swap.poolOutputId.isDefined) OrderStatus.Evaluated
+          else if (swap.redeemOutputId.isDefined) OrderStatus.Refunded
+          else OrderStatus.Register
       } yield SwapOrderInfo(
         swap.orderInputId.show,
         swap.poolId.value,
-        if (swap.poolOutputId.isDefined) OrderStatus.Evaluated else OrderStatus.Register,
+        status,
         AssetAmount(assetX, swap.baseAmount),
         AssetAmount(assetY, swap.minQuoteAmount),
         swap.actualQuote.value.toString.some,

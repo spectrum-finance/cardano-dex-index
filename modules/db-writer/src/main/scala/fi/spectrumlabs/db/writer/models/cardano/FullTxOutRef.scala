@@ -5,16 +5,21 @@ import derevo.derive
 import doobie.Put
 import doobie.util.Get
 import cats.syntax.either._
-import fi.spectrumlabs.db.writer.models.orders.TxOutRef
+import fi.spectrumlabs.db.writer.models.orders.{TxOutRef, TxOutRefId => OTxOutRefId}
+import tofu.logging.derivation.loggable
+
 import scala.util.{Failure, Success, Try}
 
-@derive(encoder, decoder)
+@derive(encoder, decoder, loggable)
 final case class FullTxOutRef(txOutRefId: TxOutRefId, txOutRefIdx: Int)
 
 object FullTxOutRef {
 
   def fromTxOutRef(txOutRef: TxOutRef): FullTxOutRef =
     FullTxOutRef(TxOutRefId(txOutRef.txOutRefId.getTxId), txOutRef.txOutRefIdx)
+
+  def toTxOutRef(ref: FullTxOutRef): TxOutRef =
+    TxOutRef(ref.txOutRefIdx, OTxOutRefId(ref.txOutRefId.getTxId))
 
   def fromString(outRef: String): Either[String, FullTxOutRef] =
     outRef.split(CardanoRefDelimiter).toList match {
@@ -35,5 +40,5 @@ object FullTxOutRef {
     Get[String].temap(fromString)
 }
 
-@derive(encoder, decoder)
+@derive(encoder, decoder, loggable)
 final case class TxOutRefId(getTxId: String)

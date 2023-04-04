@@ -64,7 +64,7 @@ object Handle {
   ): I[Handle[TxEvent, F]] =
     logs
       .forService[Handle[Output, F]]
-      .map(implicit __ => new OutputsHandler[F](poolsRepository, transactionRepo, "outputsHandler", persist))
+      .map(implicit __ => new OutputsHandler[F](persist))
 
   def createForPools[I[_]: Functor, F[_]: Monad](
     poolsRepository: PoolsRepository[F],
@@ -75,9 +75,7 @@ object Handle {
   ): I[Handle[Confirmed[PoolEvent], F]] =
     logs
       .forService[Handle[Confirmed[PoolEvent], F]]
-      .map(implicit __ =>
-        new HandlerForPools[F](poolsRepository, transactionRepo, "poolsHandler", persist, cardanoConfig)
-      )
+      .map(implicit __ => new HandlerForPools[F](persist, cardanoConfig))
 
   def createList[A, B, I[_]: Functor, F[_]: Monad](persist: Persist[B, F], handleLogName: String)(implicit
     toSchema: ToSchema[A, List[B]],
@@ -110,7 +108,15 @@ object Handle {
     ordersRepository: OrdersRepository[F]
   )(implicit logs: Logs[I, F]): I[Handle[TxEvent, F]] =
     logs.forService[ExecutedOrdersHandler[F]].map { implicit logs =>
-      new ExecutedOrdersHandler[F](cardanoConfig, ordersRepository, "executedOrders")
+      new ExecutedOrdersHandler[F](cardanoConfig, ordersRepository)
+    }
+
+  def createRefunded[I[_]: Functor, F[_]: Monad](
+    cardanoConfig: CardanoConfig,
+    ordersRepository: OrdersRepository[F]
+  )(implicit logs: Logs[I, F]): I[Handle[TxEvent, F]] =
+    logs.forService[HandlerForRefunds[F]].map { implicit logs =>
+      new HandlerForRefunds[F](cardanoConfig, ordersRepository)
     }
 
   def createForTransaction[I[_]: Functor, F[_]: Monad](
@@ -120,7 +126,7 @@ object Handle {
     cardanoConfig: CardanoConfig
   ): I[Handle[TxEvent, F]] =
     logs.forService[ExecutedOrdersHandler[F]].map { implicit logging =>
-      new TransactionHandler[F]("transactions", poolsRepo, persist, cardanoConfig)
+      new TransactionHandler[F](persist, cardanoConfig)
     }
 
   def createForRollbacks[I[_]: Functor, F[_]: Monad](
@@ -187,9 +193,6 @@ object Handle {
   }
 
   final private class HandlerForPools[F[_]: Monad: Logging](
-    poolsRepository: PoolsRepository[F],
-    transactionRepo: TransactionRepository[F],
-    handleLogName: String,
     persist: Persist[Pool, F],
     cardanoConfig: CardanoConfig
   ) extends Handle[Confirmed[PoolEvent], F] {
@@ -205,8 +208,6 @@ object Handle {
   }
 
   final private class TransactionHandler[F[_]: Monad: Logging](
-    handleLogName: String,
-    poolRepo: PoolsRepository[F], //only for first iteration, change pool model in haskell part
     persist: Persist[Transaction, F],
     cardanoConfig: CardanoConfig
   ) extends Handle[TxEvent, F] {
@@ -221,9 +222,6 @@ object Handle {
   }
 
   final private class OutputsHandler[F[_]: Monad: Logging](
-    poolsRepository: PoolsRepository[F],
-    transactionRepo: TransactionRepository[F],
-    handleLogName: String,
     persist: Persist[Output, F]
   ) extends Handle[TxEvent, F] {
 
@@ -238,8 +236,7 @@ object Handle {
   // draft for executed inputs handler
   final private class ExecutedOrdersHandler[F[_]: Monad: Logging](
     cardanoConfig: CardanoConfig,
-    ordersRepository: OrdersRepository[F],
-    handleLogName: String
+    ordersRepository: OrdersRepository[F]
   ) extends Handle[TxEvent, F] {
 
     def checkForPubkey(pubkey2check: String, addressCredential: AddressCredential): Boolean =
@@ -339,6 +336,93 @@ object Handle {
               case Some(redeem: Redeem) =>
                 resolveRedeemOrder(redeem, txInput, tx).traverse { redeem =>
                   info"Redeem order in tx: ${tx.toString}" >> ordersRepository.updateExecutedRedeemOrder(redeem)
+                }.void
+              case _ => ().pure[F]
+            }
+          }.void
+      }.void
+  }
+
+  final private class HandlerForRefunds[F[_]: Monad: Logging](
+    cardanoConfig: CardanoConfig,
+    ordersRepository: OrdersRepository[F]
+  ) extends Handle[TxEvent, F] {
+
+    def checkForPubkey(pubkey2check: String, addressCredential: AddressCredential): Boolean =
+      addressCredential match {
+        case PubKeyAddressCredential(contents, tag) => contents.getPubKeyHash == pubkey2check
+        case _                                      => false
+      }
+
+    private def resolveDepositRefund(
+      deposit: Deposit,
+      tx: AppliedTransaction
+    ): Option[FullTxOutRef] =
+      tx.txOutputs
+        .find { txOut =>
+          txOut.fullTxOutValue
+            .contains(deposit.coinX) && txOut.fullTxOutValue.contains(deposit.coinY) && checkForPubkey(
+            deposit.rewardPkh,
+            txOut.fullTxOutAddress.addressCredential
+          )
+        }
+        .map(_.fullTxOutRef)
+
+    private def resolveSwapRefund(
+      swap: Swap,
+      tx: AppliedTransaction
+    ): Option[FullTxOutRef] =
+      tx.txOutputs
+        .find { txOut =>
+          txOut.fullTxOutValue.contains(swap.base) && checkForPubkey(
+            swap.rewardPkh,
+            txOut.fullTxOutAddress.addressCredential
+          )
+        }
+        .map(_.fullTxOutRef)
+
+    private def resolveRedeemRefund(
+      redeem: Redeem,
+      tx: AppliedTransaction
+    ): Option[FullTxOutRef] =
+      tx.txOutputs
+        .find { txOut =>
+          txOut.fullTxOutValue.contains(redeem.coinLq) && checkForPubkey(
+            redeem.rewardPkh.getPubKeyHash,
+            txOut.fullTxOutAddress.addressCredential
+          )
+        }
+        .map(_.fullTxOutRef)
+
+    override def handle(in: NonEmptyList[TxEvent]): F[Unit] =
+      in.traverse {
+        case _: UnAppliedTransaction => ().pure[F]
+        case tx: AppliedTransaction =>
+          tx.txInputs.traverse { txInput =>
+            ordersRepository.getOrder(txInput.txInRef) flatMap {
+              case Some(deposit: Deposit) =>
+                resolveDepositRefund(deposit, tx).traverse { refundOut =>
+                  info"Deposit refund order in tx: ${tx.toString}" >> ordersRepository.refundDepositOrder(
+                    deposit.orderInputId,
+                    FullTxOutRef.toTxOutRef(refundOut),
+                    tx.slotNo + cardanoConfig.startTimeInSeconds
+                  )
+                }.void
+              case Some(swap: Swap) =>
+                resolveSwapRefund(swap, tx).traverse { refundOut =>
+                  info"Swap refund order in tx: ${tx.toString}" >> ordersRepository.refundSwapOrder(
+                    swap.orderInputId,
+                    FullTxOutRef.toTxOutRef(refundOut),
+                    tx.slotNo + cardanoConfig.startTimeInSeconds
+                  )
+                }.void
+              case Some(redeem: Redeem) =>
+                resolveRedeemRefund(redeem, tx).traverse { refundOut =>
+                  info"Redeem refund order in tx: ${tx.toString}" >> ordersRepository.refundRedeemOrder(
+                    redeem.orderInputId,
+                    FullTxOutRef.toTxOutRef(refundOut),
+                    tx.slotNo + cardanoConfig.startTimeInSeconds
+                  )
                 }.void
               case _ => ().pure[F]
             }
