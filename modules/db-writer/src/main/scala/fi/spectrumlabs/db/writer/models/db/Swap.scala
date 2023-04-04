@@ -56,7 +56,7 @@ object Swap {
         none,
         orderAction.slotNo + config.startTimeInSeconds,
         none,
-        OrderStatus.Pending
+        OrderStatus.Register
       ).some
     case _ => none
   }

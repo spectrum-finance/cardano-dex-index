@@ -14,7 +14,6 @@ import tofu.syntax.monadic._
 
 final case class PersistBundle[F[_]](
   input: Persist[Input, F],
-  executedInput: Persist[ExecutedInput, F],
   output: Persist[Output, F],
   transaction: Persist[Transaction, F],
   deposit: Persist[Deposit, F],
@@ -31,7 +30,6 @@ object PersistBundle {
   ): PersistBundle[F] =
     PersistBundle(
       Persist.create[Input, D, F](input),
-      Persist.createForExecuted[D, F](executedInputSchema),
       Persist.create[Output, D, F](output),
       Persist.create[Transaction, D, F](transaction),
       Persist.create[Deposit, D, F](depositSchema),

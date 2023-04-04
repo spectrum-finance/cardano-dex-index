@@ -57,7 +57,7 @@ object Redeem {
         none,
         config.startTimeInSeconds + orderAction.slotNo,
         none,
-        OrderStatus.Pending
+        OrderStatus.Register
       ).some
     case _ => none
   }

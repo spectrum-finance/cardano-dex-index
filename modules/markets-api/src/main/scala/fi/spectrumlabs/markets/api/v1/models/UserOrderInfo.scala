@@ -27,7 +27,7 @@ object UserOrderInfo {
       } yield DepositOrderInfo(
         deposit.orderInputId.show,
         deposit.poolId.value,
-        if (deposit.poolOutputId.isDefined) OrderStatus.Evaluated else OrderStatus.Pending,
+        if (deposit.poolOutputId.isDefined) OrderStatus.Evaluated else OrderStatus.Register,
         AssetAmount(assetX, deposit.amountX),
         AssetAmount(assetY, deposit.amountY),
         deposit.amountX.value.toString.some,
@@ -49,7 +49,7 @@ object UserOrderInfo {
       } yield RedeemOrderInfo(
         redeem.orderInputId.show,
         redeem.poolId.value,
-        if (redeem.poolOutputId.isDefined) OrderStatus.Evaluated else OrderStatus.Pending,
+        if (redeem.poolOutputId.isDefined) OrderStatus.Evaluated else OrderStatus.Register,
         AssetAmount(assetLq, redeem.amountLq),
         AssetAmount(assetX, redeem.amountX).some,
         AssetAmount(assetY, redeem.amountY).some,
@@ -68,7 +68,7 @@ object UserOrderInfo {
       } yield SwapOrderInfo(
         swap.orderInputId.show,
         swap.poolId.value,
-        if (swap.poolOutputId.isDefined) OrderStatus.Evaluated else OrderStatus.Pending,
+        if (swap.poolOutputId.isDefined) OrderStatus.Evaluated else OrderStatus.Register,
         AssetAmount(assetX, swap.baseAmount),
         AssetAmount(assetY, swap.minQuoteAmount),
         swap.actualQuote.value.toString.some,

@@ -24,7 +24,7 @@ final class ExecutedOrdersSchema {
       Update[(String, String, Long, String)](
         s"""
            |update $tableName
-           |set user_output_id=?, pool_input_Id='unknown', pool_output_Id=?, timestamp=?
+           |set user_output_id=?, pool_input_Id='unknown', pool_output_Id=?, execution_timestamp=?
            |where order_input_id=?""".stripMargin
       ).run(
         (

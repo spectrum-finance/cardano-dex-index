@@ -145,7 +145,7 @@ object OrdersSql {
     Update[ExecutedSwapOrderInfo](
       s"""
          |update swap
-         |set actual_quote=?, user_output_id=?, pool_input_id=?, pool_output_Id=?, execution_timestamp=?
+         |set actual_quote=?, user_output_id=?, pool_input_id=?, pool_output_Id=?, execution_timestamp=?, order_status='Evaluated'
          |where order_input_id=?""".stripMargin
     ).toUpdate0(swapOrderInfo)
 
@@ -153,7 +153,7 @@ object OrdersSql {
     Update[String](
       s"""
          |update swap
-         |set actual_quote=null, user_output_id=null, pool_input_id=null, pool_output_Id=null, execution_timestamp=null
+         |set actual_quote=null, user_output_id=null, pool_input_id=null, pool_output_Id=null, execution_timestamp=null, order_status='Register'
          |where order_input_id=?""".stripMargin
     ).toUpdate0(txOutRef)
 
@@ -161,7 +161,7 @@ object OrdersSql {
     Update[ExecutedDepositOrderInfo](
       s"""
          |update deposit
-         |set amount_lq=?, user_output_id=?, pool_input_id=?, pool_output_Id=?, execution_timestamp=?
+         |set amount_lq=?, user_output_id=?, pool_input_id=?, pool_output_Id=?, execution_timestamp=?, order_status='Evaluated'
          |where order_input_id=?""".stripMargin
     ).toUpdate0(depositOrderInfo)
 
@@ -169,7 +169,7 @@ object OrdersSql {
     Update[String](
       s"""
          |update deposit
-         |set user_output_id=null, pool_input_Id=null, pool_output_Id=null, execution_timestamp=null
+         |set user_output_id=null, pool_input_Id=null, pool_output_Id=null, execution_timestamp=null, order_status='Register'
          |where order_input_id=?""".stripMargin
     ).toUpdate0(txOutRef)
 
@@ -177,7 +177,7 @@ object OrdersSql {
     Update[ExecutedRedeemOrderInfo](
       s"""
          |update redeem
-         |set amount_x=?, amount_y=?, user_output_id=?, pool_input_id=?, pool_output_Id=?, execution_timestamp=?
+         |set amount_x=?, amount_y=?, user_output_id=?, pool_input_id=?, pool_output_Id=?, execution_timestamp=?, order_status='Evaluated'
          |where order_input_id=?""".stripMargin
     ).toUpdate0(redeemOrderInfo)
 
@@ -185,7 +185,7 @@ object OrdersSql {
     Update[String](
       s"""
          |update redeem
-         |set user_output_id=null, pool_input_Id=null, pool_output_Id=null, execution_timestamp=null
+         |set user_output_id=null, pool_input_Id=null, pool_output_Id=null, execution_timestamp=null, order_status='Register'
          |where order_input_id=?""".stripMargin
     ).toUpdate0(txOutRef)
 }

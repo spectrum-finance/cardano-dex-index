@@ -9,7 +9,7 @@ object OrdersInfo {
     userOutputRef: FullTxOutRef,
     poolInputRef: FullTxOutRef,
     poolOutputRef: FullTxOutRef,
-    timestamp: Long,
+    executionTimestamp: Long,
     orderInputRef: FullTxOutRef
   )
 
@@ -18,7 +18,7 @@ object OrdersInfo {
     userOutputRef: FullTxOutRef,
     poolInputRef: FullTxOutRef,
     poolOutputRef: FullTxOutRef,
-    timestamp: Long,
+    executionTimestamp: Long,
     orderInputRef: FullTxOutRef
   )
 
@@ -28,7 +28,7 @@ object OrdersInfo {
     userOutputRef: FullTxOutRef,
     poolInputRef: FullTxOutRef,
     poolOutputRef: FullTxOutRef,
-    timestamp: Long,
+    executionTimestamp: Long,
     orderInputRef: FullTxOutRef
   )
 }
