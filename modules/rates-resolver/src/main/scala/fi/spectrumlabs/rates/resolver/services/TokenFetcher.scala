@@ -23,6 +23,7 @@ object TokenFetcher {
 
   @derive(decoder)
   final case class Token(network: String, address: String, decimals: Int, name: String, ticker: String)
+
   @derive(decoder)
   final case class TokenResponse(tokens: List[Token])
 

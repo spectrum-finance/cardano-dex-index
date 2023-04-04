@@ -77,11 +77,11 @@ object AnalyticsService {
         totalTvl = (xTvl + yTvl).setScale(0, RoundingMode.HALF_UP)
         poolVolume <- OptionT(poolsRepo.getPoolVolume(pool, period))
         xVolume = poolVolume.xVolume
-                    .map(r => Amount(r.longValue).dropPenny(rateX.decimals))
-                    .getOrElse(BigDecimal(0)) * rateX.rate
+          .map(r => Amount(r.longValue).dropPenny(rateX.decimals))
+          .getOrElse(BigDecimal(0)) * rateX.rate
         yVolume = poolVolume.yVolume
-                    .map(r => Amount(r.longValue).dropPenny(rateY.decimals))
-                    .getOrElse(BigDecimal(0)) * rateY.rate
+          .map(r => Amount(r.longValue).dropPenny(rateY.decimals))
+          .getOrElse(BigDecimal(0)) * rateY.rate
         totalVolume = (xVolume + yVolume).setScale(0, RoundingMode.HALF_UP)
       } yield PoolOverview(
         poolId,
@@ -102,25 +102,25 @@ object AnalyticsService {
         totalTvl = (xTvls + yTvls).setScale(0, RoundingMode.HALF_UP)
         poolVolumes <- poolsRepo.getPoolVolumes(period).map(_.groupBy(_.poolId))
         xVolumes = xRates.flatMap { case (pool, rate) =>
-                     poolVolumes
-                       .get(pool.poolId)
-                       .toList
-                       .flatMap(
-                         _.filter(_.asset == rate.asset).map(vol =>
-                           Amount(vol.value.longValue).dropPenny(rate.decimals) * rate.rate
-                         )
-                       )
-                   }.sum
+          poolVolumes
+            .get(pool.poolId)
+            .toList
+            .flatMap(
+              _.filter(_.asset == rate.asset).map(vol =>
+                Amount(vol.value.longValue).dropPenny(rate.decimals) * rate.rate
+              )
+            )
+        }.sum
         yVolumes = yRates.flatMap { case (pool, rate) =>
-                     poolVolumes
-                       .get(pool.poolId)
-                       .toList
-                       .flatMap(
-                         _.filter(_.asset == rate.asset).map(vol =>
-                           Amount(vol.value.longValue).dropPenny(rate.decimals) * rate.rate
-                         )
-                       )
-                   }.sum
+          poolVolumes
+            .get(pool.poolId)
+            .toList
+            .flatMap(
+              _.filter(_.asset == rate.asset).map(vol =>
+                Amount(vol.value.longValue).dropPenny(rate.decimals) * rate.rate
+              )
+            )
+        }.sum
         totalVolume = (xVolumes + yVolumes).setScale(0, RoundingMode.HALF_UP)
       } yield PlatformStats(totalTvl, totalVolume)
 
@@ -129,18 +129,18 @@ object AnalyticsService {
         amounts <- OptionT.liftF(poolsRepo.getAvgPoolSnapshot(poolId, window, resolution))
         pool    <- OptionT(poolsRepo.getPoolById(poolId, config.minLiquidityValue))
         (xMeta, yMeta) <- OptionT(
-                            metadata
-                              .getTokensMeta(pool.x :: pool.y :: Nil)
-                              .map(xs => xs.headOption.flatMap(meta => xs.lastOption.map((meta, _))))
-                          )
+          metadata
+            .getTokensMeta(pool.x :: pool.y :: Nil)
+            .map(xs => xs.headOption.flatMap(meta => xs.lastOption.map((meta, _))))
+        )
         validTokens <- OptionT.liftF(tokenFetcher.fetchTokens)
         // todo: revert condition
         points = //if (validTokens.contains(pool.x) && validTokens.contains(pool.y) && xMeta != yMeta)
-                   amounts.map { amount =>
-                     val price = RealPrice.calculate(amount.amountX, xMeta.decimals, amount.amountY, yMeta.decimals)
-                     PricePoint(amount.timestamp, price.setScale(RealPrice.defaultScale))
-                   }
-                 //else List.empty[PricePoint]
+          amounts.map { amount =>
+            val price = RealPrice.calculate(amount.amountX, xMeta.decimals, amount.amountY, yMeta.decimals)
+            PricePoint(amount.timestamp, price.setScale(RealPrice.defaultScale))
+          }
+        //else List.empty[PricePoint]
       } yield points).value.map(_.toList.flatten)
   }
 

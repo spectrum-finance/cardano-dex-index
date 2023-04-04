@@ -14,13 +14,13 @@ object PostgresTransactor {
       cp      <- ExecutionContexts.fixedThreadPool(size = 16)
       blocker <- Blocker[F]
       xa <- HikariTransactor.newHikariTransactor[F](
-              driverClassName = "org.postgresql.Driver",
-              config.url,
-              config.user,
-              config.pass,
-              cp,
-              blocker
-            )
+        driverClassName = "org.postgresql.Driver",
+        config.url,
+        config.user,
+        config.pass,
+        cp,
+        blocker
+      )
       _ <- Resource.eval(configure(xa)(poolName, config))
     } yield xa
 

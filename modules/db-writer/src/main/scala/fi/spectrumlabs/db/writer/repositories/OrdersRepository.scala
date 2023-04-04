@@ -11,7 +11,11 @@ import tofu.higherKind.derived.representableK
 import tofu.logging.{Logging, Logs}
 import tofu.syntax.monadic._
 import cats.tagless.syntax.functorK._
-import fi.spectrumlabs.db.writer.classes.OrdersInfo.{ExecutedDepositOrderInfo, ExecutedRedeemOrderInfo, ExecutedSwapOrderInfo}
+import fi.spectrumlabs.db.writer.classes.OrdersInfo.{
+  ExecutedDepositOrderInfo,
+  ExecutedRedeemOrderInfo,
+  ExecutedSwapOrderInfo
+}
 import fi.spectrumlabs.db.writer.models.cardano.FullTxOutRef
 import tofu.syntax.logging._
 
@@ -19,6 +23,8 @@ import tofu.syntax.logging._
 trait OrdersRepository[F[_]] {
 
   def getOrder(txOutRef: FullTxOutRef): F[Option[DBOrder]]
+
+  def getUserOrdersByPkh(userPkh: String): F[List[DBOrder]]
 
   def updateExecutedSwapOrder(swapOrderInfo: ExecutedSwapOrderInfo): F[Int]
 
@@ -70,6 +76,12 @@ object OrdersRepository {
 
     override def deleteExecutedRedeemOrder(txOutRef: String): ConnectionIO[Int] =
       deleteExecutedRedeemOrderSQL(txOutRef).run
+
+    override def getUserOrdersByPkh(userPkh: String): ConnectionIO[List[DBOrder]] = for {
+      swapOrders <- getUserSwapOrdersSQL(userPkh).to[List]
+      depositOrders <- getUserDepositOrdersSQL(userPkh).to[List]
+      redeemOrders <- getUserRedeemOrdersSQL(userPkh).to[List]
+    } yield (swapOrders ++ depositOrders ++ redeemOrders)
   }
 
   final private class OrdersRepositoryTracingMid[F[_]: Logging: Monad] extends OrdersRepository[Mid[F, *]] {
@@ -97,5 +109,8 @@ object OrdersRepository {
 
     def deleteExecutedRedeemOrder(txOutRef: String): Mid[F, Int] =
       info"Going to update executed redeem order ($txOutRef) status to non-executed" *> _
+
+    override def getUserOrdersByPkh(userPkh: String): Mid[F, List[DBOrder]] =
+      info"Going to get order for pkh $userPkh from db" *> _
   }
 }

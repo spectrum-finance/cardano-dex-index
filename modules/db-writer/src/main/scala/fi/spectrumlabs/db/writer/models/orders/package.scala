@@ -28,20 +28,30 @@ package object orders {
     implicit val show: Show[CollateralAda]         = deriving
   }
 
-  @derive(decoder, encoder, loggable, show)
+  @derive(decoder, encoder, loggable)
   final case class TxOutRef(txOutRefIdx: Int, txOutRefId: TxOutRefId)
 
   //todo: refactor me
   object TxOutRef {
-    implicit val put: Put[TxOutRef] = Put[String].contramap(r => s"${r.txOutRefId.getTxId}#${r.txOutRefIdx}")
-    implicit val get: Get[TxOutRef] = Get[String].map(r => r.split("#").toList match {
-      case ref :: id :: Nil => TxOutRef(id.toInt, TxOutRefId(ref))
-      case _                => throw new Exception(s"Err in reading txOutref from db. $r")
-    })
-    implicit val read: Read[TxOutRef] = Read[String].map(r => r.split("#").toList match {
-      case ref :: id :: Nil => TxOutRef(id.toInt, TxOutRefId(ref))
-      case _                => throw new Exception(s"Err in reading txOutref from db. $r")
-    })
+
+    implicit val show: Show[TxOutRef] = new Show[TxOutRef] {
+      override def show(t: TxOutRef): String =
+        s"${t.txOutRefId.getTxId}#${t.txOutRefIdx}"
+    }
+
+    implicit val put: Put[TxOutRef] = Put[String].contramap(Show[TxOutRef].show)
+    implicit val get: Get[TxOutRef] = Get[String].map(r =>
+      r.split("#").toList match {
+        case ref :: id :: Nil => TxOutRef(id.toInt, TxOutRefId(ref))
+        case _                => throw new Exception(s"Err in reading txOutref from db. $r")
+      }
+    )
+    implicit val read: Read[TxOutRef] = Read[String].map(r =>
+      r.split("#").toList match {
+        case ref :: id :: Nil => TxOutRef(id.toInt, TxOutRefId(ref))
+        case _                => throw new Exception(s"Err in reading txOutref from db. $r")
+      }
+    )
   }
 
   @derive(decoder, encoder, loggable, show)
@@ -52,7 +62,7 @@ package object orders {
 
   object StakePKH {
 
-    implicit val get: Get[StakePKH] = Get[String].map(sph => StakePKH(StakePubKeyHash(sph)))
+    implicit val get: Get[StakePKH]   = Get[String].map(sph => StakePKH(StakePubKeyHash(sph)))
     implicit val read: Read[StakePKH] = Read[String].map(sph => StakePKH(StakePubKeyHash(sph)))
   }
 

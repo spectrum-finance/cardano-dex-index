@@ -3,11 +3,13 @@ package fi.spectrumlabs.markets.api.v1
 import fi.spectrumlabs.core.network.models.HttpError
 import sttp.model.StatusCode
 import sttp.tapir.json.circe.jsonBody
-import sttp.tapir.{emptyOutputAs, endpoint, oneOf, oneOfDefaultMapping, oneOfMapping, Endpoint, EndpointInput}
+import sttp.tapir.{Endpoint, EndpointInput, emptyOutputAs, endpoint, oneOf, oneOfDefaultMapping, oneOfMapping}
 import sttp.tapir._
 import sttp.tapir.generic.auto._
-import fi.spectrumlabs.markets.api.v1.endpoints.models.TimeWindow
+import fi.spectrumlabs.markets.api.v1.endpoints.models.{Paging, TimeWindow}
 import io.circe.generic.auto._
+import cats.syntax.option._
+
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{Duration, FiniteDuration, SECONDS}
 
@@ -62,4 +64,12 @@ package object endpoints {
       .validate(Validator.min(0))
       .validate(Validator.max(Long.MaxValue))
       .description("Resolution in minutes")
+
+  def paging: EndpointInput[Paging] =
+    (query[Option[Int]]("offset").validateOption(Validator.min(0)) and
+      query[Option[Int]]("limit").validateOption(Validator.min(1))
+        .validateOption(Validator.max(50)))
+      .map { input =>
+        Paging(input._1.getOrElse(0), input._2.getOrElse(20))
+      } { case Paging(offset, limit) => offset.some -> limit.some }
 }

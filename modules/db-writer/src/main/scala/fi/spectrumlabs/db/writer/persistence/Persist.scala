@@ -33,7 +33,7 @@ object Persist {
   ): Persist[T, F] =
     elh.embed(implicit __ => new Impl[T](schema).mapK(LiftConnectionIO[D].liftF)).mapK(txr.trans)
 
-  private final class Impl[T: Write](schema: Schema[T])(implicit
+  final private class Impl[T: Write](schema: Schema[T])(implicit
     lh: LogHandler
   ) extends Persist[T, ConnectionIO] {
 
@@ -46,7 +46,7 @@ object Persist {
     txr: Txr[F, D]
   ) = elh.embed(implicit __ => new Executed(schema).mapK(LiftConnectionIO[D].liftF)).mapK(txr.trans)
 
-  private final class Executed(executedOrdersSchema: ExecutedOrdersSchema)(implicit
+  final private class Executed(executedOrdersSchema: ExecutedOrdersSchema)(implicit
     lh: LogHandler
   ) extends Persist[ExecutedInput, ConnectionIO] {
 

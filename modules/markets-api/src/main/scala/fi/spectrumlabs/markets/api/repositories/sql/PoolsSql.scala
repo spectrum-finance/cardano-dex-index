@@ -44,7 +44,9 @@ final class PoolsSql(implicit lh: LogHandler) {
          |	x,
          |	reserves_x,
          |	y,
-         |	reserves_y
+         |	reserves_y,
+         |  pool_fee_num,
+         |  pool_fee_den
          |FROM
          |	pool p
          |	LEFT JOIN (

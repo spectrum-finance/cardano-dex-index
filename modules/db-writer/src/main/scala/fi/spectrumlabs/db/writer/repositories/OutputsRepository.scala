@@ -28,7 +28,7 @@ object OutputsRepository {
     logs: Logs[I, F]
   ): I[OutputsRepository[F]] =
     logs.forService[OrdersRepository[F]].map { implicit logging =>
-      new OrdersRepositoryTracingMid[F] attach(new LiveCIO().mapK(LiftConnectionIO[DB].liftF andThen txr.trans))
+      new OrdersRepositoryTracingMid[F] attach (new LiveCIO().mapK(LiftConnectionIO[DB].liftF andThen txr.trans))
     }
 
   final private class LiveCIO extends OutputsRepository[ConnectionIO] {

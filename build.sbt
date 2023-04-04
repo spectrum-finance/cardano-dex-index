@@ -45,9 +45,12 @@ lazy val core = project
   .settings(name := "cardano-markets-core")
   .settings(libraryDependencies ++= List(
     Libraries.derevoPureconfig,
+    Libraries.derevoCirce,
     Libraries.tofuDoobie,
     Libraries.tofuZio,
     Libraries.tofuStreams,
+    Libraries.tofuLogging,
+    Libraries.tofuDerivation,
     Libraries.tofuFs2,
     Libraries.derevoCatsTagless,
     Libraries.tofuOpticsInterop,
@@ -64,9 +67,9 @@ lazy val core = project
     Libraries.doobiePg,
     Libraries.doobieHikari,
     Libraries.doobieCore,
-    Libraries.pureconfig
+    Libraries.pureconfig,
+    Libraries.newtype
   ) ++ Libraries.Scodec)
-  .dependsOn(explorer)
   .settings(commonSettings)
 
 lazy val dbWriter = project
@@ -78,7 +81,9 @@ lazy val dbWriter = project
     Libraries.tofuZio,
     Libraries.kafka,
     Libraries.tofuFs2,
-    Libraries.mouse
+    Libraries.mouse,
+    Libraries.enumeratum,
+    Libraries.enumeratumCirce
   ))
   .dependsOn(core)
   .settings(assembly / assemblyJarName := "indexes-writer.jar")
@@ -104,7 +109,7 @@ lazy val api = project
     Libraries.flyway,
     Libraries.scalaCheck
   ) ++ Libraries.testing)
-  .dependsOn(core, ratesResolver)
+  .dependsOn(core, ratesResolver, dbWriter)
   .settings(assembly / assemblyJarName := "markets-api.jar")
   .enablePlugins(JavaAppPackaging, UniversalPlugin, DockerPlugin)
 

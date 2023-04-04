@@ -20,7 +20,11 @@ import mouse.any._
 import tofu.logging.{Logging, Logs}
 import tofu.syntax.logging._
 import cats.syntax.traverse._
-import fi.spectrumlabs.db.writer.classes.OrdersInfo.{ExecutedDepositOrderInfo, ExecutedRedeemOrderInfo, ExecutedSwapOrderInfo}
+import fi.spectrumlabs.db.writer.classes.OrdersInfo.{
+  ExecutedDepositOrderInfo,
+  ExecutedRedeemOrderInfo,
+  ExecutedSwapOrderInfo
+}
 import fi.spectrumlabs.db.writer.config.CardanoConfig
 import fi.spectrumlabs.db.writer.models.cardano.{
   AddressCredential,
@@ -128,7 +132,7 @@ object Handle {
       new HandlerForUnAppliedTxs[F](ordersRepository, inputsRepository, outputsRepository, "unAppliedOrders")
     }
 
-  private final class ImplOne[A, B, F[_]: Monad: Logging](persist: Persist[B, F], handleLogName: String)(implicit
+  final private class ImplOne[A, B, F[_]: Monad: Logging](persist: Persist[B, F], handleLogName: String)(implicit
     toSchema: ToSchema[A, B]
   ) extends Handle[A, F] {
 
@@ -138,7 +142,7 @@ object Handle {
 
   }
 
-  private final class ImplList[A, B, F[_]: Monad: Logging](persist: Persist[B, F], handleLogName: String)(implicit
+  final private class ImplList[A, B, F[_]: Monad: Logging](persist: Persist[B, F], handleLogName: String)(implicit
     toSchema: ToSchema[A, List[B]]
   ) extends Handle[A, F] {
 
@@ -152,7 +156,7 @@ object Handle {
       }
   }
 
-  private final class ImplNel[A, B, F[_]: Monad: Logging](persist: Persist[B, F], handleLogName: String)(implicit
+  final private class ImplNel[A, B, F[_]: Monad: Logging](persist: Persist[B, F], handleLogName: String)(implicit
     toSchema: ToSchema[A, NonEmptyList[B]]
   ) extends Handle[A, F] {
 
@@ -166,7 +170,7 @@ object Handle {
       }
   }
 
-  private final class ImplOption[A, B, F[_]: Monad: Logging](persist: Persist[B, F], handleLogName: String)(implicit
+  final private class ImplOption[A, B, F[_]: Monad: Logging](persist: Persist[B, F], handleLogName: String)(implicit
     toSchema: ToSchema[A, Option[B]]
   ) extends Handle[A, F] {
 
@@ -174,7 +178,9 @@ object Handle {
       in.map(toSchema(_)).toList.flatten match {
         case x :: xs =>
           (NonEmptyList.of(x, xs: _*) |> persist.persist)
-            .flatMap(r => info"Finished handle [$handleLogName] process for $r elements. Batch size was ${in.size}. ${in.toString()}")
+            .flatMap(r =>
+              info"Finished handle [$handleLogName] process for $r elements. Batch size was ${in.size}. ${in.toString()}"
+            )
         case Nil =>
           info"Nothing to extract ${in.toString()} [$handleLogName]. Batch contains 0 elements to persist."
       }
@@ -208,7 +214,7 @@ object Handle {
         .void
   }
 
-  private final class TransactionHandler[F[_]: Monad: Logging](
+  final private class TransactionHandler[F[_]: Monad: Logging](
     handleLogName: String,
     poolRepo: PoolsRepository[F], //only for first iteration, change pool model in haskell part
     persist: Persist[Transaction, F],
@@ -232,7 +238,7 @@ object Handle {
       }.void
   }
 
-  private final class OutputsHandler[F[_]: Monad: Logging](
+  final private class OutputsHandler[F[_]: Monad: Logging](
     poolsRepository: PoolsRepository[F],
     transactionRepo: TransactionRepository[F],
     handleLogName: String,
@@ -253,7 +259,7 @@ object Handle {
   }
 
   // draft for executed inputs handler
-  private final class ExecutedOrdersHandler[F[_]: Monad: Logging](
+  final private class ExecutedOrdersHandler[F[_]: Monad: Logging](
     cardanoConfig: CardanoConfig,
     ordersRepository: OrdersRepository[F],
     handleLogName: String
@@ -280,8 +286,8 @@ object Handle {
       amountLq <- userRewardOut.fullTxOutValue.find(deposit.coinLq)
       poolIn   <- tx.txInputs.filterNot(_.txInRef == input.txInRef).headOption
       poolOut <- tx.txOutputs.find(
-                   _.fullTxOutValue.contains(deposit.poolId)
-                 )
+        _.fullTxOutValue.contains(deposit.poolId)
+      )
     } yield ExecutedDepositOrderInfo(
       amountLq._2,
       userRewardOut.fullTxOutRef,
@@ -291,35 +297,40 @@ object Handle {
       input.txInRef
     )
 
-    private def resolveSwapOrder(swap: Swap, input: TxInput, tx: AppliedTransaction): Option[ExecutedSwapOrderInfo] = for {
-      userRewardOut <- tx.txOutputs.find { txOut =>
-                         txOut.fullTxOutValue.contains(swap.quote) && checkForPubkey(
-                           swap.rewardPkh,
-                           txOut.fullTxOutAddress.addressCredential
-                         )
-                       }
-      actualQuote <- userRewardOut.fullTxOutValue.find(swap.quote)
-      poolIn      <- tx.txInputs.filterNot(_.txInRef == input.txInRef).headOption
-      poolOut     <- tx.txOutputs.find(_.fullTxOutValue.contains(swap.poolId))
-    } yield ExecutedSwapOrderInfo(
-      actualQuote._2,
-      userRewardOut.fullTxOutRef,
-      poolIn.txInRef,
-      poolOut.fullTxOutRef,
-      tx.slotNo + cardanoConfig.startTimeInSeconds,
-      input.txInRef
-    )
-
-    private def resolveRedeemOrder(redeem: Redeem, input: TxInput, tx: AppliedTransaction): Option[ExecutedRedeemOrderInfo] =
+    private def resolveSwapOrder(swap: Swap, input: TxInput, tx: AppliedTransaction): Option[ExecutedSwapOrderInfo] =
       for {
         userRewardOut <- tx.txOutputs.find { txOut =>
-                           txOut.fullTxOutValue.contains(redeem.coinX) && txOut.fullTxOutValue.contains(
-                             redeem.coinY
-                           ) && checkForPubkey(
-                             redeem.rewardPkh.getPubKeyHash,
-                             txOut.fullTxOutAddress.addressCredential
-                           )
-                         }
+          txOut.fullTxOutValue.contains(swap.quote) && checkForPubkey(
+            swap.rewardPkh,
+            txOut.fullTxOutAddress.addressCredential
+          )
+        }
+        actualQuote <- userRewardOut.fullTxOutValue.find(swap.quote)
+        poolIn      <- tx.txInputs.filterNot(_.txInRef == input.txInRef).headOption
+        poolOut     <- tx.txOutputs.find(_.fullTxOutValue.contains(swap.poolId))
+      } yield ExecutedSwapOrderInfo(
+        actualQuote._2,
+        userRewardOut.fullTxOutRef,
+        poolIn.txInRef,
+        poolOut.fullTxOutRef,
+        tx.slotNo + cardanoConfig.startTimeInSeconds,
+        input.txInRef
+      )
+
+    private def resolveRedeemOrder(
+      redeem: Redeem,
+      input: TxInput,
+      tx: AppliedTransaction
+    ): Option[ExecutedRedeemOrderInfo] =
+      for {
+        userRewardOut <- tx.txOutputs.find { txOut =>
+          txOut.fullTxOutValue.contains(redeem.coinX) && txOut.fullTxOutValue.contains(
+            redeem.coinY
+          ) && checkForPubkey(
+            redeem.rewardPkh.getPubKeyHash,
+            txOut.fullTxOutAddress.addressCredential
+          )
+        }
         actualX <- userRewardOut.fullTxOutValue.find(redeem.coinX)
         actualY <- userRewardOut.fullTxOutValue.find(redeem.coinY)
         poolIn  <- tx.txInputs.filterNot(_.txInRef == input.txInRef).headOption
@@ -372,10 +383,10 @@ object Handle {
             outputs <- outputsRepository.getOutputsByTxHash(txId)
             _       <- outputsRepository.dropOutputsByTxHash(txId)
             _ <- outputs.traverse { output =>
-                   ordersRepository.deleteExecutedDepositOrder(output.ref.value) >>
-                   ordersRepository.deleteExecutedSwapOrder(output.ref.value) >>
-                   ordersRepository.deleteExecutedRedeemOrder(output.ref.value)
-                 }
+              ordersRepository.deleteExecutedDepositOrder(output.ref.value) >>
+              ordersRepository.deleteExecutedSwapOrder(output.ref.value) >>
+              ordersRepository.deleteExecutedRedeemOrder(output.ref.value)
+            }
           } yield ())
         case _ => ().pure[F]
       }.void

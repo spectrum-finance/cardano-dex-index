@@ -26,7 +26,7 @@ object UnAppliedTransaction {
     override def apply(c: HCursor): Result[UnAppliedTransaction] =
       c.values.toRight(DecodingFailure("UnAppliedTransaction doesn't contain values", List.empty)).flatMap {
         case values if values.size == 1 => values.head.as[String].map(UnAppliedTransaction.apply)
-        case _ => DecodingFailure("UnAppliedTransaction should contain only one value", List.empty).asLeft
+        case _                          => DecodingFailure("UnAppliedTransaction should contain only one value", List.empty).asLeft
       }
   }
 }

@@ -16,7 +16,7 @@ object OutputsSql {
 
   def dropOutputsByTxHashSQL(txHash: String): Update0 =
     Update[String]("drop * from output where tx_hash = ?").toUpdate0(txHash)
-    
+
   def getOutputsByTxHashSQL(txHash: String): Query0[Output] =
     sql"""select
          |      tx_hash,

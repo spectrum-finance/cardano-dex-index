@@ -1,11 +1,11 @@
 package fi.spectrumlabs.markets.api.v1
 
-import cats.{Functor, Monad, ~>}
+import cats.{~>, Functor, Monad}
 import cats.data.{Kleisli, OptionT}
 import cats.effect.{Concurrent, ConcurrentEffect, ContextShift, Resource, Timer}
 import fi.spectrumlabs.markets.api.configs.HttpConfig
-import fi.spectrumlabs.markets.api.services.AnalyticsService
-import fi.spectrumlabs.markets.api.v1.routes.{AnalyticsRoutes, OpenApiRoutes}
+import fi.spectrumlabs.markets.api.services.{AnalyticsService, HistoryService}
+import fi.spectrumlabs.markets.api.v1.routes.{AnalyticsRoutes, HistoryRoutes, OpenApiRoutes}
 import org.http4s.{Http, HttpApp, HttpRoutes}
 import org.http4s.blaze.server.BlazeServerBuilder
 import org.http4s.server.{Router, Server}
@@ -42,11 +42,13 @@ object HttpServer {
   ](conf: HttpConfig, ec: ExecutionContext)(implicit
     analyticsService: AnalyticsService[F],
     opts: Http4sServerOptions[F, F],
-    cache: CachingMiddleware[F]
+    cache: CachingMiddleware[F],
+    historyService: HistoryService[F]
   ): Resource[I, Server] = {
     val analyticsR = AnalyticsRoutes.make[F]
     val openApiR   = OpenApiRoutes.make[F]
-    val routes     = unliftRoutes[F, I](cache.middleware(analyticsR <+> openApiR))
+    val historyR   = HistoryRoutes.make[F]
+    val routes     = unliftRoutes[F, I](cache.middleware(analyticsR <+> openApiR <+> historyR))
     val corsRoutes = CORS.policy.withAllowOriginAll(routes)
     val api        = Router("/" -> corsRoutes).orNotFound
     BlazeServerBuilder[I](ec).bindHttp(conf.port, conf.host).withHttpApp(api).resource

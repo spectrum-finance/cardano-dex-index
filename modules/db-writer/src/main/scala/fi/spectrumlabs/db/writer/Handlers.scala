@@ -85,13 +85,13 @@ object Handlers {
           logs
         )
       swap <- Handle.createOptionExcl[Order, Swap, InitF, RunF](swap, SwapHandleName)(
-                Swap.streamingSchema(cardanoConfig),
-                logs
-              )
+        Swap.streamingSchema(cardanoConfig),
+        logs
+      )
       redeem <- Handle.createOptionExcl[Order, Redeem, InitF, RunF](redeem, RedeemHandleName)(
-                  Redeem.streamingSchema(cardanoConfig),
-                  logs
-                )
+        Redeem.streamingSchema(cardanoConfig),
+        logs
+      )
       implicit0(nelHandlers: NonEmptyList[Handle[Order, RunF]]) = NonEmptyList.of(deposit, swap, redeem)
       handler <- Handler.create[Order, StreamF, RunF, Chunk, InitF](config, OrdersHandlerName)
     } yield handler

@@ -49,36 +49,36 @@ object Cache {
     def set[K: Codec: Loggable, V: Codec: Loggable](key: K, value: V): F[Unit] =
       for {
         k <- Codec[K]
-               .encode(key)
-               .toEither
-               .leftMap(err => BinaryEncodingFailed(key.show, err.messageWithContext))
-               .toRaise
+          .encode(key)
+          .toEither
+          .leftMap(err => BinaryEncodingFailed(key.show, err.messageWithContext))
+          .toRaise
         v <- Codec[V]
-               .encode(value)
-               .toEither
-               .leftMap(err => BinaryEncodingFailed(key.show, err.messageWithContext))
-               .toRaise
+          .encode(value)
+          .toEither
+          .leftMap(err => BinaryEncodingFailed(key.show, err.messageWithContext))
+          .toRaise
         _ <- redis.set(k.toByteArray, v.toByteArray)
       } yield ()
 
     def get[K: Codec: Loggable, V: Codec: Loggable](key: K): F[Option[V]] =
       (for {
         k <- OptionT.liftF(
-               Codec[K]
-                 .encode(key)
-                 .toEither
-                 .leftMap(err => BinaryEncodingFailed(key.show, err.messageWithContext))
-                 .toRaise
-             )
+          Codec[K]
+            .encode(key)
+            .toEither
+            .leftMap(err => BinaryEncodingFailed(key.show, err.messageWithContext))
+            .toRaise
+        )
         raw <- OptionT(redis.get(k.toByteArray))
         value <- OptionT.liftF(
-                   Codec[V]
-                     .decode(BitVector(raw))
-                     .toEither
-                     .map(_.value)
-                     .leftMap(err => BinaryDecodingFailed(key.show, err.messageWithContext))
-                     .toRaise
-                 )
+          Codec[V]
+            .decode(BitVector(raw))
+            .toEither
+            .map(_.value)
+            .leftMap(err => BinaryDecodingFailed(key.show, err.messageWithContext))
+            .toRaise
+        )
       } yield value).value
 
     def flushAll: F[Unit] =

@@ -6,11 +6,11 @@ import sttp.tapir.Schema
 import tofu.logging.derivation.loggable
 
 @derive(encoder, decoder, loggable)
-final case class TimeWindow(from: Option[Long], to: Option[Long])
+final case class HistoryApiQuery(
+  userPkhs: List[String]
+)
 
-object TimeWindow {
+object HistoryApiQuery {
 
-  val empty: TimeWindow = TimeWindow(None, None)
-
-  implicit val schema: Schema[TimeWindow] = Schema.derived
+  implicit val schema: Schema[HistoryApiQuery] = Schema.derived
 }
