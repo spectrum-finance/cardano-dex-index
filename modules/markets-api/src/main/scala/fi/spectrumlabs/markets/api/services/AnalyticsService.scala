@@ -134,13 +134,12 @@ object AnalyticsService {
             .map(xs => xs.headOption.flatMap(meta => xs.lastOption.map((meta, _))))
         )
         validTokens <- OptionT.liftF(tokenFetcher.fetchTokens)
-        // todo: revert condition
-        points = //if (validTokens.contains(pool.x) && validTokens.contains(pool.y) && xMeta != yMeta)
+        points = if (validTokens.contains(pool.x) && validTokens.contains(pool.y) && xMeta != yMeta)
           amounts.map { amount =>
             val price = RealPrice.calculate(amount.amountX, xMeta.decimals, amount.amountY, yMeta.decimals)
             PricePoint(amount.timestamp, price.setScale(RealPrice.defaultScale))
           }
-        //else List.empty[PricePoint]
+        else List.empty[PricePoint]
       } yield points).value.map(_.toList.flatten)
   }
 

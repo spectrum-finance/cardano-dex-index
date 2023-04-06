@@ -31,7 +31,6 @@ package object orders {
   @derive(decoder, encoder, loggable)
   final case class TxOutRef(txOutRefIdx: Int, txOutRefId: TxOutRefId)
 
-  //todo: refactor me
   object TxOutRef {
 
     implicit val show: Show[TxOutRef] = new Show[TxOutRef] {

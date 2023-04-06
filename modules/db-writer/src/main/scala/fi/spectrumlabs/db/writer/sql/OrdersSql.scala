@@ -9,7 +9,6 @@ import fi.spectrumlabs.db.writer.classes.OrdersInfo.{ExecutedDepositOrderInfo, E
 import fi.spectrumlabs.db.writer.models.cardano.FullTxOutRef
 import fi.spectrumlabs.db.writer.models.orders.TxOutRef
 
-//todo: current version is only for testing
 object OrdersSql {
 
   def getDepositOrderSQL(txOutRef: FullTxOutRef): Query0[Deposit] =

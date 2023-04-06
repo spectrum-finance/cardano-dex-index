@@ -42,8 +42,8 @@ object Redeem {
         castFromCardano(orderAction.order.action.redeemPoolX.unCoin.unAssetClass).toCoin,
         castFromCardano(orderAction.order.action.redeemPoolY.unCoin.unAssetClass).toCoin,
         castFromCardano(orderAction.order.action.redeemLq.unCoin.unAssetClass).toCoin,
-        Amount(0), //todo: fixMe
-        Amount(0), //todo: fixMe
+        Amount(-1), //todo: make optional in schema
+        Amount(-1), //todo: make optional in schema
         Amount(orderAction.order.action.redeemLqIn),
         ExFee(orderAction.order.action.redeemExFee.unExFee),
         PublicKeyHash(orderAction.order.action.redeemRewardPkh.getPubKeyHash),

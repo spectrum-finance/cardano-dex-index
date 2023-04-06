@@ -16,8 +16,8 @@ object Input {
         TxHash(in.txId.getTxId),
         in.slotNo,
         OutRef(input.txInRef.txOutRefId.getTxId),
-        input.txInRef.txOutRefIdx.toInt,
-        none[Int] //todo: fixme
+        input.txInRef.txOutRefIdx,
+        none[Int] //todo: change to corresponding redeemer id. In current version redeemer support doesn't exist
       )
     }
   }

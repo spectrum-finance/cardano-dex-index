@@ -47,7 +47,7 @@ object Swap {
           StakePKH(StakePubKeyHash(spkh.unStakePubKeyHash.getPubKeyHash))
         ),
         Amount(orderAction.order.action.swapBaseIn),
-        Amount(0), //todo: fixme
+        Amount(-1), //todo: make optional in schema
         Amount(orderAction.order.action.swapMinQuoteOut),
         castFromCardano(orderAction.fullTxOut.fullTxOutRef),
         none,

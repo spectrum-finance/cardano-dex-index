@@ -92,7 +92,7 @@ object UserOrderInfo {
         AssetAmount(assetY, swap.minQuoteAmount),
         swap.actualQuote.value.toString.some,
         "ADA".some,
-        0L.some, //todo: replace with normal value
+        0L.some, //todo: replace with correct execution fee
         swap.rewardPkh,
         swap.stakePkh.map(_.unStakePubKeyHash.getPubKeyHash),
         swap.orderInputId.show,
