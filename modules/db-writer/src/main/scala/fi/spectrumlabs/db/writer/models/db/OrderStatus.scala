@@ -35,15 +35,4 @@ object OrderStatus extends Enum[OrderStatus] with CirceEnum[OrderStatus] {
 
   implicit val put: Put[OrderStatus] =
     Put[String].contramap[OrderStatus](_.entryName)
-
-//  def status(register: TxData, eval: Option[TxData], refund: Option[TxData], currentTimestamp: Long) =
-//    if (eval.isEmpty && refund.isEmpty && currentTimestamp - register.ts > 10.minutes.toMillis)
-//      NeedRefund
-//    else {
-//      (eval, refund) match {
-//        case (Some(_), None) => Evaluated
-//        case (None, Some(_)) => Refunded
-//        case _               => Pending
-//      }
-//    }
 }
