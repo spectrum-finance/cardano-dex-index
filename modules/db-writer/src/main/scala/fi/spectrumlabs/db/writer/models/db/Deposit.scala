@@ -42,7 +42,7 @@ object Deposit {
         castFromCardano(orderAction.order.action.depositLq.unAssetClass).toCoin,
         Amount(orderAction.order.action.depositPair.firstElem.value),
         Amount(orderAction.order.action.depositPair.secondElem.value),
-        Amount(0), //todo: fixme
+        Amount(-1), //todo: make optional in schema
         ExFee(orderAction.order.action.depositExFee.unExFee),
         orderAction.order.action.depositRewardPkh.getPubKeyHash,
         orderAction.order.action.depositRewardSPkh.map(spkh =>

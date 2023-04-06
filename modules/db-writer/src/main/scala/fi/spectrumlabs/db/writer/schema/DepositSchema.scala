@@ -1,7 +1,6 @@
 package fi.spectrumlabs.db.writer.schema
 
-import fi.spectrumlabs.db.writer.models.db.{Deposit, OrderStatus}
-import fi.spectrumlabs.db.writer.models.orders.TxOutRef
+import fi.spectrumlabs.db.writer.models.db.Deposit
 
 class DepositSchema extends Schema[Deposit] {
   val tableName: String = "deposit"

@@ -6,7 +6,6 @@ import cats.syntax.either._
 import derevo.circe.magnolia.decoder
 import derevo.derive
 
-//todo: refactor
 sealed trait Order
 
 final case class SwapOrder(fullTxOut: FullTxOut, order: OrderAction[SwapAction], slotNo: Long) extends Order

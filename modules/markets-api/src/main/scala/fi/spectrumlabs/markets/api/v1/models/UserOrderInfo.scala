@@ -1,13 +1,11 @@
 package fi.spectrumlabs.markets.api.v1.models
 
-import cats.Show
 import derevo.circe.magnolia.{decoder, encoder}
 import derevo.derive
 import fi.spectrumlabs.core.models.domain.{AssetAmount, AssetClass}
 import fi.spectrumlabs.db.writer.models.db.{DBOrder, Deposit, OrderStatus, Redeem, Swap}
 import sttp.tapir.Schema
 import cats.syntax.option._
-import fi.spectrumlabs.db.writer.models.orders.TxOutRef
 import cats.syntax.show._
 import scala.concurrent.duration._
 

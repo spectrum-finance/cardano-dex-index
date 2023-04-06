@@ -33,8 +33,6 @@ object Output {
 
   implicit val getJson: Get[Json] = Get[String].map(_ => Json.Null)
 
-  // implicit val read: Read[Output] = ???
-
   implicit val toSchemaNew: ToSchema[TxEvent, NonEmptyList[Output]] = { case (in: AppliedTransaction) =>
     in.txOutputs.map { output =>
       Output(
@@ -44,7 +42,7 @@ object Output {
         BlockHash(in.blockId),
         in.slotNo,
         Addr(output.fullTxOutAddress.addressCredential.toString),
-        Bytea(""), //todo: fill with orig content
+        Bytea(""), //todo: fill with orig content. Will be added in next iteration
         none,
         output.fullTxOutValue.asJson,
         none,

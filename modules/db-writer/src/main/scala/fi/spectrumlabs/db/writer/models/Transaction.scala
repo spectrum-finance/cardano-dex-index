@@ -31,8 +31,8 @@ object Transaction {
       none,
       none,
       none,
-      0, //todo: fixme
-      in.slotNo //todo:fixme
+      0, //todo: add tx size in next iteration
+      in.slotNo //todo: should be timestamp. Change in next itaration
     )
   }
 }

@@ -1,16 +1,11 @@
 package fi.spectrumlabs.markets.api.v1.endpoints
 
-import fi.spectrumlabs.core.models.domain.PoolId
 import fi.spectrumlabs.core.network.models.HttpError
-import fi.spectrumlabs.markets.api.models.PoolOverview
-import fi.spectrumlabs.markets.api.v1.endpoints.PoolInfoEndpoints.pathPrefix
 import fi.spectrumlabs.markets.api.v1.endpoints.models.{HistoryApiQuery, Paging, TimeWindow}
-import fi.spectrumlabs.markets.api.v1.models.{OrderHistoryResponse, UserOrderInfo}
-import sttp.tapir.{path, Endpoint}
+import fi.spectrumlabs.markets.api.v1.models.OrderHistoryResponse
+import sttp.tapir.Endpoint
 import sttp.tapir._
 import sttp.tapir.json.circe.jsonBody
-
-import scala.concurrent.duration.FiniteDuration
 
 object HistoryEndpoints {
 

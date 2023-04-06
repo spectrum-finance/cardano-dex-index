@@ -42,7 +42,6 @@ final case class AppliedTransaction(
 
 object AppliedTransaction {
 
-  //todo: only for testing. Derive it
   implicit val decoder: Decoder[AppliedTransaction] = new Decoder[AppliedTransaction] {
 
     override def apply(c: HCursor): Result[AppliedTransaction] =

@@ -1,7 +1,6 @@
 package fi.spectrumlabs.db.writer.schema
 
-import fi.spectrumlabs.db.writer.models.db.{OrderStatus, Redeem}
-import fi.spectrumlabs.db.writer.models.orders.TxOutRef
+import fi.spectrumlabs.db.writer.models.db.Redeem
 
 class RedeemSchema extends Schema[Redeem] {
   val tableName: String = "redeem"

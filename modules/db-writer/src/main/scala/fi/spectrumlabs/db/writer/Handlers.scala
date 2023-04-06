@@ -9,16 +9,10 @@ import fi.spectrumlabs.db.writer.config.{CardanoConfig, WriterConfig}
 import fi.spectrumlabs.db.writer.models.cardano.{Confirmed, Order, PoolEvent}
 import fi.spectrumlabs.db.writer.models.db.{Deposit, Redeem, Swap}
 import fi.spectrumlabs.db.writer.models.streaming.TxEvent
-import fi.spectrumlabs.db.writer.models.Input
+import fi.spectrumlabs.db.writer.models.{Input, Output}
 import fi.spectrumlabs.db.writer.persistence.PersistBundle
 import fi.spectrumlabs.db.writer.programs.Handler
-import fi.spectrumlabs.db.writer.repositories.{
-  InputsRepository,
-  OrdersRepository,
-  OutputsRepository,
-  PoolsRepository,
-  TransactionRepository
-}
+import fi.spectrumlabs.db.writer.repositories.{InputsRepository, OrdersRepository, OutputsRepository, PoolsRepository, TransactionRepository}
 import fs2.Chunk
 import tofu.WithContext
 import tofu.fs2Instances._
@@ -54,11 +48,11 @@ object Handlers {
   ): Resource[InitF, Handler[StreamF]] = Resource.eval {
     import bundle._
     for {
-      txn       <- Handle.createForTransaction(logs, poolsRepository, transaction, cardanoConfig)
+      txn       <- Handle.createForTransaction(logs, transaction, cardanoConfig)
       in        <- Handle.createNel[TxEvent, Input, InitF, RunF](input, InHandleName)
       eIn       <- Handle.createExecuted[InitF, RunF](cardanoConfig, ordersRepository)
       refunds   <- Handle.createRefunded[InitF, RunF](cardanoConfig, ordersRepository)
-      out       <- Handle.createForOutputs[InitF, RunF](poolsRepository, transactionRepository, logs, output)
+      out       <- Handle.createNel[TxEvent, Output, InitF, RunF](output, "outputs")
       unApplied <- Handle.createForRollbacks[InitF, RunF](ordersRepository, inputsRepository, outputsRepository)
       implicit0(nelHandlers: NonEmptyList[Handle[TxEvent, RunF]]) = NonEmptyList.of(
         txn,
@@ -80,15 +74,15 @@ object Handlers {
     import bundle._
     for {
       deposit <-
-        Handle.createOptionExcl[Order, Deposit, InitF, RunF](deposit, DepositHandleName)(
+        Handle.createOption[Order, Deposit, InitF, RunF](deposit, DepositHandleName)(
           Deposit.streamingSchema(cardanoConfig),
           logs
         )
-      swap <- Handle.createOptionExcl[Order, Swap, InitF, RunF](swap, SwapHandleName)(
+      swap <- Handle.createOption[Order, Swap, InitF, RunF](swap, SwapHandleName)(
         Swap.streamingSchema(cardanoConfig),
         logs
       )
-      redeem <- Handle.createOptionExcl[Order, Redeem, InitF, RunF](redeem, RedeemHandleName)(
+      redeem <- Handle.createOption[Order, Redeem, InitF, RunF](redeem, RedeemHandleName)(
         Redeem.streamingSchema(cardanoConfig),
         logs
       )

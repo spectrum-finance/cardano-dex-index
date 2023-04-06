@@ -8,19 +8,10 @@ import io.circe.syntax._
 import cats.syntax.either._
 import cats.syntax.traverse._
 
-//todo: manual encoder/decoder?
 @derive(encoder)
 final case class Values(curSymbol: CurrencySymbol, tokens: List[TokenValue])
 
 object Values {
-
-//  implicit val encoder: Encoder[Values] = new Encoder[Values] {
-//    override def apply(a: Values): Json =
-//      Json.arr(
-//        a.curSymbol.asJson,
-//        a.tokens.asJson
-//      )
-//  }
 
   implicit val decoder: Decoder[Values] = new Decoder[Values] {
 

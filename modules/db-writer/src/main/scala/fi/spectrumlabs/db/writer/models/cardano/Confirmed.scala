@@ -5,7 +5,6 @@ import io.circe.{Decoder, DecodingFailure, HCursor}
 import io.circe.parser._
 import cats.syntax.either._
 
-//todo: manual encoder/decoder
 final case class Confirmed[A](txOut: FullTxOut, element: A, slotNo: Long)
 
 object Confirmed {

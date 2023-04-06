@@ -58,8 +58,6 @@ object Handle {
     logs.forService[Handle[A, F]].map(implicit __ => new ImplOne[A, B, F](persist, handleLogName))
 
   def createForOutputs[I[_]: Functor, F[_]: Monad](
-    poolsRepository: PoolsRepository[F],
-    transactionRepo: TransactionRepository[F],
     logs: Logs[I, F],
     persist: Persist[Output, F]
   ): I[Handle[TxEvent, F]] =
@@ -68,8 +66,6 @@ object Handle {
       .map(implicit __ => new OutputsHandler[F](persist))
 
   def createForPools[I[_]: Functor, F[_]: Monad](
-    poolsRepository: PoolsRepository[F],
-    transactionRepo: TransactionRepository[F],
     logs: Logs[I, F],
     persist: Persist[Pool, F],
     cardanoConfig: CardanoConfig
@@ -90,19 +86,14 @@ object Handle {
   ): I[Handle[A, F]] =
     logs.forService[Handle[A, F]].map(implicit __ => new ImplNel[A, B, F](persist, handleLogName))
 
-  def createOption[A, B, I[_]: Functor, F[_]: Monad](persist: Persist[B, F], handleLogName: String)(implicit
-    toSchema: ToSchema[A, Option[B]],
+  def createOption[A, B, I[_]: Functor, F[_]: Monad](
+    persist: Persist[B, F],
+    handleLogName: String,
+    toSchema: ToSchema[A, Option[B]]
+  )(implicit
     logs: Logs[I, F]
   ): I[Handle[A, F]] =
-    logs.forService[Handle[A, F]].map(implicit __ => new ImplOption[A, B, F](persist, handleLogName))
-
-  def createOptionExcl[A, B, I[_]: Functor, F[_]: Monad](persist: Persist[B, F], handleLogName: String)(
-    toSchema: ToSchema[A, Option[B]],
-    logs: Logs[I, F]
-  ): I[Handle[A, F]] = {
-    implicit val implSchema = toSchema
-    logs.forService[Handle[A, F]].map(implicit __ => new ImplOption[A, B, F](persist, handleLogName))
-  }
+    logs.forService[Handle[A, F]].map(implicit __ => new ImplOption[A, B, F](persist, handleLogName, toSchema))
 
   def createExecuted[I[_]: Functor, F[_]: Monad](
     cardanoConfig: CardanoConfig,
@@ -122,7 +113,6 @@ object Handle {
 
   def createForTransaction[I[_]: Functor, F[_]: Monad](
     logs: Logs[I, F],
-    poolsRepo: PoolsRepository[F],
     persist: Persist[Transaction, F],
     cardanoConfig: CardanoConfig
   ): I[Handle[TxEvent, F]] =
@@ -177,7 +167,9 @@ object Handle {
       }
   }
 
-  final private class ImplOption[A, B, F[_]: Monad: Logging](persist: Persist[B, F], handleLogName: String)(implicit
+  final private class ImplOption[A, B, F[_]: Monad: Logging](
+    persist: Persist[B, F],
+    handleLogName: String,
     toSchema: ToSchema[A, Option[B]]
   ) extends Handle[A, F] {
 
