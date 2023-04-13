@@ -13,7 +13,7 @@
     </appender>
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>../cardano-markets-index/indexes-db-writer.log</file>
+        <file>../cardano-markets-index/indexes-rate.log</file>
         <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
             <layout class="tofu.logging.ELKLayout"/>
         </encoder>

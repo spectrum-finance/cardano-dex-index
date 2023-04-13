@@ -17,7 +17,7 @@ object WriterProgram {
     config: WriterConfig
   ): WriterProgram[F] = new Impl[S, F](handlers, config)
 
-  private final class Impl[S[_]: Compile[*[_], F]: Broadcast: Emits: ParFlatten, F[_]](
+  final private class Impl[S[_]: Compile[*[_], F]: Broadcast: Emits: ParFlatten, F[_]](
     handlers: HandlersBundle[S],
     config: WriterConfig
   ) extends WriterProgram[F] {

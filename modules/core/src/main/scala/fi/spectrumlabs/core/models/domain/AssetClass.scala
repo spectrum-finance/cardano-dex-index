@@ -7,8 +7,11 @@ import cats.{Eq, Show}
 import derevo.circe.magnolia.{decoder, encoder}
 import derevo.derive
 import doobie.util.{Get, Put}
+import io.lettuce.core.codec.Base16
 import sttp.tapir.Schema
 import tofu.logging.derivation.loggable
+
+import java.util.Base64
 
 @derive(decoder, encoder, loggable)
 final case class AssetClass(currencySymbol: String, tokenName: String)
@@ -45,6 +48,6 @@ object AssetClass {
     }
 
   def toMetadata(assetClass: AssetClass): String =
-    s"${assetClass.currencySymbol}${assetClass.tokenName}"
+    s"${assetClass.currencySymbol}${new String(Base16.encode(assetClass.tokenName.getBytes(), false))}"
 
 }

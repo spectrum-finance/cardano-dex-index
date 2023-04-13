@@ -1,0 +1,185 @@
+version: '3'
+
+services:
+  cardano-node:
+    image: inputoutput/cardano-node:1.35.4
+    volumes:
+      - cardano-node-db:/data/db
+      - cardano-node-ipc:/ipc
+      - ./configs/preview:/var/cardano/config
+    restart: on-failure
+    command:
+      - "run"
+      - "--config /var/cardano/config/config.json"
+      - "--topology /var/cardano/config/topology.json"
+      - "--database-path /data/db"
+      - "--socket-path /ipc/node.socket"
+    healthcheck:
+      # Ping the EKG port to see if it responds.
+      # Assuming if EKG isn't up then the rest of cardano-node isn't either.
+      test: [ "CMD-SHELL", "curl -f 127.0.0.1:12788 || exit 1" ]
+      interval: 60s
+      timeout: 10s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200k"
+        max-file: "10"
+  cardano-tracker:
+    image: spectrumlabs/cardano-markets-tracker:0.0.1
+    volumes:
+      - cardano-node-ipc:/ipc
+      - ./configs/preview:/var/cardano/config
+      - "${PWD}/configs/scripts:/scripts"
+      - "${PWD}/configs/marketTracker.dhall:/etc/cardano-markets-tracker/config.dhall:ro"
+    #command: /usr/config.yml
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "10"
+  zooV2:
+    image: zookeeper:3.4.9
+    hostname: zooV2
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_PORT: 2181
+      ZOO_SERVERS: server.1=zooV2:2888:3888
+    volumes:
+      - "../zk-kafka/zooV2/data:/data:rw"
+      - "../zk-kafka/zooV2/datalog:/datalog:rw"
+  kafkaV21:
+    image: confluentinc/cp-kafka:5.3.0
+    hostname: kafkaV21
+    links:
+      - zooV2
+    environment:
+      HOSTNAME_COMMAND: "docker info | grep ^Name: | cut -d' ' -f 2"
+      KAFKA_BROKER_ID: 1
+      KAFKA_REPLICATION_FACTOR: 3
+      KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO"
+      KAFKA_ZOOKEEPER_CONNECT: "zooV2:2181"
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafkaV21:9092,CONNECTIONS_FROM_HOST://localhost:19091
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONNECTIONS_FROM_HOST:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    ports:
+      - 19091:19091
+    volumes:
+      - "../zk-kafka/kafkaV21/data:/var/lib/kafka/data:rw"
+  kafkaV22:
+    image: confluentinc/cp-kafka:5.3.0
+    hostname: kafkaV22
+    links:
+      - zooV2
+    environment:
+      KAFKA_REPLICATION_FACTOR: 3
+      KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO"
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: "zooV2:2181"
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafkaV22:9092,CONNECTIONS_FROM_HOST://localhost:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONNECTIONS_FROM_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    ports:
+      - 19092:19092
+    volumes:
+      - "../zk-kafka/kafkaV22/data:/var/lib/kafka/data:rw"
+  kafkaV23:
+    image: confluentinc/cp-kafka:5.3.0
+    hostname: kafkaV23
+    links:
+      - zooV2
+    environment:
+      KAFKA_REPLICATION_FACTOR: 3
+      KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO"
+      KAFKA_BROKER_ID: 3
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafkaV23:9092,CONNECTIONS_FROM_HOST://localhost:19093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONNECTIONS_FROM_HOST:PLAINTEXT
+      KAFKA_ZOOKEEPER_CONNECT: "zooV2:2181"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    ports:
+      - 19093:19093
+    volumes:
+      - "../zk-kafka/kafkaV23/data:/var/lib/kafka/data:rw"
+  redisV2:
+    image: redis:latest
+    hostname: redisV2
+    restart: always
+    command: ["redis-server"]
+    ports:
+      - '6379:6379'
+    volumes:
+      - "../redis:/data"
+  postgresV2:
+    image: postgres:11-alpine
+    hostname: postgresV2
+    shm_size: 4g
+    ports: [ 5433:5432 ]
+    environment:
+      POSTGRES_PASSWORD: pass
+    volumes:
+      - "${PWD}/postgres:/var/lib/postgresql/data:rw"
+#  tracker:
+#    build:
+#      context: ${DEX_SOURCES_PATH}/modules/tracker/target/docker/stage
+#      dockerfile: Dockerfile
+#    volumes:
+#      - "../logs:/var/log/cardano-analytics:rw"
+#      - "../data/pool-resolver/rocks:/usr/local/etc/rocks:Z"
+#    env_file: config.env
+#    ports:
+#      - 9876:9876
+#    depends_on:
+#      - kafka1
+#      - redis
+#  dbWriter:
+#    build:
+#      context: ${DEX_SOURCES_PATH}/modules/db-writer/target/docker/stage
+#      dockerfile: Dockerfile
+#    volumes:
+#      - "../logs:/var/log/cardano-analytics:rw"
+#      - "../data/pool-resolver/rocks:/usr/local/etc/rocks:Z"
+#    env_file: config.env
+#    ports:
+#      - 9876:9876
+#    depends_on:
+#      - kafka1
+#      - redis
+#  api:
+#    build:
+#      context: ${DEX_SOURCES_PATH}/modules/api/target/docker/stage
+#      dockerfile: Dockerfile
+#    volumes:
+#      - "../logs:/var/log/cardano-analytics:rw"
+#      - "../data/pool-resolver/rocks:/usr/local/etc/rocks:Z"
+#    env_file: config.env
+#    ports:
+#      - 9876:9876
+#    depends_on:
+#      - kafka1
+#      - redis
+#  ratesResolver:
+#    build:
+#      context: ${DEX_SOURCES_PATH}/modules/rates-resolver/target/docker/stage
+#      dockerfile: Dockerfile
+#    volumes:
+#      - "../logs:/var/log/cardano-analytics:rw"
+#      - "../data/pool-resolver/rocks:/usr/local/etc/rocks:Z"
+#    env_file: config.env
+#    ports:
+#      - 9876:9876
+#    depends_on:
+#      - kafka1
+#      - redis
+volumes:
+  cardano-node-db:
+  cardano-node-ipc:

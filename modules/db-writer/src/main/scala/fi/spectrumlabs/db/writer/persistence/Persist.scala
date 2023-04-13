@@ -6,11 +6,13 @@ import cats.{Applicative, FlatMap}
 import doobie.ConnectionIO
 import doobie.util.Write
 import doobie.util.log.LogHandler
-import fi.spectrumlabs.db.writer.schema.Schema
+import fi.spectrumlabs.db.writer.models.ExecutedInput
+import fi.spectrumlabs.db.writer.schema.{ExecutedOrdersSchema, Schema}
 import tofu.doobie.LiftConnectionIO
 import tofu.doobie.log.EmbeddableLogHandler
 import tofu.doobie.transactor.Txr
 import tofu.higherKind.RepresentableK
+import cats.syntax.traverse._
 
 /** Takes batch of T elements and persists them into indexes storage.
   */
@@ -31,11 +33,24 @@ object Persist {
   ): Persist[T, F] =
     elh.embed(implicit __ => new Impl[T](schema).mapK(LiftConnectionIO[D].liftF)).mapK(txr.trans)
 
-  private final class Impl[T: Write](schema: Schema[T])(implicit
+  final private class Impl[T: Write](schema: Schema[T])(implicit
     lh: LogHandler
   ) extends Persist[T, ConnectionIO] {
 
     def persist(inputs: NonEmptyList[T]): ConnectionIO[Int] =
       schema.insertNoConflict.updateMany(inputs)
+  }
+
+  def createForExecuted[D[_]: FlatMap: LiftConnectionIO, F[_]: Applicative](schema: ExecutedOrdersSchema)(implicit
+    elh: EmbeddableLogHandler[D],
+    txr: Txr[F, D]
+  ) = elh.embed(implicit __ => new Executed(schema).mapK(LiftConnectionIO[D].liftF)).mapK(txr.trans)
+
+  final private class Executed(executedOrdersSchema: ExecutedOrdersSchema)(implicit
+    lh: LogHandler
+  ) extends Persist[ExecutedInput, ConnectionIO] {
+
+    override def persist(inputs: NonEmptyList[ExecutedInput]): ConnectionIO[Int] =
+      inputs.traverse(executedOrdersSchema.updateExecuted).map(_.toList.flatten.sum)
   }
 }

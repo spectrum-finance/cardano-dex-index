@@ -7,7 +7,7 @@ drop table executed_deposit;
 drop table executed_redeem;
 drop table executed_swap;
 
-create table if not exists executed_deposit (
+create table if not exists deposit (
     id Integer not null default nextval('executed_deposit_seq'),
     pool_nft Text not null,
     coin_x Text not null,
@@ -21,13 +21,16 @@ create table if not exists executed_deposit (
     stake_pkh Text,
     collateral_ada BIGINT not null,
     order_input_id Text not null,
-    user_output_id Text not null,
-    pool_input_Id Text not null,
-    pool_output_Id Text not null,
-    timestamp BIGINT not null
+    user_output_id Text,
+    pool_input_Id Text,
+    pool_output_Id Text,
+    redeem_output_Id Text,
+    creation_timestamp BIGINT,
+    execution_timestamp BIGINT,
+    order_status TEXT
 );
 
-create table if not exists executed_redeem (
+create table if not exists redeem (
     id Integer not null default nextval('executed_redeem_seq'),
     pool_nft Text not null,
     coin_x Text not null,
@@ -40,13 +43,16 @@ create table if not exists executed_redeem (
     reward_pkh Text not null,
     stake_pkh Text default null,
     order_input_id Text not null,
-    user_output_id Text not null,
-    pool_input_Id Text not null,
-    pool_output_Id Text not null,
-    timestamp BIGINT not null
+    user_output_id Text,
+    pool_input_Id Text,
+    pool_output_Id Text,
+    redeem_output_Id Text,
+    creation_timestamp BIGINT,
+    execution_timestamp BIGINT,
+    order_status TEXT
 );
 
-create table if not exists executed_swap (
+create table if not exists swap (
     id Integer not null default nextval('executed_swap_seq'),
     base Text not null,
     quote Text not null,
@@ -59,10 +65,13 @@ create table if not exists executed_swap (
     actual_quote BIGINT not null,
     min_quote_amount BIGINT not null,
     order_input_id Text not null,
-    user_output_id Text not null,
-    pool_input_Id Text not null,
-    pool_output_Id Text not null,
-    timestamp BIGINT not null
+    user_output_id Text,
+    pool_input_Id Text,
+    pool_output_Id Text,
+    redeem_output_Id Text,
+    creation_timestamp BIGINT,
+    execution_timestamp BIGINT,
+    order_status TEXT
 );
 
 create table if not exists pool (
@@ -82,4 +91,4 @@ create table if not exists pool (
 );
 
 create unique index if not exists pool_id on transaction (id);
-create unique index if not exists pool_id_pool_id on transaction (id, pool_id);
+create unique index if not exists pool_id_pool_id on pool (pool_id);

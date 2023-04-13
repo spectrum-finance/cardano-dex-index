@@ -14,4 +14,3 @@ object TimeWindow {
 
   implicit val schema: Schema[TimeWindow] = Schema.derived
 }
-

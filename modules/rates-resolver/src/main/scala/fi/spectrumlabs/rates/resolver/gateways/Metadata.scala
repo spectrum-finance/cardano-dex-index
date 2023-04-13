@@ -35,7 +35,7 @@ object Metadata {
     def getTokenMeta(token: AssetClass): F[Option[MetadataResponse]] =
       basicRequest
         .get(
-          config.metadataUrl.withPathSegment(Segment(s"metadata/${AssetClass.toMetadata(token)}", identity))
+          config.metadataUrl.withPathSegment(Segment(s"/cardano/metadata/${AssetClass.toMetadata(token)}", identity))
         )
         .response(asJson[MetadataResponse])
         .send(backend)

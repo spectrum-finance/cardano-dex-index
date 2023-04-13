@@ -61,7 +61,7 @@ object Queue {
           }
       )
 
-  private final class ImplStreaming[F[_]: Logging: FlatMap, A](queue: fs2.concurrent.Queue[F, A])
+  final private class ImplStreaming[F[_]: Logging: FlatMap, A](queue: fs2.concurrent.Queue[F, A])
     extends QueueStreaming[Stream[F, *], F, A] {
 
     def dequeueBatch(size: Int): F[List[A]] =

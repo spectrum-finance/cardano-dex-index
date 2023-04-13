@@ -22,9 +22,9 @@ object CacheMiddleware {
           resp        <- routes(req)
           requestHash <- OptionT.liftF(RequestHash32(req))
           _ <- OptionT.liftF {
-                 if (resp.status.isSuccess) caching.saveResponse(requestHash, resp)
-                 else unit
-               }
+            if (resp.status.isSuccess) caching.saveResponse(requestHash, resp)
+            else unit
+          }
         } yield resp
       }
     }

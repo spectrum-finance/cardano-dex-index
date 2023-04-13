@@ -44,7 +44,9 @@ final class PoolsSql(implicit lh: LogHandler) {
          |	x,
          |	reserves_x,
          |	y,
-         |	reserves_y
+         |	reserves_y,
+         |  pool_fee_num,
+         |  pool_fee_den
          |FROM
          |	pool p
          |	LEFT JOIN (
@@ -71,7 +73,7 @@ final class PoolsSql(implicit lh: LogHandler) {
          |	SELECT
          |		sum(actual_quote)
          |	FROM
-         |		executed_swap
+         |		swap
          |	WHERE
          |		pool_nft = ${pool.id}
          |		AND base = ${pool.x.asset.show}
@@ -80,7 +82,7 @@ final class PoolsSql(implicit lh: LogHandler) {
          |		SELECT
          |			sum(actual_quote)
          |		FROM
-         |			executed_swap
+         |			swap
          |		WHERE
          |			pool_nft = ${pool.id}
          |			AND base = ${pool.y.asset.show}
@@ -89,7 +91,7 @@ final class PoolsSql(implicit lh: LogHandler) {
 
   def getPoolVolumes(tw: TimeWindow): Query0[PoolVolumeDb] =
     sql"""
-         |SELECT sum(ex.actual_quote), ex.pool_nft, ex.base FROM executed_swap ex
+         |SELECT sum(ex.actual_quote), ex.pool_nft, ex.base FROM swap ex
          |${timeWindowCond(tw, "and", "ex")}
          |GROUP by ex.pool_nft, ex.base
        """.stripMargin.query[PoolVolumeDb]

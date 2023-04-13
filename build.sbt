@@ -37,21 +37,7 @@ lazy val dexIndex = project
   .settings(idePackagePrefix := Some("fi.spectrumlabs"))
   .settings(commonSettings)
   .settings(name := "cardano-dex-index")
-  .aggregate(core, tracker, dbWriter, api, explorer, ratesResolver)
-
-lazy val explorer = project
-  .in(file("modules/explorer"))
-  .withId("explorer")
-  .settings(name := "explorer")
-  .settings(libraryDependencies ++= List(
-    Libraries.derevoCirce,
-    Libraries.tofuDerivation,
-    Libraries.newtype,
-    Libraries.tofuLogging,
-    Libraries.tofuDoobie,
-    Libraries.enumeratum
-  ))
-  .settings(commonSettings)
+  .aggregate(core, dbWriter, api, ratesResolver)
 
 lazy val core = project
   .in(file("modules/core"))
@@ -59,9 +45,12 @@ lazy val core = project
   .settings(name := "cardano-markets-core")
   .settings(libraryDependencies ++= List(
     Libraries.derevoPureconfig,
+    Libraries.derevoCirce,
     Libraries.tofuDoobie,
     Libraries.tofuZio,
     Libraries.tofuStreams,
+    Libraries.tofuLogging,
+    Libraries.tofuDerivation,
     Libraries.tofuFs2,
     Libraries.derevoCatsTagless,
     Libraries.tofuOpticsInterop,
@@ -78,28 +67,10 @@ lazy val core = project
     Libraries.doobiePg,
     Libraries.doobieHikari,
     Libraries.doobieCore,
-    Libraries.pureconfig
-  ) ++ Libraries.Scodec)
-  .dependsOn(explorer)
-  .settings(commonSettings)
-
-lazy val tracker = project
-  .in(file("modules/tracker"))
-  .withId("cardano-markets-tracker")
-  .settings(name := "cardano-markets-tracker")
-  .settings(commonSettings)
-  .settings(libraryDependencies ++=  List(
-    Libraries.derevoCats,
-    Libraries.derevoCatsTagless,
-    Libraries.jawnFs2,
-    Libraries.enumeratumCirce,
-    Libraries.mouse,
     Libraries.pureconfig,
-    Libraries.catsRetry
-  ))
-  .dependsOn(core)
-  .settings(assembly / assemblyJarName := "tracker.jar")
-  .enablePlugins(JavaAppPackaging, UniversalPlugin, DockerPlugin)
+    Libraries.newtype
+  ) ++ Libraries.Scodec)
+  .settings(commonSettings)
 
 lazy val dbWriter = project
   .in(file("modules/db-writer"))
@@ -110,7 +81,9 @@ lazy val dbWriter = project
     Libraries.tofuZio,
     Libraries.kafka,
     Libraries.tofuFs2,
-    Libraries.mouse
+    Libraries.mouse,
+    Libraries.enumeratum,
+    Libraries.enumeratumCirce
   ))
   .dependsOn(core)
   .settings(assembly / assemblyJarName := "indexes-writer.jar")
@@ -136,7 +109,7 @@ lazy val api = project
     Libraries.flyway,
     Libraries.scalaCheck
   ) ++ Libraries.testing)
-  .dependsOn(core, ratesResolver)
+  .dependsOn(core, ratesResolver, dbWriter)
   .settings(assembly / assemblyJarName := "markets-api.jar")
   .enablePlugins(JavaAppPackaging, UniversalPlugin, DockerPlugin)
 

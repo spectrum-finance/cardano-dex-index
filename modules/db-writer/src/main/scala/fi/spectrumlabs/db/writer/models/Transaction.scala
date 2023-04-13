@@ -1,11 +1,15 @@
 package fi.spectrumlabs.db.writer.models
 
-import fi.spectrumlabs.explorer.models.{BlockHash, TxHash}
 import fi.spectrumlabs.db.writer.classes.ToSchema
 import io.circe.Json
-import fi.spectrumlabs.core.models.Tx
+import fi.spectrumlabs.core.models.{BlockHash, TxHash}
+import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, TxEvent}
 import io.circe.syntax._
+import cats.syntax.option._
+import derevo.circe.magnolia.{decoder, encoder}
+import derevo.derive
 
+@derive(decoder, encoder)
 final case class Transaction(
   blockHash: BlockHash,
   blockIndex: Long,
@@ -19,15 +23,16 @@ final case class Transaction(
 
 object Transaction {
 
-  implicit val toSchema: ToSchema[Tx, Transaction] = (in: Tx) =>
+  implicit val toSchemaNew: ToSchema[TxEvent, Transaction] = { case (in: AppliedTransaction) =>
     Transaction(
-      in.blockHash,
-      in.blockIndex,
-      in.hash,
-      in.invalidBefore,
-      in.invalidHereafter,
-      in.metadata.map(_.asJson),
-      in.size,
-      in.timestamp
+      BlockHash(in.blockId),
+      in.slotNo,
+      TxHash(in.txId.getTxId),
+      none,
+      none,
+      none,
+      0, //todo: add tx size in next iteration
+      in.slotNo //todo: should be timestamp. Change in next itaration
     )
+  }
 }

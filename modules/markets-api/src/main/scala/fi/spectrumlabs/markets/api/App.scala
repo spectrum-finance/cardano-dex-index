@@ -9,13 +9,14 @@ import fi.spectrumlabs.core.cache.Cache.Plain
 import fi.spectrumlabs.core.http.cache.CacheMiddleware.CachingMiddleware
 import fi.spectrumlabs.core.http.cache.{CacheMiddleware, HttpResponseCaching}
 import fi.spectrumlabs.core.network.makeBackend
-import fi.spectrumlabs.core.pg.{PostgresTransactor, doobieLogging}
+import fi.spectrumlabs.core.pg.{doobieLogging, PostgresTransactor}
 import fi.spectrumlabs.core.redis.codecs.stringCodec
 import fi.spectrumlabs.core.redis.mkRedis
+import fi.spectrumlabs.db.writer.repositories.OrdersRepository
 import fi.spectrumlabs.markets.api.configs.ConfigBundle
 import fi.spectrumlabs.markets.api.context.AppContext
 import fi.spectrumlabs.markets.api.repositories.repos.{PoolsRepo, RatesRepo}
-import fi.spectrumlabs.markets.api.services.AnalyticsService
+import fi.spectrumlabs.markets.api.services.{AnalyticsService, HistoryService}
 import fi.spectrumlabs.markets.api.v1.HttpServer
 import fi.spectrumlabs.rates.resolver.gateways.Metadata
 import fi.spectrumlabs.rates.resolver.services.{MetadataService, TokenFetcher}
@@ -47,19 +48,19 @@ object App extends EnvApp[AppContext] {
       trans <- PostgresTransactor.make[InitF]("markets-api-db-pool", configs.pg)
       implicit0(xa: Txr.Continuational[RunF]) = Txr.continuational[RunF](trans.mapK(wr.liftF))
       implicit0(elh: EmbeddableLogHandler[xa.DB]) <- Resource.eval(
-                                                       doobieLogging.makeEmbeddableHandler[InitF, RunF, xa.DB](
-                                                         "markets-api-db-logging"
-                                                       )
-                                                     )
+        doobieLogging.makeEmbeddableHandler[InitF, RunF, xa.DB](
+          "markets-api-db-logging"
+        )
+      )
       implicit0(logsDb: Logs[InitF, xa.DB]) = Logs.sync[InitF, xa.DB]
       implicit0(redis: RedisCommands[RunF, String, String]) <- mkRedis[String, String, InitF, RunF](
-                                                                 configs.ratesRedis,
-                                                                 stringCodec
-                                                               )
+        configs.ratesRedis,
+        stringCodec
+      )
       implicit0(plainRedis: Plain[RunF]) <- mkRedis[Array[Byte], Array[Byte], InitF, RunF](
-                                              configs.ratesRedis,
-                                              RedisCodec.Bytes
-                                            )
+        configs.ratesRedis,
+        RedisCodec.Bytes
+      )
       implicit0(cache: Cache[RunF])                       <- Resource.eval(Cache.make[InitF, RunF])
       implicit0(httpRespCache: HttpResponseCaching[RunF]) <- Resource.eval(HttpResponseCaching.make[InitF, RunF])
       implicit0(httpCache: CachingMiddleware[RunF]) = CacheMiddleware.make[RunF]
@@ -68,10 +69,12 @@ object App extends EnvApp[AppContext] {
       implicit0(metadata: Metadata[RunF])               <- Resource.eval(Metadata.create[InitF, RunF](configs.network))
       implicit0(metadataService: MetadataService[RunF]) <- Resource.eval(MetadataService.create[InitF, RunF])
       implicit0(poolsRepo: PoolsRepo[RunF])             <- Resource.eval(PoolsRepo.create[InitF, xa.DB, RunF])
+      ordersRepo                                        <- Resource.eval(OrdersRepository.make[InitF, RunF, xa.DB])
       implicit0(ratesRepo: RatesRepo[RunF])             <- Resource.eval(RatesRepo.create[InitF, RunF])
       implicit0(service: AnalyticsService[RunF]) <- Resource.eval(
-                                                      AnalyticsService.create[InitF, RunF](configs.marketsApi)
-                                                    )
-      server <- HttpServer.make[InitF, RunF](configs.http, runtime.platform.executor.asEC)
+        AnalyticsService.create[InitF, RunF](configs.marketsApi)
+      )
+      implicit0(historyService: HistoryService[RunF]) <- Resource.eval(HistoryService.make[InitF, RunF](ordersRepo))
+      server                                          <- HttpServer.make[InitF, RunF](configs.http, runtime.platform.executor.asEC)
     } yield server
 }

@@ -14,7 +14,7 @@ object PoolInfoEndpoints {
 
   def endpoints: List[Endpoint[_, _, _, _]] = getPoolInfo :: getPoolsOverview :: Nil
 
-  def getPoolInfo: Endpoint[(PoolId, FiniteDuration), HttpError, PoolInfo, Any] =
+  def getPoolInfo: Endpoint[(PoolId, FiniteDuration), HttpError, PoolOverview, Any] =
     baseEndpoint.get
       .in(pathPrefix / "info")
       .in(
@@ -26,7 +26,7 @@ object PoolInfoEndpoints {
           .example(PoolId("93a4e3ab42b052cbe48bee3a6507d3ec06b9555994c1e6815f296108.484f534b59745f414441745f6e6674"))
       )
       .in(after)
-      .out(jsonBody[PoolInfo])
+      .out(jsonBody[PoolOverview])
       .tag(pathPrefix)
       .name("Info by pool id")
       .description("Allow to get info about pool within period")
