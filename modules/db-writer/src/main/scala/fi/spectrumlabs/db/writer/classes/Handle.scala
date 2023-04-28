@@ -90,9 +90,7 @@ object Handle {
     persist: Persist[B, F],
     handleLogName: String,
     toSchema: ToSchema[A, Option[B]]
-  )(implicit
-    logs: Logs[I, F]
-  ): I[Handle[A, F]] =
+  )(implicit logs: Logs[I, F]): I[Handle[A, F]] =
     logs.forService[Handle[A, F]].map(implicit __ => new ImplOption[A, B, F](persist, handleLogName, toSchema))
 
   def createExecuted[I[_]: Functor, F[_]: Monad](

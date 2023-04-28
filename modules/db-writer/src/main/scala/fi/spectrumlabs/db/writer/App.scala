@@ -86,7 +86,7 @@ object App extends EnvApp[AppContext] {
         txRepository
       )
       executedOpsHandler <- makeOrdersHandler(configs.writer, configs.cardanoConfig)
-      poolsHandler       <- makePoolsHandler(configs.writer, poolsRepo, txRepository, configs.cardanoConfig)
+      poolsHandler       <- makePoolsHandler(configs.writer, configs.cardanoConfig)
       bundle  = HandlersBundle.make[StreamF](txHandler, List(poolsHandler, executedOpsHandler))
       program = WriterProgram.create[StreamF, RunF](bundle, configs.writer)
       r <- Resource.eval(program.run).mapK(ul.liftF)
