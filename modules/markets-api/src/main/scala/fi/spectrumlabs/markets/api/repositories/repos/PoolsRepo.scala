@@ -4,8 +4,8 @@ import cats.{FlatMap, Functor}
 import derevo.derive
 import doobie.ConnectionIO
 import fi.spectrumlabs.core.models.db.Pool
-import fi.spectrumlabs.core.models.domain.{PoolId, Pool => DomainPool}
-import fi.spectrumlabs.markets.api.models.{PoolVolume, PoolVolumeDb}
+import fi.spectrumlabs.core.models.domain.{PoolFee, PoolId, Pool => DomainPool}
+import fi.spectrumlabs.markets.api.models.{PoolFeesSnapshot, PoolVolume, PoolVolumeDb}
 import fi.spectrumlabs.markets.api.repositories.sql.PoolsSql
 import tofu.doobie.LiftConnectionIO
 import tofu.doobie.log.EmbeddableLogHandler
@@ -16,7 +16,8 @@ import tofu.logging.{Logging, Logs}
 import tofu.syntax.logging._
 import tofu.syntax.monadic._
 import cats.tagless.syntax.functorK._
-import fi.spectrumlabs.markets.api.models.db.{AvgAssetAmounts, PoolDb}
+import fi.spectrumlabs.core.models.domain
+import fi.spectrumlabs.markets.api.models.db.{AvgAssetAmounts, PoolDb, PoolFeeSnapshot}
 import fi.spectrumlabs.markets.api.v1.endpoints.models.TimeWindow
 
 import scala.concurrent.duration.FiniteDuration
@@ -32,6 +33,10 @@ trait PoolsRepo[D[_]] {
   def getPoolVolumes(period: TimeWindow): D[List[PoolVolumeDb]]
 
   def getAvgPoolSnapshot(id: PoolId, tw: TimeWindow, resolution: Long): D[List[AvgAssetAmounts]]
+
+  def getFirstPoolSwapTime(id: PoolId): D[Option[Long]]
+
+  def fees(pool: domain.Pool, window: TimeWindow, poolFee: PoolFee): D[Option[PoolFeeSnapshot]]
 }
 
 object PoolsRepo {
@@ -63,6 +68,12 @@ object PoolsRepo {
 
     def getAvgPoolSnapshot(id: PoolId, tw: TimeWindow, resolution: Long): ConnectionIO[List[AvgAssetAmounts]] =
       sql.getAvgPoolSnapshot(id, tw, resolution).to[List]
+
+    def getFirstPoolSwapTime(id: PoolId): ConnectionIO[Option[Long]] =
+      sql.getFirstPoolSwapTime(id).option
+
+    def fees(pool: domain.Pool, window: TimeWindow, poolFee: PoolFee): ConnectionIO[Option[PoolFeeSnapshot]] =
+      sql.getPoolFees(pool, window, poolFee).option
   }
 
   final private class Tracing[F[_]: FlatMap: Logging] extends PoolsRepo[Mid[F, *]] {
@@ -100,6 +111,20 @@ object PoolsRepo {
         _ <- trace"Going to get avg pool snapshot for $id with period $resolution within $tw"
         r <- _
         _ <- trace"Pool value is $r"
+      } yield r
+
+    def getFirstPoolSwapTime(id: PoolId): Mid[F, Option[Long]] =
+      for {
+        _ <- trace"getFirstPoolSwapTime(id: $id)"
+        r <- _
+        _ <- trace"getFirstPoolSwapTime(id: $id) -> $r"
+      } yield r
+
+    def fees(pool: domain.Pool, window: TimeWindow, poolFee: PoolFee) =
+      for {
+        _ <- trace"fees(id: ${pool.id})"
+        r <- _
+        _ <- trace"fees(id: ${pool.id}) -> $r"
       } yield r
   }
 }

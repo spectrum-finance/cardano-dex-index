@@ -2,7 +2,8 @@ package fi.spectrumlabs.markets.api.models
 
 import derevo.circe.magnolia.{decoder, encoder}
 import derevo.derive
-import fi.spectrumlabs.core.models.domain.{Amount, AssetAmount, AssetClass, Fee, PoolFee, PoolId}
+import fi.spectrumlabs.core.models.domain.{Amount, Apr, AssetAmount, AssetClass, Fee, PoolFee, PoolId}
+import fi.spectrumlabs.markets.api.models.db.PoolFeeSnapshot
 import sttp.tapir.Schema
 import tofu.logging.derivation.loggable
 
@@ -13,8 +14,8 @@ final case class PoolOverview(
   lockedY: AssetAmount,
   tvl: Option[BigDecimal],
   volume: Option[BigDecimal],
-  fee: PoolFee,
-  APR: Int = 0 // 0 for testing purpose
+  fee: PoolFeeSnapshot,
+  yearlyFeesPercent: Apr
 )
 
 object PoolOverview {

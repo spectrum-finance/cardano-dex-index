@@ -65,4 +65,17 @@ package object domain {
     implicit val put: Put[Fee]           = deriving
     implicit val show: Show[Fee]         = deriving
   }
+
+  @newtype final case class Apr(value: Double)
+
+  object Apr {
+    implicit val encoder: Encoder[Apr]     = deriving
+    implicit val decoder: Decoder[Apr]     = deriving
+    implicit val loggable: Loggable[Apr]   = deriving
+    implicit val get: Get[Apr]             = deriving
+    implicit val put: Put[Apr]             = deriving
+    implicit val show: Show[Apr]           = deriving
+    implicit val schema: Schema[Apr]       = deriving
+    implicit val validator: Validator[Apr] = schema.validator
+  }
 }

@@ -2,6 +2,7 @@ package fi.spectrumlabs.core.models.domain
 
 import cats.syntax.eq._
 import derevo.derive
+import fi.spectrumlabs.core.models
 import tofu.logging.derivation.loggable
 import fi.spectrumlabs.core.models.db.{Pool => PoolDb}
 

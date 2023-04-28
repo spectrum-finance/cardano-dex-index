@@ -4,12 +4,14 @@ import doobie.util.log.LogHandler
 import doobie.implicits._
 import doobie.util.query.Query0
 import fi.spectrumlabs.core.models.db.Pool
-import fi.spectrumlabs.core.models.domain.{PoolId, Pool => DomainPool}
+import fi.spectrumlabs.core.models.domain.{PoolFee, PoolId, Pool => DomainPool}
 import fi.spectrumlabs.markets.api.models.{PoolVolume, PoolVolumeDb}
+
 import scala.concurrent.duration.FiniteDuration
 import cats.syntax.show._
 import doobie.util.fragment.Fragment
-import fi.spectrumlabs.markets.api.models.db.{AvgAssetAmounts, PoolDb}
+import fi.spectrumlabs.core.models.domain
+import fi.spectrumlabs.markets.api.models.db.{AvgAssetAmounts, PoolDb, PoolFeeSnapshot}
 import fi.spectrumlabs.markets.api.v1.endpoints.models.TimeWindow
 
 final class PoolsSql(implicit lh: LogHandler) {
@@ -105,6 +107,26 @@ final class PoolsSql(implicit lh: LogHandler) {
          |GROUP BY res
          |ORDER BY res
          """.stripMargin.query[AvgAssetAmounts]
+
+  def getFirstPoolSwapTime(id: PoolId): Query0[Long] =
+    sql"""
+         |SELECT min(execution_timestamp)
+         |FROM swap
+         |WHERE pool_nft = $id AND execution_timestamp IS NOT NULL;
+       """.stripMargin.query
+
+  def getPoolFees(pool: domain.Pool, window: TimeWindow, poolFee: PoolFee): Query0[PoolFeeSnapshot] = {
+    def from = window.from.map(s => Fragment.const(s"execution_timestamp > ${s} and ")).getOrElse(Fragment.empty)
+    def to = window.to.map(s => Fragment.const(s"execution_timestamp <= ${s}")).getOrElse(Fragment.empty)
+
+    sql"""
+         |SELECT
+         |	cast(COALESCE(sum(CASE WHEN (base = ${pool.x.asset.show}) THEN actual_quote::decimal * (${poolFee.feeDen} - ${poolFee.feeNum}) / ${poolFee.feeDen} ELSE 0 END), 0) AS bigint) AS tx,
+         |	cast(COALESCE(sum(CASE WHEN (base = ${pool.y.asset.show}) THEN actual_quote::decimal * (${poolFee.feeDen} - ${poolFee.feeNum}) / ${poolFee.feeDen} ELSE 0 END), 0) AS bigint) AS ty
+         |FROM swap
+         |WHERE pool_nft = ${pool.id} and $from $to
+       """.stripMargin.query[PoolFeeSnapshot]
+  }
 
   private def timeWindowCond(tw: TimeWindow, condKeyword: String, alias: String): Fragment =
     if (tw.from.nonEmpty || tw.to.nonEmpty)

@@ -7,7 +7,7 @@ import cats.{Functor, Monad, Parallel}
 import derevo.derive
 import fi.spectrumlabs.core.models.domain.{Amount, AssetAmount, Pool, PoolFee, PoolId}
 import fi.spectrumlabs.markets.api.configs.MarketsApiConfig
-import fi.spectrumlabs.markets.api.models.{PlatformStats, PoolInfo, PoolOverview, PricePoint, RealPrice}
+import fi.spectrumlabs.markets.api.models.{PlatformStats, PoolOverview, PricePoint, RealPrice}
 import fi.spectrumlabs.markets.api.repositories.repos.{PoolsRepo, RatesRepo}
 import fi.spectrumlabs.markets.api.v1.endpoints.models.TimeWindow
 import fi.spectrumlabs.rates.resolver.services.{MetadataService, TokenFetcher}
@@ -17,8 +17,11 @@ import tofu.logging.{Logging, Logs}
 import tofu.syntax.logging._
 import tofu.syntax.monadic._
 import cats.syntax.traverse._
+import fi.spectrumlabs.markets.api.models.db.{PoolDb, PoolFeeSnapshot}
+import tofu.syntax.time.now.millis
+import tofu.time.Clock
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.math.BigDecimal.RoundingMode
 
 @derive(representableK)
@@ -34,34 +37,58 @@ trait AnalyticsService[F[_]] {
 
 object AnalyticsService {
 
-  def create[I[_]: Functor, F[_]: Monad: Parallel](config: MarketsApiConfig)(implicit
+  private val MillisInYear: FiniteDuration = 365.days
+
+  def create[I[_]: Functor, F[_]: Monad: Parallel: Clock](config: MarketsApiConfig)(implicit
     tokenFetcher: TokenFetcher[F],
     metadata: MetadataService[F],
     ratesRepo: RatesRepo[F],
     poolsRepo: PoolsRepo[F],
+    ammStatsMath: AmmStatsMath[F],
     logs: Logs[I, F]
   ): I[AnalyticsService[F]] =
     logs.forService[AnalyticsService[F]].map(implicit __ => new Tracing[F] attach new Impl[F](config))
 
-  final private class Impl[F[_]: Monad: Parallel](config: MarketsApiConfig)(implicit
+  final private class Impl[F[_]: Monad: Parallel: Clock](config: MarketsApiConfig)(implicit
     tokenFetcher: TokenFetcher[F],
     metadata: MetadataService[F],
     ratesRepo: RatesRepo[F],
-    poolsRepo: PoolsRepo[F]
+    poolsRepo: PoolsRepo[F],
+    ammStatsMath: AmmStatsMath[F]
   ) extends AnalyticsService[F] {
 
     def getPoolsOverview(period: FiniteDuration): F[List[PoolOverview]] =
       poolsRepo.getPools.flatMap(
-        _.parTraverse { p =>
-          getPoolInfo(p.poolId, period).map { info =>
-            PoolOverview(
-              p.poolId,
-              AssetAmount(p.x, p.xReserves),
-              AssetAmount(p.y, p.yReserves),
-              info.flatMap(_.tvl),
-              info.flatMap(_.volume),
-              PoolFee(p.feeNum, p.feeDen)
-            )
+        _.parTraverse { p: PoolDb =>
+          poolsRepo.getFirstPoolSwapTime(p.poolId).flatMap { firstSwap =>
+            getPoolInfo(p.poolId, period).flatMap { info =>
+              val pool = Pool(p.poolId, AssetAmount(p.x, p.xReserves), AssetAmount(p.y, p.yReserves))
+              millis.flatMap { now =>
+                val tw = TimeWindow(Some(period.toMillis), Some(now))
+                poolsRepo.fees(pool, tw, PoolFee(p.feeNum, p.feeDen)).flatMap { fee =>
+                  ammStatsMath
+                    .apr(
+                      p.poolId,
+                      info.flatMap(_.tvl).getOrElse(BigDecimal(0)),
+                      fee.map(s => s.x + s.y).getOrElse(BigDecimal(0)),
+                      firstSwap.getOrElse(0),
+                      MillisInYear,
+                      tw
+                    )
+                    .map { apr =>
+                      PoolOverview(
+                        p.poolId,
+                        AssetAmount(p.x, p.xReserves),
+                        AssetAmount(p.y, p.yReserves),
+                        info.flatMap(_.tvl),
+                        info.flatMap(_.volume),
+                        fee.getOrElse(PoolFeeSnapshot(BigDecimal(0), BigDecimal(0))),
+                        apr
+                      )
+                    }
+                }
+              }
+            }
           }
         }
       )
@@ -83,13 +110,21 @@ object AnalyticsService {
           .map(r => Amount(r.longValue).dropPenny(rateY.decimals))
           .getOrElse(BigDecimal(0)) * rateY.rate
         totalVolume = (xVolume + yVolume).setScale(0, RoundingMode.HALF_UP)
+        now <- OptionT.liftF(millis)
+        tw = TimeWindow(Some(period.toMillis), Some(now))
+        firstSwap <- OptionT.liftF(poolsRepo.getFirstPoolSwapTime(poolId))
+        fee       <- OptionT(poolsRepo.fees(pool, tw, poolDb.fees))
+        apr <- OptionT.liftF(
+          ammStatsMath.apr(poolId, totalTvl, fee.x + fee.y, firstSwap.getOrElse(0), MillisInYear, tw)
+        )
       } yield PoolOverview(
         poolId,
         AssetAmount(poolDb.x, Amount(poolDb.xReserves)),
         AssetAmount(poolDb.y, Amount(poolDb.yReserves)),
         totalTvl.some,
         totalVolume.some,
-        PoolFee(0, 0) // for testing purpose
+        fee,
+        apr
       )).value
 
     def getPlatformStats(period: TimeWindow): F[PlatformStats] =
@@ -134,12 +169,13 @@ object AnalyticsService {
             .map(xs => xs.headOption.flatMap(meta => xs.lastOption.map((meta, _))))
         )
         validTokens <- OptionT.liftF(tokenFetcher.fetchTokens)
-        points = if (validTokens.contains(pool.x) && validTokens.contains(pool.y) && xMeta != yMeta)
-          amounts.map { amount =>
-            val price = RealPrice.calculate(amount.amountX, xMeta.decimals, amount.amountY, yMeta.decimals)
-            PricePoint(amount.timestamp, price.setScale(RealPrice.defaultScale))
-          }
-        else List.empty[PricePoint]
+        points =
+          if (validTokens.contains(pool.x) && validTokens.contains(pool.y) && xMeta != yMeta)
+            amounts.map { amount =>
+              val price = RealPrice.calculate(amount.amountX, xMeta.decimals, amount.amountY, yMeta.decimals)
+              PricePoint(amount.timestamp, price.setScale(RealPrice.defaultScale))
+            }
+          else List.empty[PricePoint]
       } yield points).value.map(_.toList.flatten)
   }
 
