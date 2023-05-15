@@ -71,7 +71,7 @@ object App extends EnvApp[AppContext] {
       implicit0(poolsRepo: PoolsRepo[RunF])             <- Resource.eval(PoolsRepo.create[InitF, xa.DB, RunF])
       ordersRepo                                        <- Resource.eval(OrdersRepository.make[InitF, RunF, xa.DB])
       implicit0(ratesRepo: RatesRepo[RunF])             <- Resource.eval(RatesRepo.create[InitF, RunF])
-      implicit0(ammStatsMath: AmmStatsMath[RunF])             <- Resource.eval(AmmStatsMath.create[InitF, RunF])
+      implicit0(ammStatsMath: AmmStatsMath[RunF])       <- Resource.eval(AmmStatsMath.create[InitF, RunF])
       implicit0(service: AnalyticsService[RunF]) <- Resource.eval(
         AnalyticsService.create[InitF, RunF](configs.marketsApi)
       )
