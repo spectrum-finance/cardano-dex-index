@@ -33,12 +33,16 @@ object HistoryService {
 
   final private class Live[F[_]: Monad: Clock](ordersRepository: OrdersRepository[F]) extends HistoryService[F] {
     override def getUserHistory(query: HistoryApiQuery, paging: Paging, window: TimeWindow): F[OrderHistoryResponse] =
-      query.userPkhs.flatTraverse(ordersRepository.getUserOrdersByPkh).flatMap { orders =>
-        Clock[F].realTime(SECONDS).map { curTime =>
-          val finalOrders = orders.flatMap(UserOrderInfo.fromDbOrder(_, curTime))
-          OrderHistoryResponse(finalOrders.take(paging.limit), finalOrders.length)
+      query.userPkhs
+        .flatTraverse(ordersRepository.getUserOrdersByPkh)
+        .flatMap { orders =>
+          Clock[F].realTime(SECONDS).map { curTime =>
+            val finalOrders = orders
+              .flatMap(UserOrderInfo.fromDbOrder(_, curTime))
+              .sortBy(_.registerTx.ts)(Ordering[Long].reverse)
+            OrderHistoryResponse(finalOrders.take(paging.limit), finalOrders.length)
+          }
         }
-      }
   }
 
   final private class HistoryServiceTracingMid[F[_]: Logging: Apply] extends HistoryService[Mid[F, *]] {
