@@ -21,7 +21,7 @@ final case class Swap(
   rewardPkh: String,
   stakePkh: Option[StakePKH],
   baseAmount: Amount,
-  actualQuote: Amount,
+  actualQuote: Option[Amount],
   minQuoteAmount: Amount,
   orderInputId: TxOutRef,
   userOutputId: Option[TxOutRef],
@@ -57,7 +57,7 @@ object Swap {
           StakePKH(StakePubKeyHash(spkh.unStakePubKeyHash.getPubKeyHash))
         ),
         Amount(orderAction.order.action.swapBaseIn),
-        Amount(-1), //todo: make optional in schema
+        none,
         Amount(orderAction.order.action.swapMinQuoteOut),
         castFromCardano(orderAction.fullTxOut.fullTxOutRef),
         none,

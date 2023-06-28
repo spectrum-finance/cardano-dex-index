@@ -19,7 +19,7 @@ final case class Deposit(
   coinLq: Coin,
   amountX: Amount,
   amountY: Amount,
-  amountLq: Amount,
+  amountLq: Option[Amount],
   exFee: ExFee,
   rewardPkh: String,
   stakePkh: Option[StakePKH],
@@ -52,7 +52,7 @@ object Deposit {
         castFromCardano(orderAction.order.action.depositLq.unAssetClass).toCoin,
         Amount(orderAction.order.action.depositPair.firstElem.value),
         Amount(orderAction.order.action.depositPair.secondElem.value),
-        Amount(-1), //todo: make optional in schema
+        none, //todo: make optional in schema
         ExFee(orderAction.order.action.depositExFee.unExFee),
         orderAction.order.action.depositRewardPkh.getPubKeyHash,
         orderAction.order.action.depositRewardSPkh.map(spkh =>
