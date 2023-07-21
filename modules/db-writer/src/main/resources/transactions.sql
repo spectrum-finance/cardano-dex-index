@@ -58,15 +58,3 @@ create table if not exists redeemer (
     data_bin Text default null,
     primary key (id)
 );
-
-create unique index if not exists tx_id on transaction (hash, block_index);
-
-create unique index if not exists tx_out_tx_id on output (tx_hash, tx_index);
-create unique index if not exists tx_out_pcred on output (payment_cred);
-
-create unique index if not exists tx_in_tx_id on input (tx_hash, tx_index);
-create unique index if not exists tx_in_redeemer on input (redeemer_index);
-create unique index if not exists tx_in_out on input (out_ref, out_index);
-
-create unique index if not exists redeemer_tx on redeemer (tx_hash, tx_index);
-create unique index if not exists redeemer_id on redeemer (index);

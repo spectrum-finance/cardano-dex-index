@@ -1,13 +1,17 @@
 package fi.spectrumlabs.db.writer.models.db
 
 import fi.spectrumlabs.core.models.domain.{Amount, Coin}
-import fi.spectrumlabs.db.writer.classes.ToSchema
+import fi.spectrumlabs.db.writer.classes.{Key, ToSchema}
 import fi.spectrumlabs.db.writer.models.cardano.{DepositAction, DepositOrder, Order}
 import fi.spectrumlabs.db.writer.models.orders.{ExFee, StakePKH, StakePubKeyHash, TxOutRef}
 import cats.syntax.option._
 import fi.spectrumlabs.core.models.domain.AssetClass.syntax._
 import fi.spectrumlabs.db.writer.config.CardanoConfig
+import cats.syntax.show._
+import derevo.circe.magnolia.{decoder, encoder}
+import derevo.derive
 
+@derive(encoder, decoder)
 final case class Deposit(
   poolId: Coin,
   coinX: Coin,
@@ -31,6 +35,10 @@ final case class Deposit(
 ) extends DBOrder
 
 object Deposit {
+
+  implicit val key: Key[Deposit] = new Key[Deposit] {
+    override def getKey(in: Deposit): String = in.orderInputId.show
+  }
 
   def streamingSchema(config: CardanoConfig): ToSchema[Order, Option[Deposit]] = {
     case orderAction: DepositOrder

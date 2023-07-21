@@ -4,11 +4,15 @@ import cats.implicits.catsSyntaxOptionId
 import cats.syntax.option.none
 import fi.spectrumlabs.core.models.domain.AssetClass.syntax.AssetClassOps
 import fi.spectrumlabs.core.models.domain.{Amount, Coin}
-import fi.spectrumlabs.db.writer.classes.ToSchema
+import fi.spectrumlabs.db.writer.classes.{Key, ToSchema}
 import fi.spectrumlabs.db.writer.config.CardanoConfig
 import fi.spectrumlabs.db.writer.models.cardano.{Order, RedeemAction, RedeemOrder, SwapAction}
 import fi.spectrumlabs.db.writer.models.orders.{ExFee, PublicKeyHash, StakePKH, StakePubKeyHash, TxOutRef}
+import cats.syntax.show._
+import derevo.circe.magnolia.{decoder, encoder}
+import derevo.derive
 
+@derive(encoder, decoder)
 final case class Redeem(
   poolId: Coin,
   coinX: Coin,
@@ -31,6 +35,10 @@ final case class Redeem(
 ) extends DBOrder
 
 object Redeem {
+
+  implicit val key: Key[Redeem] = new Key[Redeem] {
+    override def getKey(in: Redeem): String = in.orderInputId.show
+  }
 
   def streamingSchema(config: CardanoConfig): ToSchema[Order, Option[Redeem]] = {
     case orderAction: RedeemOrder

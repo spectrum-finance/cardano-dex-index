@@ -11,7 +11,8 @@ lazy val commonScalacOption = List(
   "-feature",
   "-unchecked",
   "-Xfatal-warnings",
-  "-Ymacro-annotations"
+  "-Ymacro-annotations",
+  "-J-Xmx8G"
 )
 
 lazy val commonSettings = Seq(

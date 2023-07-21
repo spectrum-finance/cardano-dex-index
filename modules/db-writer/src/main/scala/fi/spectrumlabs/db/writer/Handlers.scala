@@ -27,17 +27,18 @@ import zio.interop.catz._
 
 object Handlers {
 
-  val TxHandlerName     = "Tx"
-  val OrdersHandlerName = "Order"
-  val PoolsHandler      = "PoolsHandler"
-  val TxHandleName      = "Transaction"
-  val InHandleName      = "Input"
-  val ExecutedInput     = "ExecutedInput"
-  val OutHandleName     = "Output"
-  val DepositHandleName = "Deposit"
-  val SwapHandleName    = "Swap"
-  val RedeemHandleName  = "Redeem"
-  val PoolHandleName    = "Pool"
+  val TxHandlerName            = "Tx"
+  val OrdersHandlerName        = "Order"
+  val MempoolOrdersHandlerName = "Order"
+  val PoolsHandler             = "PoolsHandler"
+  val TxHandleName             = "Transaction"
+  val InHandleName             = "Input"
+  val ExecutedInput            = "ExecutedInput"
+  val OutHandleName            = "Output"
+  val DepositHandleName        = "Deposit"
+  val SwapHandleName           = "Swap"
+  val RedeemHandleName         = "Redeem"
+  val PoolHandleName           = "Pool"
 
   def makeTxHandler(
     config: WriterConfig,
@@ -69,6 +70,37 @@ object Handlers {
         refunds
       )
       handler <- Handler.create[TxEvent, StreamF, RunF, Chunk, InitF](config, TxHandlerName)
+    } yield handler
+  }
+
+  def makeMempoolOrdersHandler(
+    config: WriterConfig,
+    cardanoConfig: CardanoConfig,
+    consumer: Consumer[_, Option[Order], StreamF, RunF]
+  )(implicit
+    bundle: PersistBundle[RunF],
+    logs: Logs[InitF, RunF]
+  ): Resource[InitF, Handler[StreamF]] = Resource.eval {
+    import bundle._
+    for {
+      deposit <- Handle.createOption[Order, Deposit, InitF, RunF](
+        depositRedis,
+        DepositHandleName,
+        Deposit.streamingSchema(cardanoConfig)
+      )
+      swap <- Handle.createOption[Order, Swap, InitF, RunF](
+        swapRedis,
+        SwapHandleName,
+        Swap.streamingSchema(cardanoConfig)
+      )
+      redeem <- Handle.createOption[Order, Redeem, InitF, RunF](
+        redeemRedis,
+        RedeemHandleName,
+        Redeem.streamingSchema(cardanoConfig)
+      )
+      implicit0(nelHandlers: NonEmptyList[Handle[Order, RunF]])          = NonEmptyList.of(deposit, swap, redeem)
+      implicit0(consumerImpl: Consumer[_, Option[Order], StreamF, RunF]) = consumer
+      handler <- Handler.create[Order, StreamF, RunF, Chunk, InitF](config, MempoolOrdersHandlerName)
     } yield handler
   }
 
