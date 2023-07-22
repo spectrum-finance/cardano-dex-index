@@ -10,33 +10,15 @@ import cats.syntax.option._
 import fi.spectrumlabs.db.writer.models.{ExecutedInput, Output, Transaction}
 import fi.spectrumlabs.db.writer.models.streaming.{AppliedTransaction, TxEvent, UnAppliedTransaction}
 import fi.spectrumlabs.db.writer.persistence.Persist
-import fi.spectrumlabs.db.writer.repositories.{
-  InputsRepository,
-  OrdersRepository,
-  OutputsRepository,
-  PoolsRepository,
-  TransactionRepository
-}
+import fi.spectrumlabs.db.writer.repositories.{InputsRepository, OrdersRepository, OutputsRepository, PoolsRepository, TransactionRepository}
 import mouse.any._
 import tofu.logging.{Logging, Logs}
 import tofu.syntax.logging._
 import cats.syntax.traverse._
-import fi.spectrumlabs.db.writer.classes.OrdersInfo.{
-  ExecutedDepositOrderInfo,
-  ExecutedRedeemOrderInfo,
-  ExecutedSwapOrderInfo
-}
+import fi.spectrumlabs.core.cache.Cache.Plain
+import fi.spectrumlabs.db.writer.classes.OrdersInfo.{ExecutedDepositOrderInfo, ExecutedRedeemOrderInfo, ExecutedSwapOrderInfo}
 import fi.spectrumlabs.db.writer.config.CardanoConfig
-import fi.spectrumlabs.db.writer.models.cardano.{
-  AddressCredential,
-  Confirmed,
-  FullTxOutRef,
-  FullTxOutValue,
-  PoolEvent,
-  PubKeyAddressCredential,
-  ScriptAddressCredential,
-  TxInput
-}
+import fi.spectrumlabs.db.writer.models.cardano.{AddressCredential, Confirmed, FullTxOutRef, FullTxOutValue, PoolEvent, PubKeyAddressCredential, ScriptAddressCredential, TxInput}
 import fi.spectrumlabs.db.writer.models.db.{Deposit, Pool, Redeem, Swap}
 
 /** Keeps both ToSchema from A to B and Persist for B.
@@ -92,6 +74,11 @@ object Handle {
     toSchema: ToSchema[A, Option[B]]
   )(implicit logs: Logs[I, F]): I[Handle[A, F]] =
     logs.forService[Handle[A, F]].map(implicit __ => new ImplOption[A, B, F](persist, handleLogName, toSchema))
+
+  def createOptionForExecutedRedis[A: Key, I[_]: Functor, F[_]: Monad](
+    handleLogName: String
+  )(implicit logs: Logs[I, F], redis: Plain[F]): I[Handle[A, F]] =
+    logs.forService[Handle[A, F]].map(implicit __ => new RedisDrop[A, F](redis, handleLogName))
 
   def createExecuted[I[_]: Functor, F[_]: Monad](
     cardanoConfig: CardanoConfig,
@@ -175,6 +162,23 @@ object Handle {
       in.map(toSchema(_)).toList.flatten match {
         case x :: xs =>
           (NonEmptyList.of(x, xs: _*) |> persist.persist)
+            .flatMap(r =>
+              info"Finished handle [$handleLogName] process for $r elements. Batch size was ${in.size}. ${in.toString()}"
+            )
+        case Nil =>
+          info"Nothing to extract ${in.toString()} [$handleLogName]. Batch contains 0 elements to persist."
+      }
+  }
+
+  final private class RedisDrop[A: Key, F[_]: Monad: Logging](
+    redis: Plain[F],
+    handleLogName: String,
+  ) extends Handle[A, F] {
+
+    def handle(in: NonEmptyList[A]): F[Unit] =
+      in.toList match {
+        case x :: xs =>
+          (NonEmptyList.of(x, xs: _*).traverse(elem => redis.del(implicitly[Key[A]].getKey(elem).getBytes())))
             .flatMap(r =>
               info"Finished handle [$handleLogName] process for $r elements. Batch size was ${in.size}. ${in.toString()}"
             )

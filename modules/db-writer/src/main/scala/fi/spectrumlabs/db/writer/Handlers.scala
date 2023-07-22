@@ -2,6 +2,7 @@ package fi.spectrumlabs.db.writer
 
 import cats.data.NonEmptyList
 import cats.effect.Resource
+import fi.spectrumlabs.core.cache.Cache.Plain
 import fi.spectrumlabs.core.streaming.Consumer
 import fi.spectrumlabs.db.writer.App.{InitF, RunF, StreamF}
 import fi.spectrumlabs.db.writer.classes.Handle
@@ -82,6 +83,7 @@ object Handlers {
     logs: Logs[InitF, RunF]
   ): Resource[InitF, Handler[StreamF]] = Resource.eval {
     import bundle._
+    implicit val consumerImpl = consumer
     for {
       deposit <- Handle.createOption[Order, Deposit, InitF, RunF](
         depositRedis,
@@ -98,8 +100,7 @@ object Handlers {
         RedeemHandleName,
         Redeem.streamingSchema(cardanoConfig)
       )
-      implicit0(nelHandlers: NonEmptyList[Handle[Order, RunF]])          = NonEmptyList.of(deposit, swap, redeem)
-      implicit0(consumerImpl: Consumer[_, Option[Order], StreamF, RunF]) = consumer
+      implicit0(nelHandlers: NonEmptyList[Handle[Order, RunF]]) = NonEmptyList.of(deposit, swap)
       handler <- Handler.create[Order, StreamF, RunF, Chunk, InitF](config, MempoolOrdersHandlerName)
     } yield handler
   }
@@ -107,7 +108,8 @@ object Handlers {
   def makeOrdersHandler(config: WriterConfig, cardanoConfig: CardanoConfig)(implicit
     bundle: PersistBundle[RunF],
     consumer: Consumer[_, Option[Order], StreamF, RunF],
-    logs: Logs[InitF, RunF]
+    logs: Logs[InitF, RunF],
+    redis: Plain[RunF]
   ): Resource[InitF, Handler[StreamF]] = Resource.eval {
     import bundle._
     for {
@@ -115,6 +117,9 @@ object Handlers {
         deposit,
         DepositHandleName,
         Deposit.streamingSchema(cardanoConfig)
+      )
+      orderRedis <- Handle.createOptionForExecutedRedis[Order, InitF, RunF](
+        DepositHandleName
       )
       swap <- Handle.createOption[Order, Swap, InitF, RunF](
         swap,
@@ -126,7 +131,7 @@ object Handlers {
         RedeemHandleName,
         Redeem.streamingSchema(cardanoConfig)
       )
-      implicit0(nelHandlers: NonEmptyList[Handle[Order, RunF]]) = NonEmptyList.of(deposit, swap, redeem)
+      implicit0(nelHandlers: NonEmptyList[Handle[Order, RunF]]) = NonEmptyList.of(deposit, swap, redeem, orderRedis)
       handler <- Handler.create[Order, StreamF, RunF, Chunk, InitF](config, OrdersHandlerName)
     } yield handler
   }

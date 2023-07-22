@@ -1,5 +1,6 @@
 package fi.spectrumlabs.db.writer.models.cardano
 
+import cats.Show
 import derevo.circe.magnolia.{decoder, encoder}
 import derevo.derive
 import doobie.Put
@@ -20,6 +21,11 @@ object FullTxOutRef {
 
   def toTxOutRef(ref: FullTxOutRef): TxOutRef =
     TxOutRef(ref.txOutRefIdx, OTxOutRefId(ref.txOutRefId.getTxId))
+
+  implicit val show: Show[FullTxOutRef] = new Show[FullTxOutRef] {
+    override def show(t: FullTxOutRef): String =
+      s"${t.txOutRefId.getTxId}#${t.txOutRefIdx}"
+  }
 
   def fromString(outRef: String): Either[String, FullTxOutRef] =
     outRef.split(CardanoRefDelimiter).toList match {

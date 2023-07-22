@@ -5,8 +5,12 @@ import io.circe.{Decoder, DecodingFailure, HCursor}
 import cats.syntax.either._
 import derevo.circe.magnolia.decoder
 import derevo.derive
+import fi.spectrumlabs.db.writer.classes.Key
+import cats.syntax.show._
 
-sealed trait Order
+sealed trait Order {
+  val fullTxOut: FullTxOut
+}
 
 final case class SwapOrder(fullTxOut: FullTxOut, order: OrderAction[SwapAction], slotNo: Long) extends Order
 object SwapOrder {
@@ -67,6 +71,10 @@ object RedeemOrder {
 }
 
 object Order {
+
+  implicit val key: Key[Order] = new Key[Order] {
+    override def getKey(in: Order): String = in.fullTxOut.fullTxOutRef.show
+  }
 
   implicit def commonDecoder: Decoder[Order] = new Decoder[Order] {
 
