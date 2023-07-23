@@ -193,14 +193,17 @@ object Handle {
     cardanoConfig: CardanoConfig
   ) extends Handle[Confirmed[PoolEvent], F] {
 
-    override def handle(in: NonEmptyList[Confirmed[PoolEvent]]): F[Unit] =
+    override def handle(in: NonEmptyList[Confirmed[PoolEvent]]): F[Unit] = {
+      info"going to test pool: ${in.toString()}" >>
+        info"cardanoConfig.supportedPools: ${cardanoConfig.supportedPools}" >>
       in.map(Pool.toSchemaNew(cardanoConfig).apply)
         .toList
-        .filter(pool => cardanoConfig.supportedPools.contains(pool.id))
+        .filter(pool => cardanoConfig.supportedPools.contains(pool.id.value))
         .traverse { pool =>
           persist.persist(NonEmptyList.one(pool))
         }
         .void
+    }
   }
 
   final private class TransactionHandler[F[_]: Monad: Logging](
