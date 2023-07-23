@@ -13,5 +13,7 @@ final case class PoolEvent(
   poolId: CoinWrapper,
   poolLiquidity: Long,
   poolReservesX: Long,
-  poolReservesY: Long
+  poolReservesY: Long,
+  stakeAdminPolicy: List[CurrencySymbol],
+  lqBound: Long
 )

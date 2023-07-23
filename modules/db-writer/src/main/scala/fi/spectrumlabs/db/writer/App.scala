@@ -92,9 +92,7 @@ object App extends EnvApp[AppContext] {
         configs.cardanoConfig,
         ordersRepo,
         inputsRepo,
-        outputsRepo,
-        poolsRepo,
-        txRepository
+        outputsRepo
       )
       mempoolOpsHandler  <- makeMempoolOrdersHandler(configs.writer, configs.cardanoConfig, mempoolOpsConsumer)
       executedOpsHandler <- makeOrdersHandler(configs.writer, configs.cardanoConfig)

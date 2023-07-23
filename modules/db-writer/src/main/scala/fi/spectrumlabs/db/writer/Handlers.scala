@@ -37,6 +37,7 @@ object Handlers {
   val ExecutedInput            = "ExecutedInput"
   val OutHandleName            = "Output"
   val DepositHandleName        = "Deposit"
+  val RedisDropHandleName      = "RedisDrop"
   val SwapHandleName           = "Swap"
   val RedeemHandleName         = "Redeem"
   val PoolHandleName           = "Pool"
@@ -47,8 +48,6 @@ object Handlers {
     ordersRepository: OrdersRepository[RunF],
     inputsRepository: InputsRepository[RunF],
     outputsRepository: OutputsRepository[RunF],
-    poolsRepository: PoolsRepository[RunF],
-    transactionRepository: TransactionRepository[RunF]
   )(implicit
     bundle: PersistBundle[RunF],
     consumer: Consumer[_, Option[TxEvent], StreamF, RunF],
@@ -119,7 +118,7 @@ object Handlers {
         Deposit.streamingSchema(cardanoConfig)
       )
       orderRedis <- Handle.createOptionForExecutedRedis[Order, InitF, RunF](
-        DepositHandleName
+        RedisDropHandleName
       )
       swap <- Handle.createOption[Order, Swap, InitF, RunF](
         swap,

@@ -178,7 +178,8 @@ object Handle {
     def handle(in: NonEmptyList[A]): F[Unit] =
       in.toList match {
         case x :: xs =>
-          (NonEmptyList.of(x, xs: _*).traverse(elem => redis.del(implicitly[Key[A]].getKey(elem).getBytes())))
+          (NonEmptyList.of(x, xs: _*)
+            .traverse(elem => redis.del(implicitly[Key[A]].getKey(elem).getBytes())))
             .flatMap(r =>
               info"Finished handle [$handleLogName] process for $r elements. Batch size was ${in.size}. ${in.toString()}"
             )
