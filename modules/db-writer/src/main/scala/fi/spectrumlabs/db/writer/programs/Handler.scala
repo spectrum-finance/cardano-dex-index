@@ -51,6 +51,7 @@ object Handler {
     def handle: S[Unit] =
       consumer.stream
         .groupWithin(config.batchSize, config.timeout)
+        .flatTap(elem => Evals[S, F].eval(info"going to test:${elem.toString}"))
         .flatMap { batch =>
           batch.toList.flatMap(_.message) match {
             case x :: xs =>
