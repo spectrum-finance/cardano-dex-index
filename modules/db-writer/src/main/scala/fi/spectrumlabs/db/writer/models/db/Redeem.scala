@@ -36,8 +36,10 @@ final case class Redeem(
 
 object Redeem {
 
+  val RedeemRedisPrefix = "Redeem"
+
   implicit val key: Key[Redeem] = new Key[Redeem] {
-    override def getKey(in: Redeem): String = in.orderInputId.show
+    override def getKey(in: Redeem): String = RedeemRedisPrefix ++ in.rewardPkh.getPubKeyHash
   }
 
   def streamingSchema(config: CardanoConfig): ToSchema[Order, Option[Redeem]] = {

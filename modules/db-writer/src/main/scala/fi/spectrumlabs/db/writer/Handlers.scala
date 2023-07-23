@@ -100,7 +100,7 @@ object Handlers {
         RedeemHandleName,
         Redeem.streamingSchema(cardanoConfig)
       )
-      implicit0(nelHandlers: NonEmptyList[Handle[Order, RunF]]) = NonEmptyList.of(deposit, swap)
+      implicit0(nelHandlers: NonEmptyList[Handle[Order, RunF]]) = NonEmptyList.of(deposit, swap, redeem)
       handler <- Handler.create[Order, StreamF, RunF, Chunk, InitF](config, MempoolOrdersHandlerName)
     } yield handler
   }

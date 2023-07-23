@@ -16,7 +16,7 @@ import fi.spectrumlabs.db.writer.repositories.OrdersRepository
 import fi.spectrumlabs.markets.api.configs.ConfigBundle
 import fi.spectrumlabs.markets.api.context.AppContext
 import fi.spectrumlabs.markets.api.repositories.repos.{PoolsRepo, RatesRepo}
-import fi.spectrumlabs.markets.api.services.{AmmStatsMath, AnalyticsService, HistoryService}
+import fi.spectrumlabs.markets.api.services.{AmmStatsMath, AnalyticsService, HistoryService, MempoolService}
 import fi.spectrumlabs.markets.api.v1.HttpServer
 import fi.spectrumlabs.rates.resolver.gateways.Metadata
 import fi.spectrumlabs.rates.resolver.services.{MetadataService, TokenFetcher}
@@ -72,6 +72,7 @@ object App extends EnvApp[AppContext] {
       ordersRepo                                        <- Resource.eval(OrdersRepository.make[InitF, RunF, xa.DB])
       implicit0(ratesRepo: RatesRepo[RunF])             <- Resource.eval(RatesRepo.create[InitF, RunF])
       implicit0(ammStatsMath: AmmStatsMath[RunF])       <- Resource.eval(AmmStatsMath.create[InitF, RunF])
+      implicit0(mempoolService: MempoolService[RunF])   <- Resource.eval(MempoolService.make[InitF, RunF])
       implicit0(service: AnalyticsService[RunF]) <- Resource.eval(
         AnalyticsService.create[InitF, RunF](configs.marketsApi)
       )

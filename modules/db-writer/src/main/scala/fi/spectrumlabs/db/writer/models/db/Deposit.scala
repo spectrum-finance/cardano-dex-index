@@ -36,8 +36,10 @@ final case class Deposit(
 
 object Deposit {
 
+  val DepositRedisPrefix = "Deposit"
+
   implicit val key: Key[Deposit] = new Key[Deposit] {
-    override def getKey(in: Deposit): String = in.orderInputId.show
+    override def getKey(in: Deposit): String = DepositRedisPrefix ++ in.rewardPkh
   }
 
   def streamingSchema(config: CardanoConfig): ToSchema[Order, Option[Deposit]] = {

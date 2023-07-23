@@ -35,8 +35,10 @@ final case class Swap(
 
 object Swap {
 
+  val SwapRedisPrefix = "Swap"
+
   implicit val key: Key[Swap] = new Key[Swap] {
-    override def getKey(in: Swap): String = in.orderInputId.show
+    override def getKey(in: Swap): String = SwapRedisPrefix ++ in.rewardPkh
   }
 
   def streamingSchema(config: CardanoConfig): ToSchema[Order, Option[Swap]] = {
