@@ -53,7 +53,7 @@ object HistoryService {
                   query.pendingOnly.getOrElse(false)
                 )
               )
-            OrderHistoryResponse(finalOrders.distinct.take(paging.limit), finalOrders.length)
+            OrderHistoryResponse(finalOrders.distinct.take(paging.limit), finalOrders.distinct.length)
           }
         }
   }
