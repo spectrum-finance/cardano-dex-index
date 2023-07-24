@@ -140,7 +140,7 @@ object OrdersSql {
 
   def pendingOnlyF(pendingOnly: Boolean): Fragment =
     if (pendingOnly) {
-      fr"and execution_timestamp is null"
+      fr"and execution_timestamp is null and creation_timestamp + 60 > extract(epoch from now())::INTEGER"
     } else Fragment.empty
 
   def refundOnlyF(refundOnly: Boolean): Fragment =
