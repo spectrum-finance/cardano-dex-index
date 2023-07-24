@@ -181,7 +181,7 @@ object Handle {
   ) extends Handle[A, F] {
 
     def handle(in: NonEmptyList[A]): F[Unit] = {
-      info"Going to test: ${in.toString()} against schema in handleLogName" >> (in.map(toSchema(_)).toList.flatten match {
+      info"Going to test: ${in.toString()} against schema in ${handleLogName}" >> (in.map(toSchema(_)).toList.flatten match {
         case x :: xs =>
           (NonEmptyList.of(x, xs: _*) |> persist.persist)
             .flatMap(r =>
