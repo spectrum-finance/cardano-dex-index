@@ -34,7 +34,7 @@ object OrdersSql {
           |     execution_timestamp,
           |     order_status from deposit where order_input_id = $txOutRef""".stripMargin.query
 
-  def getUserDepositOrdersSQL(userPkh: String, refundOnly: Boolean): Query0[Deposit] =
+  def getUserDepositOrdersSQL(userPkh: String, refundOnly: Boolean,  pendingOnly: Boolean): Query0[Deposit] =
     sql"""select
          |     pool_nft,
          |     coin_x,
@@ -54,7 +54,7 @@ object OrdersSql {
          |     redeem_output_Id,
          |     creation_timestamp,
          |     execution_timestamp,
-         |     order_status from deposit where reward_pkh = $userPkh ${refundOnlyF(refundOnly)}""".stripMargin.query
+         |     order_status from deposit where reward_pkh = $userPkh ${refundOnlyF(refundOnly)} ${pendingOnlyF(pendingOnly)}""".stripMargin.query
 
   def getSwapOrderSQL(txOutRef: FullTxOutRef): Query0[Swap] =
     sql"""select base,
@@ -77,7 +77,7 @@ object OrdersSql {
           |  order_status from swap where order_input_id = $txOutRef""".stripMargin
       .query[Swap]
 
-  def getUserSwapOrdersSQL(userPkh: String, refundOnly: Boolean): Query0[Swap] =
+  def getUserSwapOrdersSQL(userPkh: String, refundOnly: Boolean,  pendingOnly: Boolean): Query0[Swap] =
     sql"""select base,
          |  quote,
          |  pool_nft,
@@ -95,7 +95,7 @@ object OrdersSql {
          |  redeem_output_Id,
          |  creation_timestamp,
          |  execution_timestamp,
-         |  order_status from swap where reward_pkh = $userPkh ${refundOnlyF(refundOnly)}""".stripMargin
+         |  order_status from swap where reward_pkh = $userPkh ${refundOnlyF(refundOnly)} ${pendingOnlyF(pendingOnly)}""".stripMargin
       .query[Swap]
 
   def getRedeemOrderSQL(txOutRef: FullTxOutRef): Query0[Redeem] =
@@ -118,7 +118,7 @@ object OrdersSql {
           |      execution_timestamp,
           |      order_status from redeem where order_input_id = $txOutRef""".stripMargin.query
 
-  def getUserRedeemOrdersSQL(userPkh: String, refundOnly: Boolean): Query0[Redeem] =
+  def getUserRedeemOrdersSQL(userPkh: String, refundOnly: Boolean,  pendingOnly: Boolean): Query0[Redeem] =
     sql"""select pool_nft,
          |      coin_x,
          |      coin_y,
@@ -136,7 +136,12 @@ object OrdersSql {
          |      redeem_output_Id,
          |      creation_timestamp,
          |      execution_timestamp,
-         |      order_status from redeem where reward_pkh = $userPkh ${refundOnlyF(refundOnly)}""".stripMargin.query
+         |      order_status from redeem where reward_pkh = $userPkh ${refundOnlyF(refundOnly)} ${pendingOnlyF(pendingOnly)}""".stripMargin.query
+
+  def pendingOnlyF(pendingOnly: Boolean): Fragment =
+    if (pendingOnly) {
+      fr"and execution_timestamp is null"
+    } else Fragment.empty
 
   def refundOnlyF(refundOnly: Boolean): Fragment =
     if (refundOnly) {

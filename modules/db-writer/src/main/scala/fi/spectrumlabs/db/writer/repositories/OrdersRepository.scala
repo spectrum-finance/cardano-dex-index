@@ -11,7 +11,11 @@ import tofu.higherKind.derived.representableK
 import tofu.logging.{Logging, Logs}
 import tofu.syntax.monadic._
 import cats.tagless.syntax.functorK._
-import fi.spectrumlabs.db.writer.classes.OrdersInfo.{ExecutedDepositOrderInfo, ExecutedRedeemOrderInfo, ExecutedSwapOrderInfo}
+import fi.spectrumlabs.db.writer.classes.OrdersInfo.{
+  ExecutedDepositOrderInfo,
+  ExecutedRedeemOrderInfo,
+  ExecutedSwapOrderInfo
+}
 import fi.spectrumlabs.db.writer.models.cardano.FullTxOutRef
 import fi.spectrumlabs.db.writer.models.orders.TxOutRef
 import tofu.syntax.logging._
@@ -21,7 +25,7 @@ trait OrdersRepository[F[_]] {
 
   def getOrder(txOutRef: FullTxOutRef): F[Option[DBOrder]]
 
-  def getUserOrdersByPkh(userPkh: String, refundOnly: Boolean): F[List[DBOrder]]
+  def getUserOrdersByPkh(userPkh: String, refundOnly: Boolean, pendingOnly: Boolean): F[List[DBOrder]]
 
   def updateExecutedSwapOrder(swapOrderInfo: ExecutedSwapOrderInfo): F[Int]
 
@@ -80,10 +84,14 @@ object OrdersRepository {
     override def deleteExecutedRedeemOrder(txOutRef: String): ConnectionIO[Int] =
       deleteExecutedRedeemOrderSQL(txOutRef).run
 
-    override def getUserOrdersByPkh(userPkh: String, refundOnly: Boolean): ConnectionIO[List[DBOrder]] = for {
-      swapOrders    <- getUserSwapOrdersSQL(userPkh, refundOnly).to[List]
-      depositOrders <- getUserDepositOrdersSQL(userPkh, refundOnly).to[List]
-      redeemOrders  <- getUserRedeemOrdersSQL(userPkh, refundOnly).to[List]
+    override def getUserOrdersByPkh(
+      userPkh: String,
+      refundOnly: Boolean,
+      pendingOnly: Boolean
+    ): ConnectionIO[List[DBOrder]] = for {
+      swapOrders    <- getUserSwapOrdersSQL(userPkh, refundOnly, pendingOnly).to[List]
+      depositOrders <- getUserDepositOrdersSQL(userPkh, refundOnly, pendingOnly).to[List]
+      redeemOrders  <- getUserRedeemOrdersSQL(userPkh, refundOnly, pendingOnly).to[List]
     } yield (swapOrders ++ depositOrders ++ redeemOrders)
 
     override def refundSwapOrder(
@@ -134,8 +142,8 @@ object OrdersRepository {
     def deleteExecutedRedeemOrder(txOutRef: String): Mid[F, Int] =
       info"Going to update executed redeem order ($txOutRef) status to non-executed" *> _
 
-    override def getUserOrdersByPkh(userPkh: String, refundOnly: Boolean): Mid[F, List[DBOrder]] =
-      info"Going to get order for pkh $userPkh from db. Refund only: $refundOnly" *> _
+    override def getUserOrdersByPkh(userPkh: String, refundOnly: Boolean, pendingOnly: Boolean): Mid[F, List[DBOrder]] =
+      info"Going to get order for pkh $userPkh from db. Refund only: $refundOnly, $pendingOnly" *> _
 
     override def refundSwapOrder(
       orderTxOutRef: TxOutRef,
