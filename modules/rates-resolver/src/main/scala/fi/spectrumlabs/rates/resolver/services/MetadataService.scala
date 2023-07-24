@@ -26,12 +26,16 @@ object MetadataService {
 
   final private class Impl[F[_]: Monad: Parallel](implicit meta: Metadata[F]) extends MetadataService[F] {
 
-    def getTokensMeta(tokens: List[AssetClass]): F[List[Meta]] =
-      tokens.distinct
-        .filter(_ =!= AdaAssetClass)
-        .parTraverse(asset => meta.getTokenMeta(asset).mapIn(r => Meta(r.decimals, asset)))
-        .map(_.flatten)
-        .map(AdaMetadata :: _)
+    def getTokensMeta(tokens: List[AssetClass]): F[List[Meta]] = {
+      meta.get.map { list =>
+        AdaMetadata :: list.tokens.filter { info =>
+          val asset = AssetClass(info.policyId, info.tokenName)
+          tokens.contains(asset)
+        }.map { info =>
+          Meta(info.decimals, AssetClass(info.policyId, info.tokenName))
+        }
+      }
+    }
   }
 
 }

@@ -35,7 +35,8 @@ object HistoryService {
     override def getUserHistory(query: HistoryApiQuery, paging: Paging, window: TimeWindow): F[OrderHistoryResponse] =
       query.userPkhs.flatTraverse(ordersRepository.getUserOrdersByPkh).flatMap { orders =>
         Clock[F].realTime(SECONDS).map { curTime =>
-          val finalOrders = orders.flatMap(UserOrderInfo.fromDbOrder(_, curTime))
+          val finalOrders = orders.sortBy(_.creationTimestamp)(Ordering.Long.reverse)
+            .flatMap(UserOrderInfo.fromDbOrder(_, curTime))
           OrderHistoryResponse(finalOrders.take(paging.limit), finalOrders.length)
         }
       }

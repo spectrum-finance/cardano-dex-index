@@ -5,7 +5,7 @@ import doobie.implicits._
 import doobie.util.query.Query0
 import fi.spectrumlabs.core.models.db.Pool
 import fi.spectrumlabs.core.models.domain.{PoolFee, PoolId, Pool => DomainPool}
-import fi.spectrumlabs.markets.api.models.{PoolVolume, PoolVolumeDb}
+import fi.spectrumlabs.markets.api.models.{PoolVolume, PoolVolumeDb, PoolVolumeDbNew}
 
 import scala.concurrent.duration.FiniteDuration
 import cats.syntax.show._
@@ -79,7 +79,7 @@ final class PoolsSql(implicit lh: LogHandler) {
          |	WHERE
          |		pool_nft = ${pool.id}
          |		AND base = ${pool.x.asset.show}
-         |		AND timestamp > ${period.toSeconds}) x
+         |		AND creation_timestamp > ${period.toSeconds}) x
          |	CROSS JOIN (
          |		SELECT
          |			sum(actual_quote)
@@ -88,15 +88,19 @@ final class PoolsSql(implicit lh: LogHandler) {
          |		WHERE
          |			pool_nft = ${pool.id}
          |			AND base = ${pool.y.asset.show}
-         |			AND timestamp > ${period.toSeconds}) y
+         |			AND creation_timestamp > ${period.toSeconds}) y
        """.stripMargin.query[PoolVolume]
 
-  def getPoolVolumes(tw: TimeWindow): Query0[PoolVolumeDb] =
+  def getPoolVolumes(tw: TimeWindow): Query0[PoolVolumeDbNew] =
     sql"""
-         |SELECT sum(ex.actual_quote), ex.pool_nft, ex.base FROM swap ex
-         |${timeWindowCond(tw, "and", "ex")}
-         |GROUP by ex.pool_nft, ex.base
-       """.stripMargin.query[PoolVolumeDb]
+         |select
+         |	p.pool_id,
+         |	cast(sum(CASE WHEN (s.base = p.y) THEN s.actual_quote ELSE 0 END) AS BIGINT) AS tx,
+         |	cast(sum(CASE WHEN (s.base = p.x) THEN s.actual_quote ELSE 0 END) AS BIGINT) AS ty
+         |from swap s left join pool p on (p.output_id=s.pool_input_id)
+         |where p.pool_id is not null and s.actual_quote != -1 ${timeWindowCond(tw, "and", "ex")}
+         |group by p.pool_id;
+       """.stripMargin.query[PoolVolumeDbNew]
 
   def getAvgPoolSnapshot(id: PoolId, tw: TimeWindow, resolution: Long): Query0[AvgAssetAmounts] =
     sql"""
@@ -110,7 +114,7 @@ final class PoolsSql(implicit lh: LogHandler) {
 
   def getFirstPoolSwapTime(id: PoolId): Query0[Long] =
     sql"""
-         |SELECT min(execution_timestamp)
+         |SELECT coalesce(min(execution_timestamp), 0)
          |FROM swap
          |WHERE pool_nft = $id AND execution_timestamp IS NOT NULL;
        """.stripMargin.query

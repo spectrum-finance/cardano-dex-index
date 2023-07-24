@@ -19,9 +19,11 @@ final case class ResolvedRate(asset: AssetClass, rate: BigDecimal, decimals: Int
   def find(x: AssetClass, y: AssetClass, pid: PoolId): Boolean =
     contains(x, y) && poolId === pid
 
-  def cacheKey = s"${asset.show}.${poolId.value}"
+  def cacheKey = s"${asset.show}"
 
   def setScale: ResolvedRate = self.copy(rate = rate.setScale(decimals, RoundingMode.HALF_UP))
+
+  def setRate = this.copy(asset, BigDecimal(1), decimals, poolId)
 }
 
 object ResolvedRate {

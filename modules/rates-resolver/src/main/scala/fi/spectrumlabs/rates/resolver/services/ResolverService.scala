@@ -45,19 +45,24 @@ object ResolverService {
           } yield (pools, info)).map { case (pools, info) =>
             val (poolsWithAda, poolsWithoutAda) = pools.partition(_.contains(AdaAssetClass))
 
+            //todo: filter by tvl
             val resolvedByAda =
               poolsWithAda
                 .map { r =>
                   val xDecimal = info.find(_.asset == r.x.asset).map(_.decimals).getOrElse(DefaultDecimal)
                   val yDecimal = info.find(_.asset == r.y.asset).map(_.decimals).getOrElse(DefaultDecimal)
-                  ResolvedRate(r, AdaAssetClass, xDecimal, yDecimal)
+                  val x = ResolvedRate(r, AdaAssetClass, xDecimal, yDecimal)
+                  x
                 }
 
-            val resolvedViaAda =
+            def resolvedViaAda =
               poolsWithoutAda
                 .flatMap { pool =>
+                  println(s"Pool123: $pool")
                   Either
                     .catchNonFatal {
+                      // 5430
+                      // 18.099997
                       poolsWithAda
                         .filter(_.contains(pool.x.asset, pool.y.asset))
                         .maxBy { p =>
@@ -69,18 +74,19 @@ object ResolverService {
                     }
                     .toOption
                     .flatMap { r =>
+                      println(s"R::: $r -> ${resolvedByAda.find(_.find(r.x.asset, r.y.asset, r.id))}")
                       resolvedByAda.find(_.find(r.x.asset, r.y.asset, r.id))
                     }
                     .map { r =>
                       val xDecimal = info.find(_.asset == pool.x.asset).map(_.decimals).getOrElse(DefaultDecimal)
                       val yDecimal = info.find(_.asset == pool.y.asset).map(_.decimals).getOrElse(DefaultDecimal)
                       val a        = ResolvedRate(pool, r, xDecimal, yDecimal)
+                      println(s"A::: $a")
                       a
                     }
                 }
 
-            val s = adaPrice :: (resolvedByAda ::: resolvedViaAda)
-              .map(rate => rate.copy(rate.asset, rate.rate * adaPrice.rate).setScale)
+            val s = adaPrice.setRate :: (resolvedByAda)
             s
           }
         }

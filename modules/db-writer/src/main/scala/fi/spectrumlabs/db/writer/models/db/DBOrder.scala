@@ -2,7 +2,9 @@ package fi.spectrumlabs.db.writer.models.db
 
 import fi.spectrumlabs.db.writer.classes.Key
 
-trait DBOrder
+trait DBOrder {
+  val creationTimestamp: Long
+}
 
 object DBOrder {
   implicit val key: Key[DBOrder] = new Key[DBOrder] {

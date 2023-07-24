@@ -45,6 +45,7 @@ object AnalyticsService {
     ratesRepo: RatesRepo[F],
     poolsRepo: PoolsRepo[F],
     ammStatsMath: AmmStatsMath[F],
+    meta: TokenFetcher1[F],
     logs: Logs[I, F]
   ): I[AnalyticsService[F]] =
     logs.forService[AnalyticsService[F]].map(implicit __ => new Tracing[F] attach new Impl[F](config))
@@ -54,6 +55,7 @@ object AnalyticsService {
     metadata: MetadataService[F],
     ratesRepo: RatesRepo[F],
     poolsRepo: PoolsRepo[F],
+    meta: TokenFetcher1[F],
     ammStatsMath: AmmStatsMath[F]
   ) extends AnalyticsService[F] {
 
@@ -132,31 +134,37 @@ object AnalyticsService {
         pools  <- poolsRepo.getPools
         xRates <- pools.flatTraverse(pool => ratesRepo.get(pool.x, pool.poolId).map(_.map((pool, _)).toList))
         yRates <- pools.flatTraverse(pool => ratesRepo.get(pool.y, pool.poolId).map(_.map((pool, _)).toList))
-        xTvls    = xRates.map { case (pool, rate) => pool.xReserves.dropPenny(rate.decimals) * rate.rate }.sum
-        yTvls    = yRates.map { case (pool, rate) => pool.yReserves.dropPenny(rate.decimals) * rate.rate }.sum
+        xTvls = xRates.map { case (pool, rate) =>
+          pool.xReserves.dropPenny(rate.decimals) * rate.rate
+        }.sum
+        yTvls = yRates.map { case (pool, rate) =>
+          pool.yReserves.dropPenny(rate.decimals) * rate.rate
+        }.sum
         totalTvl = (xTvls + yTvls).setScale(0, RoundingMode.HALF_UP)
-        poolVolumes <- poolsRepo.getPoolVolumes(period).map(_.groupBy(_.poolId))
-        xVolumes = xRates.flatMap { case (pool, rate) =>
-          poolVolumes
-            .get(pool.poolId)
-            .toList
-            .flatMap(
-              _.filter(_.asset == rate.asset).map(vol =>
-                Amount(vol.value.longValue).dropPenny(rate.decimals) * rate.rate
-              )
-            )
+        poolVolumes <- poolsRepo.getPoolVolumes(period)
+        volumes = xRates.flatMap { case (pool, rate) =>
+          poolVolumes.find(_.poolId == pool.poolId).map { volume =>
+            if (rate.asset == pool.x) {
+              val x = volume.x / BigDecimal(10).pow(rate.decimals) * rate.rate
+              x
+            } else {
+              val y = volume.y / BigDecimal(10).pow(rate.decimals) * rate.rate
+              y
+            }
+          }
         }.sum
-        yVolumes = yRates.flatMap { case (pool, rate) =>
-          poolVolumes
-            .get(pool.poolId)
-            .toList
-            .flatMap(
-              _.filter(_.asset == rate.asset).map(vol =>
-                Amount(vol.value.longValue).dropPenny(rate.decimals) * rate.rate
-              )
-            )
+        volumesY = yRates.flatMap { case (pool, rate) =>
+          poolVolumes.find(_.poolId == pool.poolId).map { volume =>
+            if (rate.asset == pool.x) {
+              val x = volume.x / BigDecimal(10).pow(rate.decimals) * rate.rate
+              x
+            } else {
+              val y = volume.y / BigDecimal(10).pow(rate.decimals) * rate.rate
+              y
+            }
+          }
         }.sum
-        totalVolume = (xVolumes + yVolumes).setScale(0, RoundingMode.HALF_UP)
+        totalVolume = (volumes + volumesY).setScale(0, RoundingMode.HALF_UP)
       } yield PlatformStats(totalTvl, totalVolume)
 
     def getPoolPriceChart(poolId: PoolId, window: TimeWindow, resolution: Long): F[List[PricePoint]] =

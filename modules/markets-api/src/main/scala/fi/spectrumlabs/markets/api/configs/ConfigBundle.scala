@@ -21,7 +21,8 @@ final case class ConfigBundle(
   http: HttpConfig,
   network: NetworkConfig,
   tokenFetcher: TokenFetcherConfig,
-  httpCache: HttpCacheConfig
+  httpCache: HttpCacheConfig,
+  tf: TokenFetcherConfig1
 )
 
 object ConfigBundle extends WithContext.Companion[ConfigBundle] with ConfigBundleCompanion[ConfigBundle]

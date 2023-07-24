@@ -30,7 +30,8 @@ package object domain {
   }
 
   @newtype final case class Amount(value: Long) {
-    def dropPenny(decimal: Int): BigDecimal = BigDecimal(s"$value".take(decimal))
+    def dropPenny(decimal: Int): BigDecimal =
+      if (decimal == 0) BigDecimal(value) else BigDecimal(value) / BigDecimal(10).pow(decimal)
   }
 
   object Amount {

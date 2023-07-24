@@ -45,6 +45,7 @@ object UserOrderInfo {
         deposit.rewardPkh,
         deposit.stakePkh.map(_.unStakePubKeyHash.getPubKeyHash),
         deposit.orderInputId.show,
+        deposit.creationTimestamp,
         none,
         deposit.poolOutputId.map(_.txOutRefId.getTxId)
       )
@@ -71,6 +72,7 @@ object UserOrderInfo {
         redeem.rewardPkh.getPubKeyHash,
         redeem.stakePkh.map(_.unStakePubKeyHash.getPubKeyHash),
         redeem.orderInputId.show,
+        redeem.creationTimestamp,
         none,
         redeem.poolOutputId.map(_.txOutRefId.getTxId)
       )
@@ -96,6 +98,7 @@ object UserOrderInfo {
         swap.rewardPkh,
         swap.stakePkh.map(_.unStakePubKeyHash.getPubKeyHash),
         swap.orderInputId.show,
+        swap.creationTimestamp,
         none,
         swap.poolOutputId.map(_.txOutRefId.getTxId)
       )
@@ -117,6 +120,7 @@ final case class DepositOrderInfo(
   userPkh: String,
   userSkh: Option[String],
   registerTx: String,
+  registerTs: Long,
   refundTx: Option[String],
   evaluateTx: Option[String]
 ) extends UserOrderInfo
@@ -133,6 +137,7 @@ final case class SwapOrderInfo(
   userPkh: String,
   userSkh: Option[String],
   registerTx: String,
+  registerTs: Long,
   refundTx: Option[String],
   evaluateTx: Option[String]
 ) extends UserOrderInfo
@@ -149,6 +154,7 @@ final case class RedeemOrderInfo(
   userPkh: String,
   userSkh: Option[String],
   registerTx: String,
+  registerTs: Long,
   refundTx: Option[String],
   evaluateTx: Option[String]
 ) extends UserOrderInfo

@@ -45,6 +45,6 @@ object RatesRepo {
   }
 
   private def mkKey(asset: AssetClass, poolId: PoolId): String =
-    if (asset === AdaAssetClass) s"${asset.show}.${AdaDefaultPoolId.value}"
-    else s"${asset.show}.${poolId.value}"
+    if (asset === AdaAssetClass) s"${asset.show}"
+    else s"${asset.show}"
 }

@@ -16,10 +16,11 @@ import fi.spectrumlabs.db.writer.repositories.OrdersRepository
 import fi.spectrumlabs.markets.api.configs.ConfigBundle
 import fi.spectrumlabs.markets.api.context.AppContext
 import fi.spectrumlabs.markets.api.repositories.repos.{PoolsRepo, RatesRepo}
-import fi.spectrumlabs.markets.api.services.{AmmStatsMath, AnalyticsService, HistoryService, MempoolService}
+import fi.spectrumlabs.markets.api.services.{AmmStatsMath, AnalyticsService, CacheCleaner, HistoryService, MempoolService, TokenFetcher1}
 import fi.spectrumlabs.markets.api.v1.HttpServer
 import fi.spectrumlabs.rates.resolver.gateways.Metadata
-import fi.spectrumlabs.rates.resolver.services.{MetadataService, TokenFetcher}
+import fi.spectrumlabs.rates.resolver.services.MetadataService
+import fi.spectrumlabs.rates.resolver.services.{TokenFetcher => TF}
 import org.http4s.server.Server
 import sttp.capabilities.fs2.Fs2Streams
 import sttp.client3.SttpBackend
@@ -31,15 +32,16 @@ import tofu.logging.Logs
 import tofu.logging.derivation.loggable.generate
 import zio.interop.catz._
 import zio.{ExitCode, URIO, ZIO}
+import cats.tagless.syntax.functorK._
 
 object App extends EnvApp[AppContext] {
 
   implicit val serverOptions: Http4sServerOptions[RunF, RunF] = Http4sServerOptions.default[RunF, RunF]
 
   def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    init(args.headOption).use(_ => ZIO.never).orDie
+    init(args.headOption).use(x => x._2.clean.as(ExitCode.success)).orDie
 
-  def init(configPathOpt: Option[String]): Resource[InitF, Server] =
+  def init(configPathOpt: Option[String]): Resource[InitF, (Server, CacheCleaner[InitF])] =
     for {
       blocker <- Blocker[InitF]
       configs <- Resource.eval(ConfigBundle.load[InitF](configPathOpt, blocker))
@@ -58,15 +60,16 @@ object App extends EnvApp[AppContext] {
         stringCodec
       )
       implicit0(plainRedis: Plain[RunF]) <- mkRedis[Array[Byte], Array[Byte], InitF, RunF](
-        configs.ratesRedis,
+        configs.httpRedis,
         RedisCodec.Bytes
       )
       implicit0(cache: Cache[RunF])                       <- Resource.eval(Cache.make[InitF, RunF])
       implicit0(httpRespCache: HttpResponseCaching[RunF]) <- Resource.eval(HttpResponseCaching.make[InitF, RunF])
       implicit0(httpCache: CachingMiddleware[RunF]) = CacheMiddleware.make[RunF]
       implicit0(backend: SttpBackend[RunF, Fs2Streams[RunF]]) <- makeBackend[AppContext, InitF, RunF](ctx, blocker)
-      implicit0(tokens: TokenFetcher[RunF]) = TokenFetcher.make[RunF](configs.tokenFetcher)
+      implicit0(tokens: TF[RunF]) = TF.make[RunF](configs.tokenFetcher)
       implicit0(metadata: Metadata[RunF])               <- Resource.eval(Metadata.create[InitF, RunF](configs.network))
+      implicit0(tf: TokenFetcher1[RunF])               <-  Resource.eval(TokenFetcher1.create[InitF, RunF](configs.tf))
       implicit0(metadataService: MetadataService[RunF]) <- Resource.eval(MetadataService.create[InitF, RunF])
       implicit0(poolsRepo: PoolsRepo[RunF])             <- Resource.eval(PoolsRepo.create[InitF, xa.DB, RunF])
       ordersRepo                                        <- Resource.eval(OrdersRepository.make[InitF, RunF, xa.DB])
@@ -77,6 +80,7 @@ object App extends EnvApp[AppContext] {
         AnalyticsService.create[InitF, RunF](configs.marketsApi)
       )
       implicit0(historyService: HistoryService[RunF]) <- Resource.eval(HistoryService.make[InitF, RunF](ordersRepo))
+      c = CacheCleaner.make[RunF](httpRespCache)
       server                                          <- HttpServer.make[InitF, RunF](configs.http, runtime.platform.executor.asEC)
-    } yield server
+    } yield (server, c.mapK(ul.liftF))
 }
