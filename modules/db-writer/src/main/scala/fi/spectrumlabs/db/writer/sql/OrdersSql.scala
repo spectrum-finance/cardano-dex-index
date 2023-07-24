@@ -139,7 +139,9 @@ object OrdersSql {
          |      order_status from redeem where reward_pkh = $userPkh ${refundOnlyF(refundOnly)}""".stripMargin.query
 
   def refundOnlyF(refundOnly: Boolean): Fragment =
-    if (refundOnly) fr"and order_status = 'Refunded'" else Fragment.empty
+    if (refundOnly) {
+      fr"and execution_timestamp is null and creation_timestamp + 60 > extract(epoch from now())::INTEGER"
+    } else Fragment.empty
 
   def updateExecutedSwapOrderSQL(swapOrderInfo: ExecutedSwapOrderInfo): Update0 =
     Update[ExecutedSwapOrderInfo](
