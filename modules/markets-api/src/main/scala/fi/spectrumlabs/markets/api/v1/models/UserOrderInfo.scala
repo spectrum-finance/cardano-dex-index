@@ -7,10 +7,14 @@ import fi.spectrumlabs.db.writer.models.db.{DBOrder, Deposit, OrderStatus, Redee
 import sttp.tapir.Schema
 import cats.syntax.option._
 import cats.syntax.show._
+import fi.spectrumlabs.markets.api.v1.endpoints.models.TxData
+
 import scala.concurrent.duration._
 
 @derive(encoder, decoder)
-sealed trait UserOrderInfo
+sealed trait UserOrderInfo {
+  val registerTx: TxData
+}
 
 object UserOrderInfo {
 
@@ -27,9 +31,9 @@ object UserOrderInfo {
         assetLq <- AssetClass.fromString(deposit.coinLq.value)
         needRefund = curTime - deposit.creationTimestamp > FiveMin
         status =
-          if (needRefund) OrderStatus.NeedRefund
-          else if (deposit.poolOutputId.isDefined) OrderStatus.Evaluated
+          if (deposit.poolOutputId.isDefined) OrderStatus.Evaluated
           else if (deposit.redeemOutputId.isDefined) OrderStatus.Refunded
+          else if (needRefund) OrderStatus.NeedRefund
           else OrderStatus.Register
       } yield DepositOrderInfo(
         deposit.orderInputId.show,
@@ -39,15 +43,20 @@ object UserOrderInfo {
         AssetAmount(assetY, deposit.amountY),
         deposit.amountX.value.toString.some,
         deposit.amountY.value.toString.some,
-        AssetAmount(assetLq, deposit.amountLq).some,
+        deposit.amountLq.map(x => AssetAmount(assetLq, x)),
         "ADA",
         deposit.exFee.unExFee,
         deposit.rewardPkh,
         deposit.stakePkh.map(_.unStakePubKeyHash.getPubKeyHash),
-        deposit.orderInputId.show,
-        deposit.creationTimestamp,
-        none,
-        deposit.poolOutputId.map(_.txOutRefId.getTxId)
+        TxData(deposit.orderInputId.txOutRefId.getTxId, deposit.creationTimestamp),
+        for {
+          id <- deposit.redeemOutputId.map(_.txOutRefId.getTxId)
+          ts <- deposit.executionTimestamp
+        } yield TxData(id, ts),
+        for {
+          id <- deposit.poolOutputId.map(_.txOutRefId.getTxId)
+          ts <- deposit.executionTimestamp
+        } yield TxData(id, ts)
       )
     case redeem: Redeem =>
       for {
@@ -56,25 +65,30 @@ object UserOrderInfo {
         assetLq <- AssetClass.fromString(redeem.coinLq.value)
         needRefund = curTime - redeem.creationTimestamp > FiveMin
         status =
-          if (needRefund) OrderStatus.NeedRefund
-          else if (redeem.poolOutputId.isDefined) OrderStatus.Evaluated
+          if (redeem.poolOutputId.isDefined) OrderStatus.Evaluated
           else if (redeem.redeemOutputId.isDefined) OrderStatus.Refunded
+          else if (needRefund) OrderStatus.NeedRefund
           else OrderStatus.Register
       } yield RedeemOrderInfo(
         redeem.orderInputId.show,
         redeem.poolId.value,
         status,
         AssetAmount(assetLq, redeem.amountLq),
-        AssetAmount(assetX, redeem.amountX).some,
-        AssetAmount(assetY, redeem.amountY).some,
+        redeem.amountX.map(x => AssetAmount(assetX, x)),
+        redeem.amountY.map(y => AssetAmount(assetY, y)),
         "ADA",
         redeem.exFee.unExFee,
         redeem.rewardPkh.getPubKeyHash,
         redeem.stakePkh.map(_.unStakePubKeyHash.getPubKeyHash),
-        redeem.orderInputId.show,
-        redeem.creationTimestamp,
-        none,
-        redeem.poolOutputId.map(_.txOutRefId.getTxId)
+        TxData(redeem.orderInputId.txOutRefId.getTxId, redeem.creationTimestamp),
+        for {
+          id <- redeem.redeemOutputId.map(_.txOutRefId.getTxId)
+          ts <- redeem.executionTimestamp
+        } yield TxData(id, ts),
+        for {
+          id <- redeem.poolOutputId.map(_.txOutRefId.getTxId)
+          ts <- redeem.executionTimestamp
+        } yield TxData(id, ts)
       )
     case swap: Swap =>
       for {
@@ -82,9 +96,9 @@ object UserOrderInfo {
         assetY <- AssetClass.fromString(swap.quote.value)
         needRefund = curTime - swap.creationTimestamp > FiveMin
         status =
-          if (needRefund) OrderStatus.NeedRefund
-          else if (swap.poolOutputId.isDefined) OrderStatus.Evaluated
+          if (swap.poolOutputId.isDefined) OrderStatus.Evaluated
           else if (swap.redeemOutputId.isDefined) OrderStatus.Refunded
+          else if (needRefund) OrderStatus.NeedRefund
           else OrderStatus.Register
       } yield SwapOrderInfo(
         swap.orderInputId.show,
@@ -92,15 +106,20 @@ object UserOrderInfo {
         status,
         AssetAmount(assetX, swap.baseAmount),
         AssetAmount(assetY, swap.minQuoteAmount),
-        swap.actualQuote.value.toString.some,
+        swap.actualQuote.map(_.value.toString),
         "ADA".some,
         0L.some, //todo: replace with correct execution fee
         swap.rewardPkh,
         swap.stakePkh.map(_.unStakePubKeyHash.getPubKeyHash),
-        swap.orderInputId.show,
-        swap.creationTimestamp,
-        none,
-        swap.poolOutputId.map(_.txOutRefId.getTxId)
+        TxData(swap.orderInputId.txOutRefId.getTxId, swap.creationTimestamp),
+        for {
+          id <- swap.redeemOutputId.map(_.txOutRefId.getTxId)
+          ts <- swap.executionTimestamp
+        } yield TxData(id, ts),
+        for {
+          id <- swap.poolOutputId.map(_.txOutRefId.getTxId)
+          ts <- swap.executionTimestamp
+        } yield TxData(id, ts)
       )
     case _ => none
   }
@@ -119,10 +138,9 @@ final case class DepositOrderInfo(
   feeAmount: Long,
   userPkh: String,
   userSkh: Option[String],
-  registerTx: String,
-  registerTs: Long,
-  refundTx: Option[String],
-  evaluateTx: Option[String]
+  registerTx: TxData,
+  refundTx: Option[TxData],
+  evaluateTx: Option[TxData]
 ) extends UserOrderInfo
 
 final case class SwapOrderInfo(
@@ -136,10 +154,9 @@ final case class SwapOrderInfo(
   feeAmount: Option[Long],
   userPkh: String,
   userSkh: Option[String],
-  registerTx: String,
-  registerTs: Long,
-  refundTx: Option[String],
-  evaluateTx: Option[String]
+  registerTx: TxData,
+  refundTx: Option[TxData],
+  evaluateTx: Option[TxData]
 ) extends UserOrderInfo
 
 final case class RedeemOrderInfo(
@@ -153,8 +170,7 @@ final case class RedeemOrderInfo(
   feeAmount: Long,
   userPkh: String,
   userSkh: Option[String],
-  registerTx: String,
-  registerTs: Long,
-  refundTx: Option[String],
-  evaluateTx: Option[String]
+  registerTx: TxData,
+  refundTx: Option[TxData],
+  evaluateTx: Option[TxData]
 ) extends UserOrderInfo
