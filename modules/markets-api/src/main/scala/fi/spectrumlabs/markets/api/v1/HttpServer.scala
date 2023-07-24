@@ -50,7 +50,7 @@ object HttpServer {
     val openApiR   = OpenApiRoutes.make[F]
     val historyR   = HistoryRoutes.make[F]
     val mempoolR   = MempoolRoutes.make[F]
-    val routes     = unliftRoutes[F, I](cache.middleware(analyticsR <+> openApiR <+> historyR <+> mempoolR))
+    val routes     = unliftRoutes[F, I](historyR <+> mempoolR <+> cache.middleware(analyticsR <+> openApiR))
     val corsRoutes = CORS.policy.withAllowOriginAll(routes)
     val api        = Router("/" -> corsRoutes).orNotFound
     BlazeServerBuilder[I](ec).bindHttp(conf.port, conf.host).withHttpApp(api).resource
