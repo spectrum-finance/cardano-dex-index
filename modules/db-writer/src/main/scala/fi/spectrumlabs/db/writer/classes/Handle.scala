@@ -180,8 +180,8 @@ object Handle {
     toSchema: ToSchema[A, Option[B]]
   ) extends Handle[A, F] {
 
-    def handle(in: NonEmptyList[A]): F[Unit] =
-      in.map(toSchema(_)).toList.flatten match {
+    def handle(in: NonEmptyList[A]): F[Unit] = {
+      info"Going to test: ${in.toString()} against schema in ${handleLogName}" >> (in.map(toSchema(_)).toList.flatten match {
         case x :: xs =>
           (NonEmptyList.of(x, xs: _*) |> persist.persist)
             .flatMap(r =>
@@ -189,7 +189,8 @@ object Handle {
             )
         case Nil =>
           info"Nothing to extract ${in.toString()} [$handleLogName]. Batch contains 0 elements to persist."
-      }
+      })
+    }
   }
 
   final private class RedisDrop[A, B: Key: Decoder: Encoder, F[_]: Monad: Logging](
