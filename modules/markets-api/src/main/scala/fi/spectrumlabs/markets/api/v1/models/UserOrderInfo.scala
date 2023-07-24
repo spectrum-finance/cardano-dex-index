@@ -34,7 +34,7 @@ object UserOrderInfo {
           if (deposit.poolOutputId.isDefined) OrderStatus.Evaluated
           else if (deposit.redeemOutputId.isDefined) OrderStatus.Refunded
           else if (needRefund) OrderStatus.NeedRefund
-          else OrderStatus.Register
+          else OrderStatus.Pending
       } yield DepositOrderInfo(
         deposit.orderInputId.show,
         deposit.poolId.value,
@@ -68,7 +68,7 @@ object UserOrderInfo {
           if (redeem.poolOutputId.isDefined) OrderStatus.Evaluated
           else if (redeem.redeemOutputId.isDefined) OrderStatus.Refunded
           else if (needRefund) OrderStatus.NeedRefund
-          else OrderStatus.Register
+          else OrderStatus.Pending
       } yield RedeemOrderInfo(
         redeem.orderInputId.show,
         redeem.poolId.value,
@@ -99,7 +99,7 @@ object UserOrderInfo {
           if (swap.poolOutputId.isDefined) OrderStatus.Evaluated
           else if (swap.redeemOutputId.isDefined) OrderStatus.Refunded
           else if (needRefund) OrderStatus.NeedRefund
-          else OrderStatus.Register
+          else OrderStatus.Pending
       } yield SwapOrderInfo(
         swap.orderInputId.show,
         swap.poolId.value,
