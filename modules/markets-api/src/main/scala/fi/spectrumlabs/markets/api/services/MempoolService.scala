@@ -27,11 +27,13 @@ object MempoolService {
     override def getUserOrders(req: HistoryApiQuery): F[List[UserOrderInfo]] =
       req.userPkhs.flatTraverse { key =>
         for {
-          curTime <- Clock[F].realTime(MILLISECONDS)
+          curTime       <- Clock[F].realTime(MILLISECONDS)
           depositOrders <- extractOrders[Deposit](Deposit.DepositRedisPrefix, key)
-          swapOrders <- extractOrders[Swap](Swap.SwapRedisPrefix, key)
-          redeemOrders <- extractOrders[Redeem](Redeem.RedeemRedisPrefix, key)
-          orders = (depositOrders ++ swapOrders ++ redeemOrders).flatMap(order => UserOrderInfo.fromDbOrder(order, curTime))
+          swapOrders    <- extractOrders[Swap](Swap.SwapRedisPrefix, key)
+          redeemOrders  <- extractOrders[Redeem](Redeem.RedeemRedisPrefix, key)
+          orders = (depositOrders ++ swapOrders ++ redeemOrders).flatMap(order =>
+            UserOrderInfo.fromDbOrder(order, curTime, false, false)
+          )
         } yield orders
       }
 
@@ -40,7 +42,7 @@ object MempoolService {
         case Some(ordersRaw) =>
           parse(new String(ordersRaw)) match {
             case Right(parsedRaw) => Decoder[List[T]].decodeJson(parsedRaw).getOrElse(List.empty[DBOrder]).pure[F]
-            case Left(_) => List.empty[DBOrder].pure[F]
+            case Left(_)          => List.empty[DBOrder].pure[F]
           }
         case None => List.empty[DBOrder].pure[F]
       }
