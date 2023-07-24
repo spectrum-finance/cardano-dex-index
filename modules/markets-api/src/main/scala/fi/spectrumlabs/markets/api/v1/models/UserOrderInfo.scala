@@ -20,7 +20,7 @@ object UserOrderInfo {
 
   implicit val schema: Schema[UserOrderInfo] = Schema.derived
 
-  val FiveMin = 5.minutes.toSeconds
+  val FiveMin = 1.minutes.toSeconds
 
   //todo: check values
   def fromDbOrder(dbOrder: DBOrder, curTime: Long): Option[UserOrderInfo] = dbOrder match {
