@@ -30,7 +30,7 @@ object Handlers {
 
   val TxHandlerName              = "Tx"
   val OrdersHandlerName          = "Order"
-  val MempoolOrdersHandlerName   = "Order"
+  val MempoolOrdersHandlerName   = "MempoolOrder"
   val PoolsHandler               = "PoolsHandler"
   val TxHandleName               = "Transaction"
   val InHandleName               = "Input"
