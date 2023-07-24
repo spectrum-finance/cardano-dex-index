@@ -21,7 +21,7 @@ trait OrdersRepository[F[_]] {
 
   def getOrder(txOutRef: FullTxOutRef): F[Option[DBOrder]]
 
-  def getUserOrdersByPkh(userPkh: String): F[List[DBOrder]]
+  def getUserOrdersByPkh(userPkh: String, refundOnly: Boolean): F[List[DBOrder]]
 
   def updateExecutedSwapOrder(swapOrderInfo: ExecutedSwapOrderInfo): F[Int]
 
@@ -80,10 +80,10 @@ object OrdersRepository {
     override def deleteExecutedRedeemOrder(txOutRef: String): ConnectionIO[Int] =
       deleteExecutedRedeemOrderSQL(txOutRef).run
 
-    override def getUserOrdersByPkh(userPkh: String): ConnectionIO[List[DBOrder]] = for {
-      swapOrders    <- getUserSwapOrdersSQL(userPkh).to[List]
-      depositOrders <- getUserDepositOrdersSQL(userPkh).to[List]
-      redeemOrders  <- getUserRedeemOrdersSQL(userPkh).to[List]
+    override def getUserOrdersByPkh(userPkh: String, refundOnly: Boolean): ConnectionIO[List[DBOrder]] = for {
+      swapOrders    <- getUserSwapOrdersSQL(userPkh, refundOnly).to[List]
+      depositOrders <- getUserDepositOrdersSQL(userPkh, refundOnly).to[List]
+      redeemOrders  <- getUserRedeemOrdersSQL(userPkh, refundOnly).to[List]
     } yield (swapOrders ++ depositOrders ++ redeemOrders)
 
     override def refundSwapOrder(
@@ -134,8 +134,8 @@ object OrdersRepository {
     def deleteExecutedRedeemOrder(txOutRef: String): Mid[F, Int] =
       info"Going to update executed redeem order ($txOutRef) status to non-executed" *> _
 
-    override def getUserOrdersByPkh(userPkh: String): Mid[F, List[DBOrder]] =
-      info"Going to get order for pkh $userPkh from db" *> _
+    override def getUserOrdersByPkh(userPkh: String, refundOnly: Boolean): Mid[F, List[DBOrder]] =
+      info"Going to get order for pkh $userPkh from db. Refund only: $refundOnly" *> _
 
     override def refundSwapOrder(
       orderTxOutRef: TxOutRef,
