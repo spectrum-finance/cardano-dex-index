@@ -3,7 +3,7 @@ package fi.spectrumlabs.rates.resolver.repositories
 import cats.tagless.syntax.functorK._
 import cats.{FlatMap, Functor}
 import doobie.ConnectionIO
-import fi.spectrumlabs.core.models.db.Pool
+import fi.spectrumlabs.core.models.db.{Pool, PoolResolver}
 import fi.spectrumlabs.rates.resolver.repositories.sql.PoolsSql
 import tofu.doobie.LiftConnectionIO
 import tofu.doobie.log.EmbeddableLogHandler
@@ -15,7 +15,7 @@ import tofu.higherKind.derived.representableK
 
 @derive(representableK)
 trait PoolsRepo[F[_]] {
-  def getAllLatest(minLiquidityValue: Long): F[List[Pool]]
+  def getAllLatest(minLiquidityValue: Long): F[List[PoolResolver]]
 }
 
 object PoolsRepo {
@@ -31,7 +31,7 @@ object PoolsRepo {
 
   final private class Impl(sql: PoolsSql) extends PoolsRepo[ConnectionIO] {
 
-    def getAllLatest(minLiquidityValue: Long): ConnectionIO[List[Pool]] =
+    def getAllLatest(minLiquidityValue: Long): ConnectionIO[List[PoolResolver]] =
       sql.getAllLatest(minLiquidityValue).to[List]
   }
 }

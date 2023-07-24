@@ -25,7 +25,7 @@ object PoolsService {
     def getAllLatest(minLiquidityValue: Long): F[List[Pool]] =
       pools
         .getAllLatest(minLiquidityValue)
-        .map(_.map(Pool.fromDb))
+        .map(x => x.flatMap(Pool.fromPoolResolver))
   }
 
   final class Tracing[F[_]: Monad: Logging] extends PoolsService[Mid[F, *]] {

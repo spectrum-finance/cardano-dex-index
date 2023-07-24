@@ -3,7 +3,7 @@ package fi.spectrumlabs.core.models.domain
 import cats.syntax.eq._
 import derevo.derive
 import tofu.logging.derivation.loggable
-import fi.spectrumlabs.core.models.db.{Pool => PoolDb}
+import fi.spectrumlabs.core.models.db.{PoolResolver, Pool => PoolDb}
 
 @derive(loggable)
 final case class Pool(id: PoolId, x: AssetAmount, y: AssetAmount) {
@@ -16,6 +16,17 @@ final case class Pool(id: PoolId, x: AssetAmount, y: AssetAmount) {
 }
 
 object Pool {
+
+  def fromPoolResolver(p: PoolResolver): Option[Pool] = {
+    for {
+      x <- AssetClass.fromString(p.x)
+      y <- AssetClass.fromString(p.y)
+    } yield Pool(
+      PoolId(p.poolId),
+      AssetAmount(x, Amount(p.xReserves)),
+      AssetAmount(y, Amount(p.yReserves))
+    )
+  }
 
   def fromDb(poolDb: PoolDb): Pool =
     Pool(
