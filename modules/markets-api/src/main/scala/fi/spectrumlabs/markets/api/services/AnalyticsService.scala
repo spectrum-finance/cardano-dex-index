@@ -20,6 +20,7 @@ import fi.spectrumlabs.markets.api.models.db.{PoolDb, PoolFeeSnapshot}
 import tofu.syntax.time.now.millis
 import tofu.time.Clock
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.math.BigDecimal.RoundingMode
 
@@ -31,7 +32,7 @@ trait AnalyticsService[F[_]] {
 
   def getPoolPriceChart(poolId: PoolId, window: TimeWindow, resolution: Long): F[List[PricePoint]]
 
-  def getPlatformStats(period: TimeWindow): F[PlatformStats]
+  def getPlatformStats: F[PlatformStats]
 }
 
 object AnalyticsService {
@@ -127,8 +128,10 @@ object AnalyticsService {
         apr
       )).value
 
-    def getPlatformStats(period: TimeWindow): F[PlatformStats] =
+    def getPlatformStats: F[PlatformStats] =
       for {
+        now <- Clock[F].realTime(TimeUnit.SECONDS)
+        period = TimeWindow(from = (now - 24.hours.toSeconds).some, none)
         pools  <- poolsRepo.getPools
         xRates <- pools.flatTraverse(pool => ratesRepo.get(pool.x).map(_.map((pool, _)).toList))
         yRates <- pools.flatTraverse(pool => ratesRepo.get(pool.y).map(_.map((pool, _)).toList))
@@ -196,9 +199,9 @@ object AnalyticsService {
         _ <- trace"Pool price chart is $r"
       } yield r
 
-    def getPlatformStats(period: TimeWindow): Mid[F, PlatformStats] =
+    def getPlatformStats: Mid[F, PlatformStats] =
       for {
-        _ <- trace"Going to get platform stats for $period period"
+        _ <- trace"Going to get platform stats"
         r <- _
         _ <- trace"Platform stats are $r"
       } yield r

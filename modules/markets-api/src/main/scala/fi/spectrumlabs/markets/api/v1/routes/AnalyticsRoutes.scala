@@ -32,8 +32,8 @@ final class AnalyticsRoutes[F[_]: Concurrent: ContextShift: Timer: AdaptThrowabl
     service.getPoolPriceChart(poolId, tw, res).adaptThrowable.value
   }
 
-  def getPlatformStatsR = interpreter.toRoutes(getPlatformStats) { res =>
-    service.getPlatformStats(res).adaptThrowable.value
+  def getPlatformStatsR = interpreter.toRoutes(getPlatformStats) { _ =>
+    service.getPlatformStats.adaptThrowable.value
   }
 }
 

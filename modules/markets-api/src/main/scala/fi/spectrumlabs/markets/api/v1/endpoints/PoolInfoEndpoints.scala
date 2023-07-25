@@ -50,10 +50,9 @@ object PoolInfoEndpoints {
       .name("Pool price chart")
       .description("Allow to get pool price chart within period")
 
-  def getPlatformStats: Endpoint[TimeWindow, HttpError, PlatformStats, Any] =
+  def getPlatformStats: Endpoint[Unit, HttpError, PlatformStats, Any] =
     baseEndpoint.get
       .in("platform" / "stats")
-      .in(timeWindow)
       .out(jsonBody[PlatformStats])
       .tag(pathPrefix)
       .name("Platform summary")
