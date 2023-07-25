@@ -57,7 +57,7 @@ object AnalyticsService {
       poolsRepo.getPools.flatMap(
         _.parTraverse { p: PoolDb =>
           poolsRepo.getFirstPoolSwapTime(p.poolId).flatMap { firstSwap =>
-            getPoolInfo(p.poolId, now).flatMap { info =>
+            getPoolInfo(p.poolId, now - 24.hours.toSeconds).flatMap { info =>
               val pool = Pool(p.poolId, AssetAmount(p.x, p.xReserves), AssetAmount(p.y, p.yReserves))
               millis.flatMap { now =>
                 val tw = TimeWindow(Some(now * 1000), Some(now))
