@@ -26,9 +26,9 @@ import scala.math.BigDecimal.RoundingMode
 
 @derive(representableK)
 trait AnalyticsService[F[_]] {
-  def getPoolsOverview(period: FiniteDuration): F[List[PoolOverview]]
+  def getPoolsOverview: F[List[PoolOverview]]
 
-  def getPoolInfo(poolId: PoolId, period: FiniteDuration): F[Option[PoolOverview]]
+  def getPoolInfo(poolId: PoolId, from: Long): F[Option[PoolOverview]]
 
   def getPoolPriceChart(poolId: PoolId, window: TimeWindow, resolution: Long): F[List[PricePoint]]
 
@@ -53,14 +53,14 @@ object AnalyticsService {
     ammStatsMath: AmmStatsMath[F]
   ) extends AnalyticsService[F] {
 
-    def getPoolsOverview(period: FiniteDuration): F[List[PoolOverview]] =
+    def getPoolsOverview: F[List[PoolOverview]] = Clock[F].realTime(TimeUnit.SECONDS) >>= { now =>
       poolsRepo.getPools.flatMap(
         _.parTraverse { p: PoolDb =>
           poolsRepo.getFirstPoolSwapTime(p.poolId).flatMap { firstSwap =>
-            getPoolInfo(p.poolId, period).flatMap { info =>
+            getPoolInfo(p.poolId, now).flatMap { info =>
               val pool = Pool(p.poolId, AssetAmount(p.x, p.xReserves), AssetAmount(p.y, p.yReserves))
               millis.flatMap { now =>
-                val tw = TimeWindow(Some(period.toMillis), Some(now))
+                val tw = TimeWindow(Some(now * 1000), Some(now))
                 poolsRepo.fees(pool, tw, PoolFee(p.feeNum, p.feeDen)).flatMap { fee =>
                   ammStatsMath
                     .apr(
@@ -88,8 +88,9 @@ object AnalyticsService {
           }
         }
       )
+    }
 
-    def getPoolInfo(poolId: PoolId, period: FiniteDuration): F[Option[PoolOverview]] =
+    def getPoolInfo(poolId: PoolId, from: Long): F[Option[PoolOverview]] =
       (for {
         poolDb <- OptionT(poolsRepo.getPoolById(poolId, config.minLiquidityValue))
         pool = Pool.fromDb(poolDb)
@@ -98,7 +99,7 @@ object AnalyticsService {
         xTvl     = pool.x.amount.withDecimal(rateX.decimals) * rateX.rate
         yTvl     = pool.y.amount.withDecimal(rateY.decimals) * rateY.rate
         totalTvl = (xTvl + yTvl).setScale(6, RoundingMode.HALF_UP)
-        poolVolume <- OptionT.liftF(poolsRepo.getPoolVolume(pool, period))
+        poolVolume <- OptionT.liftF(poolsRepo.getPoolVolume(pool, from))
         totalVolume = poolVolume
           .map { volume =>
             val xVolume = volume.xVolume
@@ -112,7 +113,7 @@ object AnalyticsService {
           .getOrElse(BigDecimal(0))
           .setScale(6, RoundingMode.HALF_UP)
         now <- OptionT.liftF(millis)
-        tw = TimeWindow(Some(period.toMillis), Some(now))
+        tw = TimeWindow(Some(from * 1000), Some(now))
         firstSwap <- OptionT.liftF(poolsRepo.getFirstPoolSwapTime(poolId))
         fee       <- OptionT(poolsRepo.fees(pool, tw, poolDb.fees))
         apr <- OptionT.liftF(
@@ -178,16 +179,16 @@ object AnalyticsService {
 
   final private class Tracing[F[_]: Monad: Logging] extends AnalyticsService[Mid[F, *]] {
 
-    def getPoolsOverview(period: FiniteDuration): Mid[F, List[PoolOverview]] =
+    def getPoolsOverview: Mid[F, List[PoolOverview]] =
       for {
-        _ <- trace"Going to get pools overview for period $period"
+        _ <- trace"Going to get pools overview"
         r <- _
         _ <- trace"Pools overview is $r"
       } yield r
 
-    def getPoolInfo(poolId: PoolId, period: FiniteDuration): Mid[F, Option[PoolOverview]] =
+    def getPoolInfo(poolId: PoolId, from: Long): Mid[F, Option[PoolOverview]] =
       for {
-        _ <- trace"Going to get pool info for pool $poolId for period $period"
+        _ <- trace"Going to get pool info for pool $poolId from $from"
         r <- _
         _ <- trace"Pool info is $r"
       } yield r

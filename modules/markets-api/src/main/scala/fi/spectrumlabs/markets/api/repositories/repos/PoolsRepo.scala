@@ -28,7 +28,7 @@ trait PoolsRepo[D[_]] {
 
   def getPoolById(poolId: PoolId, minLiquidityValue: Long): D[Option[Pool]]
 
-  def getPoolVolume(pool: DomainPool, period: FiniteDuration): D[Option[PoolVolume]]
+  def getPoolVolume(pool: DomainPool, from: Long): D[Option[PoolVolume]]
 
   def getPoolVolumes(period: TimeWindow): D[List[PoolVolumeDbNew]]
 
@@ -60,8 +60,8 @@ object PoolsRepo {
     def getPoolById(poolId: PoolId, minLiquidityValue: Long): ConnectionIO[Option[Pool]] =
       sql.getPool(poolId, minLiquidityValue).option
 
-    def getPoolVolume(pool: DomainPool, period: FiniteDuration): ConnectionIO[Option[PoolVolume]] =
-      sql.getPoolVolume(pool, period).option
+    def getPoolVolume(pool: DomainPool, from: Long): ConnectionIO[Option[PoolVolume]] =
+      sql.getPoolVolume(pool, from).option
 
     def getPoolVolumes(period: TimeWindow): ConnectionIO[List[PoolVolumeDbNew]] =
       sql.getPoolVolumes(period).to[List]
@@ -99,9 +99,9 @@ object PoolsRepo {
         _ <- trace"Total pool volumes are $r"
       } yield r
 
-    def getPoolVolume(pool: DomainPool, period: FiniteDuration): Mid[F, Option[PoolVolume]] =
+    def getPoolVolume(pool: DomainPool, from: Long): Mid[F, Option[PoolVolume]] =
       for {
-        _ <- trace"Going to get pool volume for $pool with period $period"
+        _ <- trace"Going to get pool volume for $pool from $from"
         r <- _
         _ <- trace"Pool value is $r"
       } yield r

@@ -31,10 +31,9 @@ object PoolInfoEndpoints {
       .name("Info by pool id")
       .description("Allow to get info about pool within period")
 
-  def getPoolsOverview: Endpoint[FiniteDuration, HttpError, List[PoolOverview], Any] =
+  def getPoolsOverview: Endpoint[Unit, HttpError, List[PoolOverview], Any] =
     baseEndpoint.get
       .in("pools" / "overview")
-      .in(after)
       .out(jsonBody[List[PoolOverview]])
       .tag(pathPrefix)
       .name("Pools overview")

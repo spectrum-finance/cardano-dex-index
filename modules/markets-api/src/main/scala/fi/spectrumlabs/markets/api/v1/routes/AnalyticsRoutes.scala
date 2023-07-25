@@ -23,10 +23,10 @@ final class AnalyticsRoutes[F[_]: Concurrent: ContextShift: Timer: AdaptThrowabl
   def routes = getPoolInfoR <+> getPoolsOverviewR <+> getPoolPriceChartR <+> getPlatformStatsR
 
   def getPoolInfoR: HttpRoutes[F] = interpreter.toRoutes(getPoolInfo) { case (id, period) =>
-    service.getPoolInfo(id, period).orNotFound(s"PoolInfo{id=$id}")
+    service.getPoolInfo(id, period.toSeconds).orNotFound(s"PoolInfo{id=$id}")
   }
 
-  def getPoolsOverviewR = interpreter.toRoutes(getPoolsOverview)(service.getPoolsOverview(_).adaptThrowable.value)
+  def getPoolsOverviewR = interpreter.toRoutes(getPoolsOverview)(_ => service.getPoolsOverview.adaptThrowable.value)
 
   def getPoolPriceChartR = interpreter.toRoutes(getPoolPriceChart) { case (poolId, tw, res) =>
     service.getPoolPriceChart(poolId, tw, res).adaptThrowable.value

@@ -63,14 +63,14 @@ final class PoolsSql(implicit lh: LogHandler) {
          |	AND pool_id = $poolId;
        """.stripMargin.query[Pool]
 
-  def getPoolVolume(pool: DomainPool, period: FiniteDuration): Query0[PoolVolume] =
+  def getPoolVolume(pool: DomainPool, from: Long): Query0[PoolVolume] =
     sql"""
          |select
          |	p.pool_id,
          |	cast(sum(CASE WHEN (s.base = p.y) THEN s.actual_quote ELSE 0 END) AS BIGINT) AS tx,
          |	cast(sum(CASE WHEN (s.base = p.x) THEN s.actual_quote ELSE 0 END) AS BIGINT) AS ty
          |from swap s left join pool p on (p.output_id=s.pool_input_id)
-         |where p.pool_id is not null and p.pool_id=${pool.id} and s.actual_quote is not null and creation_timestamp > ${period.toSeconds}
+         |where p.pool_id is not null and p.pool_id=${pool.id} and s.actual_quote is not null and creation_timestamp > $from
          |group by p.pool_id;
        """.stripMargin.query[PoolVolume]
 
