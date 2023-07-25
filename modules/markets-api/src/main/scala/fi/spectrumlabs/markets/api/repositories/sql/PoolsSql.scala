@@ -29,14 +29,10 @@ final class PoolsSql(implicit lh: LogHandler) {
         |FROM
         |	pool p
         |	INNER JOIN (
-        |		SELECT
-        |			pool_id AS pid,
-        |			max(timestamp) AS ts
-        |		FROM
-        |			pool
-        |		GROUP BY
-        |			pool_id) pLatest ON p.pool_id = pLatest.pid
-        |	AND p.timestamp = pLatest.ts
+        |		SELECT pool_id AS pid, max(timestamp) AS ts
+        |		FROM pool
+        |		GROUP BY pool_id
+        |	) pLatest ON p.pool_id = pLatest.pid AND p.timestamp = pLatest.ts
        """.stripMargin.query[PoolDb]
 
   def getPool(poolId: PoolId, minLiquidityValue: Long): Query0[Pool] =
@@ -69,26 +65,13 @@ final class PoolsSql(implicit lh: LogHandler) {
 
   def getPoolVolume(pool: DomainPool, period: FiniteDuration): Query0[PoolVolume] =
     sql"""
-         |SELECT
-         |	*
-         |FROM (
-         |	SELECT
-         |		sum(actual_quote)
-         |	FROM
-         |		swap
-         |	WHERE
-         |		pool_nft = ${pool.id}
-         |		AND base = ${pool.x.asset.show}
-         |		AND creation_timestamp > ${period.toSeconds}) x
-         |	CROSS JOIN (
-         |		SELECT
-         |			sum(actual_quote)
-         |		FROM
-         |			swap
-         |		WHERE
-         |			pool_nft = ${pool.id}
-         |			AND base = ${pool.y.asset.show}
-         |			AND creation_timestamp > ${period.toSeconds}) y
+         |select
+         |	p.pool_id,
+         |	cast(sum(CASE WHEN (s.base = p.y) THEN s.actual_quote ELSE 0 END) AS BIGINT) AS tx,
+         |	cast(sum(CASE WHEN (s.base = p.x) THEN s.actual_quote ELSE 0 END) AS BIGINT) AS ty
+         |from swap s left join pool p on (p.output_id=s.pool_input_id)
+         |where p.pool_id is not null and p.pool_id=${pool.id} and s.actual_quote is not null and creation_timestamp > ${period.toSeconds}
+         |group by p.pool_id;
        """.stripMargin.query[PoolVolume]
 
   def getPoolVolumes(tw: TimeWindow): Query0[PoolVolumeDbNew] =
@@ -98,7 +81,7 @@ final class PoolsSql(implicit lh: LogHandler) {
          |	cast(sum(CASE WHEN (s.base = p.y) THEN s.actual_quote ELSE 0 END) AS BIGINT) AS tx,
          |	cast(sum(CASE WHEN (s.base = p.x) THEN s.actual_quote ELSE 0 END) AS BIGINT) AS ty
          |from swap s left join pool p on (p.output_id=s.pool_input_id)
-         |where p.pool_id is not null and s.actual_quote != -1 ${timeWindowCond(tw, "and", "ex")}
+         |where p.pool_id is not null and s.actual_quote is not null ${timeWindowCond(tw, "and", "ex")}
          |group by p.pool_id;
        """.stripMargin.query[PoolVolumeDbNew]
 

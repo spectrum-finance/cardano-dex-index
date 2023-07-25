@@ -1,23 +1,21 @@
 package fi.spectrumlabs.markets.api.repositories.repos
 
-import cats.{Functor, Monad}
-import dev.profunktor.redis4cats.RedisCommands
-import fi.spectrumlabs.core.models.domain.{AssetClass, PoolId}
-import fi.spectrumlabs.core.models.rates.ResolvedRate
 import cats.syntax.show._
-import cats.syntax.eq._
-import tofu.syntax.monadic._
-import tofu.syntax.logging._
+import cats.{Functor, Monad}
 import derevo.derive
-import fi.spectrumlabs.core.{AdaAssetClass, AdaDefaultPoolId}
+import dev.profunktor.redis4cats.RedisCommands
+import fi.spectrumlabs.core.models.domain.AssetClass
+import fi.spectrumlabs.core.models.rates.ResolvedRate
 import io.circe.parser.parse
 import tofu.higherKind.Mid
 import tofu.higherKind.derived.representableK
 import tofu.logging.{Logging, Logs}
+import tofu.syntax.logging._
+import tofu.syntax.monadic._
 
 @derive(representableK)
 trait RatesRepo[F[_]] {
-  def get(asset: AssetClass, poolId: PoolId): F[Option[ResolvedRate]]
+  def get(asset: AssetClass): F[Option[ResolvedRate]]
 }
 
 object RatesRepo {
@@ -30,21 +28,19 @@ object RatesRepo {
 
   final private class Impl[F[_]: Functor](implicit cmd: RedisCommands[F, String, String]) extends RatesRepo[F] {
 
-    def get(asset: AssetClass, poolId: PoolId): F[Option[ResolvedRate]] =
-      cmd.get(mkKey(asset, poolId)).map(_.flatMap(parse(_).flatMap(_.as[ResolvedRate]).toOption))
+    def get(asset: AssetClass): F[Option[ResolvedRate]] =
+      cmd.get(mkKey(asset)).map(_.flatMap(parse(_).flatMap(_.as[ResolvedRate]).toOption))
   }
 
   final private class Tracing[F[_]: Monad: Logging] extends RatesRepo[Mid[F, *]] {
 
-    def get(asset: AssetClass, poolId: PoolId): Mid[F, Option[ResolvedRate]] =
+    def get(asset: AssetClass): Mid[F, Option[ResolvedRate]] =
       for {
-        _ <- trace"Going to get rate for $asset and $poolId. Keys is ${mkKey(asset, poolId)}"
+        _ <- trace"Going to get rate for $asset. Keys is ${mkKey(asset)}"
         r <- _
-        _ <- trace"Rate for $asset and $poolId is $r"
+        _ <- trace"Rate for $asset is $r"
       } yield r
   }
 
-  private def mkKey(asset: AssetClass, poolId: PoolId): String =
-    if (asset === AdaAssetClass) s"${asset.show}"
-    else s"${asset.show}"
+  private def mkKey(asset: AssetClass): String = s"${asset.show}"
 }

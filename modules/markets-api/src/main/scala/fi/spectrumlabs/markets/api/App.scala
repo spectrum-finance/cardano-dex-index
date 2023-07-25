@@ -16,11 +16,8 @@ import fi.spectrumlabs.db.writer.repositories.OrdersRepository
 import fi.spectrumlabs.markets.api.configs.ConfigBundle
 import fi.spectrumlabs.markets.api.context.AppContext
 import fi.spectrumlabs.markets.api.repositories.repos.{PoolsRepo, RatesRepo}
-import fi.spectrumlabs.markets.api.services.{AmmStatsMath, AnalyticsService, CacheCleaner, HistoryService, MempoolService, TokenFetcher1}
+import fi.spectrumlabs.markets.api.services.{AmmStatsMath, AnalyticsService, CacheCleaner, HistoryService, MempoolService}
 import fi.spectrumlabs.markets.api.v1.HttpServer
-import fi.spectrumlabs.rates.resolver.gateways.Metadata
-import fi.spectrumlabs.rates.resolver.services.MetadataService
-import fi.spectrumlabs.rates.resolver.services.{TokenFetcher => TF}
 import org.http4s.server.Server
 import sttp.capabilities.fs2.Fs2Streams
 import sttp.client3.SttpBackend
@@ -67,10 +64,6 @@ object App extends EnvApp[AppContext] {
       implicit0(httpRespCache: HttpResponseCaching[RunF]) <- Resource.eval(HttpResponseCaching.make[InitF, RunF])
       implicit0(httpCache: CachingMiddleware[RunF]) = CacheMiddleware.make[RunF]
       implicit0(backend: SttpBackend[RunF, Fs2Streams[RunF]]) <- makeBackend[AppContext, InitF, RunF](ctx, blocker)
-      implicit0(tokens: TF[RunF]) = TF.make[RunF](configs.tokenFetcher)
-      implicit0(metadata: Metadata[RunF])               <- Resource.eval(Metadata.create[InitF, RunF](configs.network))
-      implicit0(tf: TokenFetcher1[RunF])               <-  Resource.eval(TokenFetcher1.create[InitF, RunF](configs.tf))
-      implicit0(metadataService: MetadataService[RunF]) <- Resource.eval(MetadataService.create[InitF, RunF])
       implicit0(poolsRepo: PoolsRepo[RunF])             <- Resource.eval(PoolsRepo.create[InitF, xa.DB, RunF])
       ordersRepo                                        <- Resource.eval(OrdersRepository.make[InitF, RunF, xa.DB])
       implicit0(ratesRepo: RatesRepo[RunF])             <- Resource.eval(RatesRepo.create[InitF, RunF])

@@ -1,7 +1,6 @@
 package fi.spectrumlabs.rates.resolver.repositories
 
 import cats.{Functor, Monad}
-import cats.syntax.show._
 import derevo.derive
 import dev.profunktor.redis4cats.RedisCommands
 import fi.spectrumlabs.core.models.rates.ResolvedRate
@@ -35,9 +34,9 @@ object RatesRepo {
 
     def put(rate: ResolvedRate): Mid[F, Unit] =
       for {
-        _ <- trace"Going to put new resolved rate $rate into storage. Key is ${rate.cacheKey}."
+        _ <- info"Going to put new resolved rate $rate into storage. Key is ${rate.cacheKey}."
         _ <- _
-        _ <- trace"Rate $rate put successfully."
+        _ <- info"Rate $rate put successfully."
       } yield ()
   }
 }

@@ -6,5 +6,4 @@ package object core {
   final val AdaAssetClass    = AssetClass("", "")
   final val AdaDecimal       = 6
   final val DefaultDecimal   = AdaDecimal
-  final val AdaDefaultPoolId = PoolId("")
 }

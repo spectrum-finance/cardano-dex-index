@@ -8,10 +8,10 @@ import fi.spectrumlabs.core.network._
 import fi.spectrumlabs.core.redis._
 import fi.spectrumlabs.core.redis.codecs._
 import fi.spectrumlabs.rates.resolver.config.{AppContext, ConfigBundle}
-import fi.spectrumlabs.rates.resolver.gateways.{Metadata, Network}
+import fi.spectrumlabs.rates.resolver.gateways.Tokens
 import fi.spectrumlabs.rates.resolver.programs.Resolver
-import fi.spectrumlabs.rates.resolver.repositories.{PoolsRepo, RatesRepo}
-import fi.spectrumlabs.rates.resolver.services.{MetadataService, PoolsService, ResolverService, TokenFetcher}
+import fi.spectrumlabs.rates.resolver.repositories.{Pools, RatesRepo}
+import fi.spectrumlabs.rates.resolver.services.ResolverService
 import sttp.client3.SttpBackend
 import tofu.doobie.log.EmbeddableLogHandler
 import tofu.doobie.transactor.Txr
@@ -47,14 +47,12 @@ object App extends EnvApp[AppContext] {
         configs.redis,
         stringCodec
       )
-      implicit0(pRepo: PoolsRepo[RunF])             <- Resource.eval(PoolsRepo.create[InitF, xa.DB, RunF])
-      implicit0(pService: PoolsService[RunF])       <- Resource.eval(PoolsService.create[InitF, RunF])
-      implicit0(rates: RatesRepo[RunF])             <- Resource.eval(RatesRepo.create[InitF, RunF])
-      implicit0(network: Network[RunF])             <- Resource.eval(Network.create[InitF, RunF](configs.network))
-      implicit0(meta: Metadata[RunF])               <- Resource.eval(Metadata.create[InitF, RunF](configs.network))
-      implicit0(metaService: MetadataService[RunF]) <- Resource.eval(MetadataService.create[InitF, RunF])
-      implicit0(rService: ResolverService[RunF])    <- Resource.eval(ResolverService.create[InitF, RunF](configs.resolver))
-
+      implicit0(pools: Pools[xa.DB])    <- Resource.eval(Pools.create[InitF, xa.DB])
+      implicit0(rates: RatesRepo[RunF]) <- Resource.eval(RatesRepo.create[InitF, RunF])
+      implicit0(tokens: Tokens[RunF])   <- Resource.eval(Tokens.create[InitF, RunF](configs.network))
+      implicit0(resolver: ResolverService[RunF]) <- Resource.eval(
+        ResolverService.create[InitF, RunF, xa.DB](configs.resolver, xa.trans)
+      )
       resolver <- Resource.eval(Resolver.create[InitF, StreamF, RunF](configs.resolver))
       _        <- Resource.eval(resolver.run.compile.drain).mapK(isoKRun.tof)
     } yield ()

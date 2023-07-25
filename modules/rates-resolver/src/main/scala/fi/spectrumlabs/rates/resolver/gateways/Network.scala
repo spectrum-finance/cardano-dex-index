@@ -1,7 +1,7 @@
 package fi.spectrumlabs.rates.resolver.gateways
 
 import cats.{Functor, Monad}
-import fi.spectrumlabs.core.{AdaAssetClass, AdaDecimal, AdaDefaultPoolId}
+import fi.spectrumlabs.core.{AdaAssetClass, AdaDecimal}
 import fi.spectrumlabs.core.models.rates.ResolvedRate
 import fi.spectrumlabs.core.network.syntax._
 import fi.spectrumlabs.rates.resolver.config.NetworkConfig
@@ -33,7 +33,7 @@ object Network {
     extends Network[F] {
 
     def getAdaPrice: F[ResolvedRate] =
-      info"Going to get next request to cmc for ada price. Req url is: ${config.cmcUrl.toString()}" >>
+      info"Going to get next request to cmc for ada price" >>
       basicRequest
         .header(CmcApiKey, config.cmcApiKey)
         .get(
@@ -45,6 +45,6 @@ object Network {
         .send(backend)
         .absorbError
         .flatTap(price => info"Ada price from network is: $price")
-        .map(r => ResolvedRate(AdaAssetClass, r.price, AdaDecimal, AdaDefaultPoolId))
+        .map(r => ResolvedRate(AdaAssetClass, r.price, AdaDecimal))
   }
 }

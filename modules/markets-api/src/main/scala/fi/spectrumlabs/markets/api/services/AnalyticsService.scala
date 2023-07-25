@@ -10,7 +10,6 @@ import fi.spectrumlabs.markets.api.configs.MarketsApiConfig
 import fi.spectrumlabs.markets.api.models.{PlatformStats, PoolOverview, PricePoint, RealPrice}
 import fi.spectrumlabs.markets.api.repositories.repos.{PoolsRepo, RatesRepo}
 import fi.spectrumlabs.markets.api.v1.endpoints.models.TimeWindow
-import fi.spectrumlabs.rates.resolver.services.{MetadataService, TokenFetcher}
 import tofu.higherKind.Mid
 import tofu.higherKind.derived.representableK
 import tofu.logging.{Logging, Logs}
@@ -40,22 +39,16 @@ object AnalyticsService {
   private val MillisInYear: FiniteDuration = 365.days
 
   def create[I[_]: Functor, F[_]: Monad: Parallel: Clock](config: MarketsApiConfig)(implicit
-    tokenFetcher: TokenFetcher[F],
-    metadata: MetadataService[F],
     ratesRepo: RatesRepo[F],
     poolsRepo: PoolsRepo[F],
     ammStatsMath: AmmStatsMath[F],
-    meta: TokenFetcher1[F],
     logs: Logs[I, F]
   ): I[AnalyticsService[F]] =
     logs.forService[AnalyticsService[F]].map(implicit __ => new Tracing[F] attach new Impl[F](config))
 
   final private class Impl[F[_]: Monad: Parallel: Clock](config: MarketsApiConfig)(implicit
-    tokenFetcher: TokenFetcher[F],
-    metadata: MetadataService[F],
     ratesRepo: RatesRepo[F],
     poolsRepo: PoolsRepo[F],
-    meta: TokenFetcher1[F],
     ammStatsMath: AmmStatsMath[F]
   ) extends AnalyticsService[F] {
 
@@ -99,19 +92,24 @@ object AnalyticsService {
       (for {
         poolDb <- OptionT(poolsRepo.getPoolById(poolId, config.minLiquidityValue))
         pool = Pool.fromDb(poolDb)
-        rateX <- OptionT(ratesRepo.get(pool.x.asset, pool.id))
-        rateY <- OptionT(ratesRepo.get(pool.y.asset, pool.id))
-        xTvl     = pool.x.amount.dropPenny(rateX.decimals) * rateX.rate
-        yTvl     = pool.y.amount.dropPenny(rateY.decimals) * rateY.rate
-        totalTvl = (xTvl + yTvl).setScale(0, RoundingMode.HALF_UP)
-        poolVolume <- OptionT(poolsRepo.getPoolVolume(pool, period))
-        xVolume = poolVolume.xVolume
-          .map(r => Amount(r.longValue).dropPenny(rateX.decimals))
-          .getOrElse(BigDecimal(0)) * rateX.rate
-        yVolume = poolVolume.yVolume
-          .map(r => Amount(r.longValue).dropPenny(rateY.decimals))
-          .getOrElse(BigDecimal(0)) * rateY.rate
-        totalVolume = (xVolume + yVolume).setScale(0, RoundingMode.HALF_UP)
+        rateX <- OptionT(ratesRepo.get(pool.x.asset))
+        rateY <- OptionT(ratesRepo.get(pool.y.asset))
+        xTvl     = pool.x.amount.withDecimal(rateX.decimals) * rateX.rate
+        yTvl     = pool.y.amount.withDecimal(rateY.decimals) * rateY.rate
+        totalTvl = (xTvl + yTvl).setScale(6, RoundingMode.HALF_UP)
+        poolVolume <- OptionT.liftF(poolsRepo.getPoolVolume(pool, period))
+        totalVolume = poolVolume
+          .map { volume =>
+            val xVolume = volume.xVolume
+              .map(r => Amount(r.longValue).withDecimal(rateX.decimals))
+              .getOrElse(BigDecimal(0)) * rateX.rate
+            val yVolume = volume.yVolume
+              .map(r => Amount(r.longValue).withDecimal(rateY.decimals))
+              .getOrElse(BigDecimal(0)) * rateY.rate
+            xVolume + yVolume
+          }
+          .getOrElse(BigDecimal(0))
+          .setScale(6, RoundingMode.HALF_UP)
         now <- OptionT.liftF(millis)
         tw = TimeWindow(Some(period.toMillis), Some(now))
         firstSwap <- OptionT.liftF(poolsRepo.getFirstPoolSwapTime(poolId))
@@ -132,8 +130,8 @@ object AnalyticsService {
     def getPlatformStats(period: TimeWindow): F[PlatformStats] =
       for {
         pools  <- poolsRepo.getPools
-        xRates <- pools.flatTraverse(pool => ratesRepo.get(pool.x, pool.poolId).map(_.map((pool, _)).toList))
-        yRates <- pools.flatTraverse(pool => ratesRepo.get(pool.y, pool.poolId).map(_.map((pool, _)).toList))
+        xRates <- pools.flatTraverse(pool => ratesRepo.get(pool.x).map(_.map((pool, _)).toList))
+        yRates <- pools.flatTraverse(pool => ratesRepo.get(pool.y).map(_.map((pool, _)).toList))
         xTvls = xRates.map { case (pool, rate) =>
           pool.xReserves.dropPenny(rate.decimals) * rate.rate
         }.sum
@@ -171,19 +169,7 @@ object AnalyticsService {
       (for {
         amounts <- OptionT.liftF(poolsRepo.getAvgPoolSnapshot(poolId, window, resolution))
         pool    <- OptionT(poolsRepo.getPoolById(poolId, config.minLiquidityValue))
-        (xMeta, yMeta) <- OptionT(
-          metadata
-            .getTokensMeta(pool.x :: pool.y :: Nil)
-            .map(xs => xs.headOption.flatMap(meta => xs.lastOption.map((meta, _))))
-        )
-        validTokens <- OptionT.liftF(tokenFetcher.fetchTokens)
-        points =
-          if (validTokens.contains(pool.x) && validTokens.contains(pool.y) && xMeta != yMeta)
-            amounts.map { amount =>
-              val price = RealPrice.calculate(amount.amountX, xMeta.decimals, amount.amountY, yMeta.decimals)
-              PricePoint(amount.timestamp, price.setScale(RealPrice.defaultScale))
-            }
-          else List.empty[PricePoint]
+        points = List.empty[PricePoint]
       } yield points).value.map(_.toList.flatten)
   }
 
