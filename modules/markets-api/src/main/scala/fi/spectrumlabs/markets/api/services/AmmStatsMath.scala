@@ -10,6 +10,7 @@ import tofu.syntax.logging._
 import tofu.syntax.monadic._
 import tofu.syntax.time.now.millis
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.math.BigDecimal.RoundingMode
 
@@ -46,19 +47,19 @@ object AmmStatsMath {
       tw: TimeWindow
     ): F[Apr] =
       for {
-        windowSizeMillis <-
+        windowSizeSeconds <-
           for {
-            ub <- tw.to.fold(millis[F])(_.pure[F])
+            ub <- tw.to.fold(Clock[F].realTime(TimeUnit.SECONDS))(_.pure[F])
             lb = tw.from.getOrElse(firstSwapTimestamp)
           } yield ub - lb
         periodFees =
-          if (windowSizeMillis > 0) fees * (BigDecimal(projectionPeriod.toMillis) / windowSizeMillis)
+          if (windowSizeSeconds > 0) fees * (BigDecimal(projectionPeriod.toSeconds) / windowSizeSeconds)
           else BigDecimal(0)
         periodFeesPercent =
           if (tvl > 0) {
             (periodFees * 100 / tvl).setScale(2, RoundingMode.HALF_UP).toDouble
-          } else .0
-      } yield Apr(periodFeesPercent)
+          } else 0.0
+      } yield Apr(BigDecimal(periodFeesPercent).setScale(2).doubleValue)
   }
 
   final class Tracing[F[_]: Monad: Logging] extends AmmStatsMath[Mid[F, *]] {

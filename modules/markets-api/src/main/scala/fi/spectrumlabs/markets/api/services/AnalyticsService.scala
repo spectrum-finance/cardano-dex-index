@@ -3,11 +3,13 @@ package fi.spectrumlabs.markets.api.services
 import cats.data.OptionT
 import cats.syntax.option._
 import cats.syntax.parallel._
+import cats.syntax.traverse._
 import cats.{Functor, Monad, Parallel}
 import derevo.derive
-import fi.spectrumlabs.core.models.domain.{Amount, AssetAmount, Pool, PoolFee, PoolId}
+import fi.spectrumlabs.core.models.domain.{Amount, AssetAmount, Pool, PoolId}
 import fi.spectrumlabs.markets.api.configs.MarketsApiConfig
-import fi.spectrumlabs.markets.api.models.{PlatformStats, PoolOverview, PricePoint, RealPrice}
+import fi.spectrumlabs.markets.api.models.db.PoolDb
+import fi.spectrumlabs.markets.api.models.{PlatformStats, PoolOverview, PricePoint}
 import fi.spectrumlabs.markets.api.repositories.repos.{PoolsRepo, RatesRepo}
 import fi.spectrumlabs.markets.api.v1.endpoints.models.TimeWindow
 import tofu.higherKind.Mid
@@ -15,9 +17,6 @@ import tofu.higherKind.derived.representableK
 import tofu.logging.{Logging, Logs}
 import tofu.syntax.logging._
 import tofu.syntax.monadic._
-import cats.syntax.traverse._
-import fi.spectrumlabs.markets.api.models.db.{PoolDb, PoolFeeSnapshot}
-import tofu.syntax.time.now.millis
 import tofu.time.Clock
 
 import java.util.concurrent.TimeUnit
@@ -56,37 +55,8 @@ object AnalyticsService {
     def getPoolsOverview: F[List[PoolOverview]] = Clock[F].realTime(TimeUnit.SECONDS) >>= { now =>
       poolsRepo.getPools.flatMap(
         _.parTraverse { p: PoolDb =>
-          poolsRepo.getFirstPoolSwapTime(p.poolId).flatMap { firstSwap =>
-            getPoolInfo(p.poolId, now - 24.hours.toSeconds).flatMap { info =>
-              val pool = Pool(p.poolId, AssetAmount(p.x, p.xReserves), AssetAmount(p.y, p.yReserves))
-              millis.flatMap { now =>
-                val tw = TimeWindow(Some(now * 1000), Some(now))
-                poolsRepo.fees(pool, tw, PoolFee(p.feeNum, p.feeDen)).flatMap { fee =>
-                  ammStatsMath
-                    .apr(
-                      p.poolId,
-                      info.flatMap(_.tvl).getOrElse(BigDecimal(0)),
-                      fee.map(s => s.x + s.y).getOrElse(BigDecimal(0)),
-                      firstSwap.getOrElse(0),
-                      MillisInYear,
-                      tw
-                    )
-                    .map { apr =>
-                      PoolOverview(
-                        p.poolId,
-                        AssetAmount(p.x, p.xReserves),
-                        AssetAmount(p.y, p.yReserves),
-                        info.flatMap(_.tvl),
-                        info.flatMap(_.volume),
-                        fee.getOrElse(PoolFeeSnapshot(BigDecimal(0), BigDecimal(0))),
-                        apr
-                      )
-                    }
-                }
-              }
-            }
-          }
-        }
+          getPoolInfo(p.poolId, now - 24.hours.toSeconds)
+        }.map(_.flatten)
       )
     }
 
@@ -112,13 +82,14 @@ object AnalyticsService {
           }
           .getOrElse(BigDecimal(0))
           .setScale(6, RoundingMode.HALF_UP)
-        now <- OptionT.liftF(millis)
-        tw = TimeWindow(Some(from * 1000), Some(now))
+        now <- OptionT.liftF(Clock[F].realTime(TimeUnit.SECONDS))
+        tw = TimeWindow(Some(from), Some(now))
         firstSwap <- OptionT.liftF(poolsRepo.getFirstPoolSwapTime(poolId))
         fee       <- OptionT(poolsRepo.fees(pool, tw, poolDb.fees))
-        apr <- OptionT.liftF(
-          ammStatsMath.apr(poolId, totalTvl, fee.x + fee.y, firstSwap.getOrElse(0), MillisInYear, tw)
-        )
+        feeX     = Amount(fee.x.toLong).withDecimal(rateX.decimals) * rateX.rate
+        feeY     = Amount(fee.y.toLong).withDecimal(rateY.decimals) * rateY.rate
+        totalFee = feeX + feeY
+        apr <- OptionT.liftF(ammStatsMath.apr(poolId, totalTvl, totalFee, firstSwap.getOrElse(0), MillisInYear, tw))
       } yield PoolOverview(
         poolId,
         AssetAmount(poolDb.x, Amount(poolDb.xReserves)),

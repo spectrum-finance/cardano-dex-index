@@ -113,8 +113,8 @@ final class PoolsSql(implicit lh: LogHandler) {
 
     sql"""
          |SELECT
-         |	cast(COALESCE(sum(CASE WHEN (base = ${pool.x.asset.show}) THEN actual_quote::decimal * (${poolFee.feeDen} - ${poolFee.feeNum}) / ${poolFee.feeDen} ELSE 0 END), 0) AS bigint) AS tx,
-         |	cast(COALESCE(sum(CASE WHEN (base = ${pool.y.asset.show}) THEN actual_quote::decimal * (${poolFee.feeDen} - ${poolFee.feeNum}) / ${poolFee.feeDen} ELSE 0 END), 0) AS bigint) AS ty
+         |	cast(COALESCE(sum(CASE WHEN (base = ${pool.y.asset.show}) THEN actual_quote::decimal * (${poolFee.feeDen} - ${poolFee.feeNum}) / ${poolFee.feeDen} ELSE 0 END), 0) AS bigint) AS tx,
+         |	cast(COALESCE(sum(CASE WHEN (base = ${pool.x.asset.show}) THEN actual_quote::decimal * (${poolFee.feeDen} - ${poolFee.feeNum}) / ${poolFee.feeDen} ELSE 0 END), 0) AS bigint) AS ty
          |FROM swap
          |WHERE pool_nft = ${pool.id} and $from $to
        """.stripMargin.query[PoolFeeSnapshot]
