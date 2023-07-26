@@ -21,6 +21,8 @@ import fi.spectrumlabs.db.writer.classes.Key
 import io.circe.{Decoder, Encoder}
 import tofu.syntax.monadic._
 
+import scala.concurrent.duration.FiniteDuration
+
 /** Takes batch of T elements and persists them into indexes storage.
   */
 trait Persist[T, F[_]] {
@@ -40,10 +42,14 @@ object Persist {
   ): Persist[T, F] =
     elh.embed(implicit __ => new Impl[T](schema).mapK(LiftConnectionIO[D].liftF)).mapK(txr.trans)
 
-  def createRedis[T: Encoder: Key: Decoder, F[_]: Monad](implicit redis: Plain[F]): Persist[T, F] =
-    new ImplRedis[T, F]
+  def createRedis[T: Encoder: Key: Decoder, F[_]: Monad](mempoolTtl: FiniteDuration)(implicit
+    redis: Plain[F]
+  ): Persist[T, F] =
+    new ImplRedis[T, F](mempoolTtl)
 
-  final private class ImplRedis[T: Encoder: Decoder: Key, F[_]: Monad](implicit redis: Plain[F]) extends Persist[T, F] {
+  final private class ImplRedis[T: Encoder: Decoder: Key, F[_]: Monad](mempoolTtl: FiniteDuration)(implicit
+    redis: Plain[F]
+  ) extends Persist[T, F] {
 
     def persist(inputs: NonEmptyList[T]): F[Int] =
       inputs
@@ -54,15 +60,17 @@ object Persist {
               previousOrders match {
                 case Left(_) => ().pure[F]
                 case Right(value) =>
-                  redis.set(
+                  redis.setEx(
                     implicitly[Key[T]].getKey(toInsert).getBytes,
-                    Encoder[List[T]].apply(value :+ toInsert).toString().getBytes()
+                    Encoder[List[T]].apply(value :+ toInsert).toString().getBytes(),
+                    mempoolTtl
                   )
               }
             case None =>
-              redis.set(
+              redis.setEx(
                 implicitly[Key[T]].getKey(toInsert).getBytes,
-                Encoder[List[T]].apply(List(toInsert)).toString().getBytes()
+                Encoder[List[T]].apply(List(toInsert)).toString().getBytes(),
+                mempoolTtl
               )
           }
         }

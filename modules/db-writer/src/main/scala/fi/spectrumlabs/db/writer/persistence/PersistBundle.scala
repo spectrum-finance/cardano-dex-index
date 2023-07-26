@@ -13,6 +13,8 @@ import tofu.doobie.transactor.Txr
 import fi.spectrumlabs.db.writer.schema._
 import tofu.syntax.monadic._
 
+import scala.concurrent.duration.FiniteDuration
+
 final case class PersistBundle[F[_]](
   input: Persist[Input, F],
   output: Persist[Output, F],
@@ -28,7 +30,7 @@ final case class PersistBundle[F[_]](
 
 object PersistBundle {
 
-  def create[D[_]: FlatMap: LiftConnectionIO, F[_]: Monad](implicit
+  def create[D[_]: FlatMap: LiftConnectionIO, F[_]: Monad](mempoolTtl: FiniteDuration)(implicit
     elh: EmbeddableLogHandler[D],
     redis: Plain[F],
     txr: Txr[F, D]
@@ -38,11 +40,11 @@ object PersistBundle {
       Persist.create[Output, D, F](output),
       Persist.create[Transaction, D, F](transaction),
       Persist.create[Deposit, D, F](depositSchema),
-      Persist.createRedis[Deposit, F],
+      Persist.createRedis[Deposit, F](mempoolTtl),
       Persist.create[Swap, D, F](swapSchema),
-      Persist.createRedis[Swap, F],
+      Persist.createRedis[Swap, F](mempoolTtl),
       Persist.create[Redeem, D, F](redeemSchema),
-      Persist.createRedis[Redeem, F],
+      Persist.createRedis[Redeem, F](mempoolTtl),
       Persist.create[Pool, D, F](pool)
     )
 }
