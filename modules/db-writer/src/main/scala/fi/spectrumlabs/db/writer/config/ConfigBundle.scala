@@ -18,7 +18,7 @@ final case class ConfigBundle(
   executedOpsConsumer: ConsumerConfig,
   mempoolOpsConsumer: ConsumerConfig,
   poolsConsumer: ConsumerConfig,
-  redisApiCache: RedisConfig,
+  redisMempool: RedisConfig,
   kafka: KafkaConfig,
   writer: WriterConfig,
   cardanoConfig: CardanoConfig

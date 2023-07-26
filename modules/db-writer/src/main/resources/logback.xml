@@ -32,11 +32,11 @@
         <appender-ref ref="FILE"/>
     </appender>
 
-    <logger name="fi.spectrumlabs" level="TRACE"/>
-    <logger name="org.apache.kafka" level="ERROR"/>
+    <logger name="fi.spectrumlabs" level="INFO"/>
+    <logger name="org.apache.kafka" level="info"/>
     <logger name="sttp.client3.asynchttpclient" level="ERROR"/>
-    <root level="TRACE">
-        <appender-ref ref="FILE"/>
+    <root level="trace">
+        <appender-ref ref="STDOUT"/>
     </root>
 
 </configuration>

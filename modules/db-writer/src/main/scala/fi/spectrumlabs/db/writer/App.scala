@@ -80,12 +80,12 @@ object App extends EnvApp[AppContext] {
           Option[Confirmed[PoolEvent]]
         ](configs.poolsConsumer, configs.kafka)
       implicit0(redis: RedisCommands[RunF, Array[Byte], Array[Byte]]) <-
-        mkRedis[Array[Byte], Array[Byte], RunF](configs.redisApiCache).mapK(iso.tof)
+        mkRedis[Array[Byte], Array[Byte], RunF](configs.redisMempool).mapK(iso.tof)
       implicit0(persistBundle: PersistBundle[RunF]) = PersistBundle.create[xa.DB, RunF]
       mempoolOpsHandler  <- makeMempoolOrdersHandler(configs.writer, configs.cardanoConfig, mempoolOpsConsumer)
       executedOpsHandler <- makeOrdersHandler(configs.writer, configs.cardanoConfig)
       poolsHandler       <- makePoolsHandler(configs.writer, configs.cardanoConfig)
-      bundle  = HandlersBundle.make[StreamF](poolsHandler, List(executedOpsHandler, mempoolOpsHandler))
+      bundle  = HandlersBundle.make[StreamF](mempoolOpsHandler, List())
       program = WriterProgram.create[StreamF, RunF](bundle, configs.writer)
       r <- Resource.eval(program.run).mapK(ul.liftF)
     } yield r

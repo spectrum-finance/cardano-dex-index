@@ -15,7 +15,9 @@ object serde {
   implicit def recordDeserializer[F[_]: Sync, A: Decoder]: RecordDeserializer[F, Option[A]] =
     RecordDeserializer.lift {
       Deserializer.string.map { str =>
-        parse(str).flatMap(_.as[A]).toOption
+        val res = parse(str).flatMap(_.as[A]).toOption
+        println(s"Goin to deser: ${str} -> $res")
+        res
       }
     }
 }

@@ -52,6 +52,7 @@ object Handler {
       consumer.stream
         .groupWithin(config.batchSize, config.timeout)
         .flatMap { batch =>
+          println(s"Mempool batch: $batch")
           batch.toList.flatMap(_.message) match {
             case x :: xs =>
               val nel = NonEmptyList.of(x, xs: _*)
