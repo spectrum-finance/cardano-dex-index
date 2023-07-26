@@ -92,7 +92,7 @@ final class PoolsSql(implicit lh: LogHandler) {
 
   def getAvgPoolSnapshot(id: PoolId, tw: TimeWindow, resolution: Long): Query0[AvgAssetAmounts] =
     sql"""
-         |SELECT avg(p.reserves_x), AVG(p.reserves_y), timestamp / ($resolution * 60) AS res
+         |SELECT avg(p.reserves_x), AVG(p.reserves_y), AVG(timestamp), timestamp / $resolution AS res
          |FROM pool p
          |WHERE pool_id = $id
          |${timeWindowCond(tw, "and", "p", "timestamp")}

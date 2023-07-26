@@ -7,5 +7,6 @@ import tofu.logging.derivation.loggable
 final case class AvgAssetAmounts(
   amountX: Long,
   amountY: Long,
+  avgTimestamp: Long,
   timestamp: Long
 )

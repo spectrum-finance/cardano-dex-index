@@ -10,7 +10,7 @@ import derevo.derive
 import fi.spectrumlabs.core.models.domain.{Amount, AssetAmount, Pool, PoolId}
 import fi.spectrumlabs.markets.api.configs.MarketsApiConfig
 import fi.spectrumlabs.markets.api.models.db.PoolDb
-import fi.spectrumlabs.markets.api.models.{PlatformStats, PoolOverview, PricePoint}
+import fi.spectrumlabs.markets.api.models.{PlatformStats, PoolOverview, PricePoint, RealPrice}
 import fi.spectrumlabs.markets.api.repositories.repos.{PoolsRepo, RatesRepo}
 import fi.spectrumlabs.markets.api.v1.endpoints.models.TimeWindow
 import tofu.higherKind.Mid
@@ -149,7 +149,12 @@ object AnalyticsService {
       (for {
         amounts <- OptionT.liftF(poolsRepo.getAvgPoolSnapshot(poolId, window, resolution))
         pool    <- OptionT(poolsRepo.getPoolById(poolId, config.minLiquidityValue))
-        points = List.empty[PricePoint]
+        xMeta <- OptionT.liftF(ratesRepo.get(pool.x))
+        yMeta <- OptionT.liftF(ratesRepo.get(pool.y))
+        points = amounts.map { amount =>
+          val price = RealPrice.calculate(amount.amountX, xMeta.map(_.decimals), amount.amountY, yMeta.map(_.decimals))
+          PricePoint(amount.avgTimestamp, price.setScale(RealPrice.defaultScale))
+        }.sortBy(_.timestamp)
       } yield points).value.map(_.toList.flatten)
   }
 
