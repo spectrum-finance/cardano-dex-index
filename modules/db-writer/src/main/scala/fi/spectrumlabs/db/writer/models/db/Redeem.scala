@@ -22,7 +22,7 @@ final case class Redeem(
   amountY: Option[Amount],
   amountLq: Amount,
   exFee: ExFee,
-  rewardPkh: PublicKeyHash,
+  rewardPkh: String,
   stakePkh: Option[StakePKH],
   orderInputId: TxOutRef,
   userOutputId: Option[TxOutRef],
@@ -39,7 +39,7 @@ object Redeem {
   val RedeemRedisPrefix = "Redeem"
 
   implicit val key: Key[Redeem] = new Key[Redeem] {
-    override def getKey(in: Redeem): String = RedeemRedisPrefix ++ in.rewardPkh.getPubKeyHash
+    override def getKey(in: Redeem): String = RedeemRedisPrefix ++ in.rewardPkh
   }
 
   def streamingSchema(config: CardanoConfig): ToSchema[Order, Option[Redeem]] = {
@@ -56,7 +56,7 @@ object Redeem {
         none, //todo: make optional in schema
         Amount(orderAction.order.action.redeemLqIn),
         ExFee(orderAction.order.action.redeemExFee.unExFee),
-        PublicKeyHash(orderAction.order.action.redeemRewardPkh.getPubKeyHash),
+        orderAction.order.action.redeemRewardPkh.getPubKeyHash,
         orderAction.order.action.redeemRewardSPkh.map(spkh =>
           StakePKH(StakePubKeyHash(spkh.unStakePubKeyHash.getPubKeyHash))
         ),

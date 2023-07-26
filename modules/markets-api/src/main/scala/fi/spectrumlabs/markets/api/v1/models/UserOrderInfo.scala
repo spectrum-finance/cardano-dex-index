@@ -187,7 +187,7 @@ object UserOrderInfo {
           redeem.amountY.map(y => AssetAmount(assetY, y)),
           "ADA",
           redeem.exFee.unExFee,
-          redeem.rewardPkh.getPubKeyHash,
+          redeem.rewardPkh,
           redeem.stakePkh.map(_.unStakePubKeyHash.getPubKeyHash),
           TxData(redeem.orderInputId.txOutRefId.getTxId, redeem.creationTimestamp),
           for {

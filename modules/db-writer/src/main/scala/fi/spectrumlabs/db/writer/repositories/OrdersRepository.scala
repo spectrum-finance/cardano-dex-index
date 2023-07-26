@@ -13,7 +13,7 @@ import tofu.logging.{Logging, Logs}
 import tofu.syntax.monadic._
 import cats.syntax.option._
 import cats.tagless.syntax.functorK._
-import fi.spectrumlabs.db.writer.classes.OrdersInfo.{
+import fi.spectrumlabs.db.writer.classes.ExecutedOrderInfo.{
   ExecutedDepositOrderInfo,
   ExecutedRedeemOrderInfo,
   ExecutedSwapOrderInfo

@@ -1,10 +1,8 @@
 package fi.spectrumlabs.db.writer.classes
 
 import cats.data.{NonEmptyList, OptionT}
-import cats.syntax.flatMap._
-import cats.syntax.applicative._
 import cats.syntax.traverse._
-import cats.syntax.functor._
+import tofu.syntax.monadic._
 import cats.{Functor, Monad}
 import cats.syntax.option._
 import fi.spectrumlabs.db.writer.models.{ExecutedInput, Output, Transaction}
@@ -23,7 +21,7 @@ import tofu.syntax.logging._
 import cats.syntax.traverse._
 import io.circe.parser._
 import fi.spectrumlabs.core.cache.Cache.Plain
-import fi.spectrumlabs.db.writer.classes.OrdersInfo.{
+import fi.spectrumlabs.db.writer.classes.ExecutedOrderInfo.{
   ExecutedDepositOrderInfo,
   ExecutedRedeemOrderInfo,
   ExecutedSwapOrderInfo
@@ -180,8 +178,11 @@ object Handle {
     toSchema: ToSchema[A, Option[B]]
   ) extends Handle[A, F] {
 
-    def handle(in: NonEmptyList[A]): F[Unit] = {
-      info"Going to test: ${in.toString()} against schema in ${handleLogName}" >> (in.map(toSchema(_)).toList.flatten match {
+    def handle(in: NonEmptyList[A]): F[Unit] =
+      info"Going to test: ${in.toString()} against schema in $handleLogName" >> (in
+        .map(toSchema(_))
+        .toList
+        .flatten match {
         case x :: xs =>
           (NonEmptyList.of(x, xs: _*) |> persist.persist)
             .flatMap(r =>
@@ -190,7 +191,6 @@ object Handle {
         case Nil =>
           info"Nothing to extract ${in.toString()} [$handleLogName]. Batch contains 0 elements to persist."
       })
-    }
   }
 
   final private class RedisDrop[A, B: Key: Decoder: Encoder, F[_]: Monad: Logging](
@@ -348,7 +348,7 @@ object Handle {
           txOut.fullTxOutValue.contains(redeem.coinX) && txOut.fullTxOutValue.contains(
             redeem.coinY
           ) && checkForPubkey(
-            redeem.rewardPkh.getPubKeyHash,
+            redeem.rewardPkh,
             txOut.fullTxOutAddress.addressCredential
           )
         }
@@ -368,24 +368,31 @@ object Handle {
 
     override def handle(in: NonEmptyList[TxEvent]): F[Unit] =
       in.traverse {
-        case _: UnAppliedTransaction => ().pure[F]
+        case _: UnAppliedTransaction => unit[F]
         case tx: AppliedTransaction =>
           tx.txInputs.traverse { txInput =>
-            ordersRepository.getOrder(txInput.txInRef) flatMap {
+            info"Got next txInput ${txInput.txInRef}, trying to fetch pending order..." >>
+            ordersRepository.getOrder(txInput.txInRef).flatMap {
               case Some(deposit: Deposit) =>
-                resolveDepositOrder(deposit, txInput, tx).traverse { deposit =>
-                  info"Deposit order in tx: ${tx.toString}" >> ordersRepository.updateExecutedDepositOrder(deposit)
+                info"Going to resolve deposit executed ${deposit.rewardPkh}, ${deposit.orderInputId}" >>
+                resolveDepositOrder(deposit, txInput, tx).traverse { executed =>
+                  info"Got executed deposit order ${deposit.orderInputId} for pkh ${deposit.rewardPkh}" >>
+                  ordersRepository.updateExecutedDepositOrder(executed)
                 }.void
               case Some(swap: Swap) =>
-                resolveSwapOrder(swap, txInput, tx).traverse { swap =>
-                  info"Swap order in tx: ${tx.toString}" >> ordersRepository.updateExecutedSwapOrder(swap)
+                info"Going to resolve swap executed ${swap.rewardPkh}, ${swap.orderInputId}" >>
+                resolveSwapOrder(swap, txInput, tx).traverse { executed =>
+                  info"Got executed swap order ${swap.orderInputId} for pkh ${swap.rewardPkh}" >>
+                  ordersRepository.updateExecutedSwapOrder(executed)
                 }.void
               case Some(redeem: Redeem) =>
-                resolveRedeemOrder(redeem, txInput, tx).traverse { redeem =>
-                  info"Redeem order in tx: ${tx.toString}" >> ordersRepository.updateExecutedRedeemOrder(redeem)
+                info"Going to resolve redeem executed ${redeem.rewardPkh}, ${redeem.orderInputId}" >>
+                resolveRedeemOrder(redeem, txInput, tx).traverse { executed =>
+                  info"Got executed redeem order ${redeem.orderInputId} for pkh ${redeem.rewardPkh}" >>
+                  ordersRepository.updateExecutedRedeemOrder(executed)
                 }.void
-              case _ => ().pure[F]
-            }
+              case _ => info"Nothing fetched for txInput ${txInput.txInRef}"
+            }.void
           }.void
       }.void
   }
@@ -440,7 +447,7 @@ object Handle {
         tx.txOutputs
           .find { txOut =>
             txOut.fullTxOutValue.contains(redeem.coinLq) && checkForPubkey(
-              redeem.rewardPkh.getPubKeyHash,
+              redeem.rewardPkh,
               txOut.fullTxOutAddress.addressCredential
             )
           }

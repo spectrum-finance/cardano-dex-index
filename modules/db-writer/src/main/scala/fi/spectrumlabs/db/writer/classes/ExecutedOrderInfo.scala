@@ -2,7 +2,9 @@ package fi.spectrumlabs.db.writer.classes
 
 import fi.spectrumlabs.db.writer.models.cardano.FullTxOutRef
 
-object OrdersInfo {
+sealed trait ExecutedOrderInfo
+
+object ExecutedOrderInfo {
 
   final case class ExecutedSwapOrderInfo(
     actualQuote: Long,
@@ -11,7 +13,7 @@ object OrdersInfo {
     poolOutputRef: FullTxOutRef,
     executionTimestamp: Long,
     orderInputRef: FullTxOutRef
-  )
+  ) extends ExecutedOrderInfo
 
   final case class ExecutedDepositOrderInfo(
     amountLq: Long,
@@ -20,7 +22,7 @@ object OrdersInfo {
     poolOutputRef: FullTxOutRef,
     executionTimestamp: Long,
     orderInputRef: FullTxOutRef
-  )
+  ) extends ExecutedOrderInfo
 
   final case class ExecutedRedeemOrderInfo(
     amountX: Long,
@@ -30,5 +32,5 @@ object OrdersInfo {
     poolOutputRef: FullTxOutRef,
     executionTimestamp: Long,
     orderInputRef: FullTxOutRef
-  )
+  ) extends ExecutedOrderInfo
 }

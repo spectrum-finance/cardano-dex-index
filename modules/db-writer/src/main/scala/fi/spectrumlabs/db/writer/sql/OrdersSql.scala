@@ -7,7 +7,7 @@ import fi.spectrumlabs.db.writer.models.db.{AnyOrderDB, Deposit, Redeem, Swap}
 import doobie.implicits._
 import doobie.util.fragment.Fragment
 import doobie.util.update.Update0
-import fi.spectrumlabs.db.writer.classes.OrdersInfo.{ExecutedDepositOrderInfo, ExecutedRedeemOrderInfo, ExecutedSwapOrderInfo}
+import fi.spectrumlabs.db.writer.classes.ExecutedOrderInfo.{ExecutedDepositOrderInfo, ExecutedRedeemOrderInfo, ExecutedSwapOrderInfo}
 import fi.spectrumlabs.db.writer.models.cardano.FullTxOutRef
 import fi.spectrumlabs.db.writer.models.orders.TxOutRef
 

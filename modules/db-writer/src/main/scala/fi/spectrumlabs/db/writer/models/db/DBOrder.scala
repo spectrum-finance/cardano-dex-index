@@ -1,8 +1,11 @@
 package fi.spectrumlabs.db.writer.models.db
 
 import fi.spectrumlabs.db.writer.classes.Key
+import fi.spectrumlabs.db.writer.models.orders.TxOutRef
 
 trait DBOrder {
+  val rewardPkh: String
+  val orderInputId: TxOutRef
   val creationTimestamp: Long
 }
 
