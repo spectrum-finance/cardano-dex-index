@@ -48,9 +48,12 @@ object DepositPair {
       c.values.toRight(DecodingFailure("Deposit pair should contains json array", List.empty)).flatMap { pairs =>
         for {
           first <- pairs.head.as[DepositPairElem]
-          second <- if (pairs.size == 2) pairs.last.as[DepositPairElem]
-                    else DecodingFailure("Deposit pair doesn't contain 2 elems", List.empty).asLeft
-        } yield DepositPair(first, second)
+          second <-
+            if (pairs.size == 2) pairs.last.as[DepositPairElem]
+            else DecodingFailure("Deposit pair doesn't contain 2 elems", List.empty).asLeft
+        } yield
+          if (first.coin.unAssetClass == AssetClass.ada) DepositPair(first, second) //todo drop when tracker will be fixed
+          else DepositPair(second, first)
       }
   }
 }
@@ -66,8 +69,9 @@ object DepositPairElem {
         pairElems =>
           for {
             coin <- pairElems.head.as[Coin]
-            value <- if (pairElems.size == 2) pairElems.last.as[Long]
-                     else DecodingFailure("Deposit pair doesn't contain 2 elems", List.empty).asLeft
+            value <-
+              if (pairElems.size == 2) pairElems.last.as[Long]
+              else DecodingFailure("Deposit pair doesn't contain 2 elems", List.empty).asLeft
           } yield DepositPairElem(coin, value)
       }
   }

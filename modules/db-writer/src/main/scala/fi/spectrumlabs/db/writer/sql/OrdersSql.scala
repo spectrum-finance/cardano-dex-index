@@ -1,8 +1,9 @@
 package fi.spectrumlabs.db.writer.sql
 
-import doobie.{LogHandler, Update}
+import cats.data.NonEmptyList
+import doobie.{Fragments, LogHandler, Update}
 import doobie.util.query.Query0
-import fi.spectrumlabs.db.writer.models.db.{Deposit, Redeem, Swap}
+import fi.spectrumlabs.db.writer.models.db.{AnyOrderDB, Deposit, Redeem, Swap}
 import doobie.implicits._
 import doobie.util.fragment.Fragment
 import doobie.util.update.Update0
@@ -11,6 +12,121 @@ import fi.spectrumlabs.db.writer.models.cardano.FullTxOutRef
 import fi.spectrumlabs.db.writer.models.orders.TxOutRef
 
 object OrdersSql {
+
+  def getAnyOrderDB(in: NonEmptyList[String], offset: Int, limit: Int): doobie.Query0[AnyOrderDB] = {
+    sql"""
+         |select * from (
+         |	select
+         |		order_input_id,
+         |		'swap',
+         |		pool_nft,
+         |		base as base,
+         |		base_amount as base_amount,
+         |  	quote as quote,
+         |  	min_quote_amount as min_quote_amount,
+         |  	actual_quote as actual_quote,
+         |  	null::text as coin_x,
+         |  	null::bigint as amount_x,
+         |  	null::text as coin_y,
+         |  	null::bigint as amount_y,
+         |  	null::text as coin_lq,
+         |  	null::bigint as amount_lq,
+         |  	null::bigint as ex_fee,
+         |  	null::text as coin_lq_r,
+         |  	null::bigint as amount_lq_r,
+         |  	null::text as coin_x_r,
+         |  	null::bigint as amount_x_r,
+         |  	null::text as coin_y_r,
+         |  	null::bigint as amount_y_r,
+         |  	null::bigint as ex_fee_r,
+         |  	reward_pkh,
+         |  	stake_pkh,
+         |  	creation_timestamp,
+         |  	execution_timestamp,
+         |  	order_status,
+         |  	redeem_output_Id,
+         |      pool_output_id
+         |  	from swap where ${Fragments.in(fr"reward_pkh", in)}
+         |  UNION
+         |  	select
+         |		order_input_id,
+         |		'deposit',
+         |		pool_nft,
+         |		null::text as base,
+         |		null::bigint as base_amount,
+         |  	null::text as quote,
+         |  	null::bigint as min_quote_amount,
+         |  	null::bigint as actual_quote,
+         |  	coin_x as coin_x,
+         |  	amount_x as amount_x,
+         |  	coin_y as coin_y,
+         |  	amount_y as amount_y,
+         |  	coin_lq as coin_lq,
+         |  	amount_lq as amount_lq,
+         |  	ex_fee as ex_fee,
+         |  	null::text as coin_lq_r,
+         |  	null::bigint as amount_lq_r,
+         |  	null::text as coin_x_r,
+         |  	null::bigint as amount_x_r,
+         |  	null::text as coin_y_r,
+         |  	null::bigint as amount_y_r,
+         |  	null::bigint as ex_fee_r,
+         |  	reward_pkh,
+         |  	stake_pkh,
+         |  	creation_timestamp,
+         |  	execution_timestamp,
+         |  	order_status,
+         |  	redeem_output_Id,
+         |      pool_output_id
+         |  	from deposit where ${Fragments.in(fr"reward_pkh", in)}
+         |  UNION
+         |  	select
+         |		order_input_id,
+         |		'redeem',
+         |		pool_nft,
+         |		null::text as base,
+         |		null::bigint as base_amount,
+         |  	null::text as quote,
+         |  	null::bigint as min_quote_amount,
+         |  	null::bigint as actual_quote,
+         |  	null::text as coin_x,
+         |  	null::bigint as amount_x,
+         |  	null::text as coin_y,
+         |  	null::bigint as amount_y,
+         |  	null::text as coin_lq,
+         |  	null::bigint as amount_lq,
+         |  	null::bigint as ex_fee,
+         |  	coin_lq::text as coin_lq_r,
+         |  	amount_lq as amount_lq_r,
+         |  	coin_x::text as coin_x_r,
+         |  	amount_x as amount_x_r,
+         |  	coin_y as coin_y_r,
+         |  	amount_y as amount_y_r,
+         |  	ex_fee as ex_fee_r,
+         |  	reward_pkh,
+         |  	stake_pkh,
+         |  	creation_timestamp,
+         |  	execution_timestamp,
+         |  	order_status,
+         |  	redeem_output_Id,
+         |      pool_output_id
+         |  	from redeem where ${Fragments.in(fr"reward_pkh", in)}
+         |) as x OFFSET $offset LIMIT $limit;
+       """.stripMargin.query[AnyOrderDB]
+  }
+
+  def addressCountDB(in: NonEmptyList[String]): doobie.Query0[Long] =
+    sql"""
+         |SELECT
+         |	sum(x.y)
+         |FROM (
+         |	SELECT count(1) AS y FROM swap where ${Fragments.in(fr"reward_pkh", in)}
+         |	UNION
+         |	SELECT count(1) AS y FROM deposit where ${Fragments.in(fr"reward_pkh", in)}
+         |	UNION
+         |	SELECT count(1) AS y FROM redeem where ${Fragments.in(fr"reward_pkh", in)}
+         |) AS x
+       """.stripMargin.query[Long]
 
   def getDepositOrderSQL(txOutRef: FullTxOutRef): Query0[Deposit] =
     sql"""select

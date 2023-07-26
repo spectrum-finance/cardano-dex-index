@@ -3,10 +3,11 @@ package fi.spectrumlabs.markets.api.v1.models
 import derevo.circe.magnolia.{decoder, encoder}
 import derevo.derive
 import fi.spectrumlabs.core.models.domain.{AssetAmount, AssetClass}
-import fi.spectrumlabs.db.writer.models.db.{DBOrder, Deposit, OrderStatus, Redeem, Swap}
+import fi.spectrumlabs.db.writer.models.db.{AnyOrderDB, DBOrder, Deposit, OrderStatus, OrderTypeDB, Redeem, Swap}
 import sttp.tapir.Schema
 import cats.syntax.option._
 import cats.syntax.show._
+import fi.spectrumlabs.core.AdaAssetClass
 import fi.spectrumlabs.markets.api.v1.endpoints.models.TxData
 
 import scala.concurrent.duration._
@@ -21,6 +22,110 @@ object UserOrderInfo {
   implicit val schema: Schema[UserOrderInfo] = Schema.derived
 
   val FiveMin = 1.minutes.toSeconds
+
+  val NeedRefundTime = 1.minutes.toSeconds
+
+  def fromAnyOrderDB(order: AnyOrderDB, curTime: Long): Option[UserOrderInfo] =
+    order.orderType match {
+      case OrderTypeDB.Swap =>
+        for {
+          base  <- order.swapBase
+          quote <- order.swapQuote
+          needRefund = curTime - order.creationTimestamp > NeedRefundTime
+          status =
+            if (order.poolOutputId.isDefined) OrderStatus.Evaluated
+            else if (order.redeemOutputId.isDefined) OrderStatus.Refunded
+            else if (needRefund) OrderStatus.NeedRefund
+            else OrderStatus.Pending
+        } yield SwapOrderInfo(
+          order.orderInputId.show,
+          order.poolId.value,
+          status,
+          base,
+          quote,
+          order.actualQuote.map(_.value.toString),
+          "ADA".some,
+          0L.some, //todo: replace with correct execution fee
+          order.rewardPkh,
+          order.stakePkh.map(_.unStakePubKeyHash.getPubKeyHash),
+          TxData(order.orderInputId.txOutRefId.getTxId, order.creationTimestamp),
+          for {
+            id <- order.redeemOutputId.map(_.txOutRefId.getTxId)
+            ts <- order.executionTimestamp
+          } yield TxData(id, ts),
+          for {
+            id <- order.poolOutputId.map(_.txOutRefId.getTxId)
+            ts <- order.executionTimestamp
+          } yield TxData(id, ts)
+        )
+      case OrderTypeDB.Redeem =>
+        for {
+          lq  <- order.redeemLq
+          fee <- order.redeemExFee
+          needRefund = curTime - order.creationTimestamp > NeedRefundTime
+          status =
+            if (order.poolOutputId.isDefined) OrderStatus.Evaluated
+            else if (order.redeemOutputId.isDefined) OrderStatus.Refunded
+            else if (needRefund) OrderStatus.NeedRefund
+            else OrderStatus.Pending
+        } yield RedeemOrderInfo(
+          order.orderInputId.show,
+          order.poolId.value,
+          status,
+          lq,
+          order.redeemX,
+          order.redeemY,
+          "ADA",
+          fee.value,
+          order.rewardPkh,
+          order.stakePkh.map(_.unStakePubKeyHash.getPubKeyHash),
+          TxData(order.orderInputId.txOutRefId.getTxId, order.creationTimestamp),
+          for {
+            id <- order.redeemOutputId.map(_.txOutRefId.getTxId)
+            ts <- order.executionTimestamp
+          } yield TxData(id, ts),
+          for {
+            id <- order.poolOutputId.map(_.txOutRefId.getTxId)
+            ts <- order.executionTimestamp
+          } yield TxData(id, ts)
+        )
+      case OrderTypeDB.Deposit =>
+        for {
+          x   <- order.depositX
+          y   <- order.depositY
+          fee <- order.depositExFee
+          needRefund = curTime - order.creationTimestamp > NeedRefundTime
+          status =
+            if (order.poolOutputId.isDefined) OrderStatus.Evaluated
+            else if (order.redeemOutputId.isDefined) OrderStatus.Refunded
+            else if (needRefund) OrderStatus.NeedRefund
+            else OrderStatus.Pending
+        } yield DepositOrderInfo(
+          order.orderInputId.show,
+          order.poolId.value,
+          status,
+          if (x.asset == AdaAssetClass) x else y, //todo drop when tracker will be fixed
+          if (y.asset == AdaAssetClass) x else y,
+          if (x.asset == AdaAssetClass) x.amount.value.toString.some
+          else y.amount.value.toString.some,
+          if (y.asset == AdaAssetClass) x.amount.value.toString.some
+          else y.amount.value.toString.some,
+          order.depositLq,
+          "ADA",
+          fee.value,
+          order.rewardPkh,
+          order.stakePkh.map(_.unStakePubKeyHash.getPubKeyHash),
+          TxData(order.orderInputId.txOutRefId.getTxId, order.creationTimestamp),
+          for {
+            id <- order.redeemOutputId.map(_.txOutRefId.getTxId)
+            ts <- order.executionTimestamp
+          } yield TxData(id, ts),
+          for {
+            id <- order.poolOutputId.map(_.txOutRefId.getTxId)
+            ts <- order.executionTimestamp
+          } yield TxData(id, ts)
+        )
+    }
 
   //todo: check values
   def fromDbOrder(dbOrder: DBOrder, curTime: Long, refundOnly: Boolean, pendingOnly: Boolean): Option[UserOrderInfo] =
