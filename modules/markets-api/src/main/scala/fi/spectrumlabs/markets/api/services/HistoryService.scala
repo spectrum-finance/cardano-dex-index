@@ -20,6 +20,8 @@ import scala.concurrent.duration.SECONDS
 trait HistoryService[F[_]] {
 
   def getUserHistory(query: HistoryApiQuery, paging: Paging, window: TimeWindow): F[OrderHistoryResponse]
+
+  def getUserHistoryV2(query: HistoryApiQuery, paging: Paging, window: TimeWindow): F[OrderHistoryResponse]
 }
 
 object HistoryService {
@@ -32,6 +34,16 @@ object HistoryService {
     }
 
   final private class Live[F[_]: Monad: Clock](ordersRepository: OrdersRepository[F]) extends HistoryService[F] {
+    def getUserHistoryV2(query: HistoryApiQuery, paging: Paging, window: TimeWindow): F[OrderHistoryResponse] =
+      ordersRepository.getAnyOrder(query.userPkhs, paging.offset, paging.limit).flatMap { orders =>
+        ordersRepository.addressCount(query.userPkhs).flatMap { count =>
+          Clock[F].realTime(SECONDS).map { curTime =>
+            val res = orders.flatMap(x => UserOrderInfo.fromAnyOrderDB(x, curTime))
+            OrderHistoryResponse(res, count.getOrElse(0))
+          }
+        }
+      }
+
     override def getUserHistory(query: HistoryApiQuery, paging: Paging, window: TimeWindow): F[OrderHistoryResponse] =
       query.userPkhs
         .flatTraverse(x =>
@@ -65,5 +77,9 @@ object HistoryService {
       window: TimeWindow
     ): Mid[F, OrderHistoryResponse] =
       info"Going to get user history for pkhs: ${query.userPkhs.toString()}" *> _
+
+    def getUserHistoryV2(query: HistoryApiQuery, paging: Paging, window: TimeWindow): Mid[F, OrderHistoryResponse] =
+      info"Going to get user history for pkhs: ${query.userPkhs.toString()}" *> _
+
   }
 }

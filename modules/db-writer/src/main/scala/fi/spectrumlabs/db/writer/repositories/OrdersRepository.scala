@@ -1,15 +1,17 @@
 package fi.spectrumlabs.db.writer.repositories
 
+import cats.data.NonEmptyList
 import cats.{Functor, Monad}
 import derevo.derive
 import doobie.ConnectionIO
-import fi.spectrumlabs.db.writer.models.db.DBOrder
+import fi.spectrumlabs.db.writer.models.db.{AnyOrderDB, DBOrder}
 import tofu.doobie.LiftConnectionIO
 import tofu.doobie.transactor.Txr
 import tofu.higherKind.Mid
 import tofu.higherKind.derived.representableK
 import tofu.logging.{Logging, Logs}
 import tofu.syntax.monadic._
+import cats.syntax.option._
 import cats.tagless.syntax.functorK._
 import fi.spectrumlabs.db.writer.classes.OrdersInfo.{
   ExecutedDepositOrderInfo,
@@ -44,6 +46,10 @@ trait OrdersRepository[F[_]] {
   def refundRedeemOrder(orderTxOutRef: TxOutRef, refundTxOutRef: TxOutRef, timestamp: Long): F[Int]
 
   def deleteExecutedRedeemOrder(txOutRef: String): F[Int]
+
+  def getAnyOrder(pkh: List[String], offset: Int, limit: Int): F[List[AnyOrderDB]]
+
+  def addressCount(pkh: List[String]): F[Option[Long]]
 }
 
 object OrdersRepository {
@@ -59,6 +65,18 @@ object OrdersRepository {
   final private class LiveCIO extends OrdersRepository[ConnectionIO] {
 
     import fi.spectrumlabs.db.writer.sql.OrdersSql._
+
+    def getAnyOrder(pkh: List[String], offset: Int, limit: Int): ConnectionIO[List[AnyOrderDB]] =
+      NonEmptyList.fromList(pkh) match {
+        case Some(value) => getAnyOrderDB(value, offset, limit).to[List]
+        case None        => List.empty[AnyOrderDB].pure[ConnectionIO]
+      }
+
+    def addressCount(pkh: List[String]): ConnectionIO[Option[Long]] =
+      NonEmptyList.fromList(pkh) match {
+        case Some(value) => addressCountDB(value).option
+        case None => none[Long].pure[ConnectionIO]
+      }
 
     override def getOrder(txOutRef: FullTxOutRef): ConnectionIO[Option[DBOrder]] = for {
       swapOpt    <- getSwapOrderSQL(txOutRef).option
@@ -165,5 +183,11 @@ object OrdersRepository {
       timestamp: Long
     ): Mid[F, Int] =
       info"Going to set redeem order $orderTxOutRef from db to refund status" *> _
+
+    def getAnyOrder(pkh: List[String], offset: Int, limit: Int): Mid[F, List[AnyOrderDB]] =
+      info"Going to get orders for $pkh offset: $offset limit $limit" *> _
+
+    def addressCount(pkh: List[String]): Mid[F, Option[Long]] =
+      info"Going to get orders count for $pkh" *> _
   }
 }

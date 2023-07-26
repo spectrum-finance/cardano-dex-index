@@ -11,11 +11,22 @@ object HistoryEndpoints {
 
   val pathPrefix = "history"
 
-  def endpoints: List[Endpoint[_, _, _, _]] = orderHistoryE :: Nil
+  def endpoints: List[Endpoint[_, _, _, _]] = orderHistoryE :: orderHistoryV2E :: Nil
 
   def orderHistoryE: Endpoint[(Paging, TimeWindow, HistoryApiQuery), HttpError, OrderHistoryResponse, Any] =
     baseEndpoint.post
       .in(pathPrefix / "order")
+      .in(paging)
+      .in(timeWindow)
+      .in(jsonBody[HistoryApiQuery])
+      .out(jsonBody[OrderHistoryResponse])
+      .tag(pathPrefix)
+      .name("Orders history")
+      .description("Provides orders history with different filters by given addresses")
+
+  def orderHistoryV2E: Endpoint[(Paging, TimeWindow, HistoryApiQuery), HttpError, OrderHistoryResponse, Any] =
+    baseEndpoint.post
+      .in(pathPrefix / "order" / "v2")
       .in(paging)
       .in(timeWindow)
       .in(jsonBody[HistoryApiQuery])
