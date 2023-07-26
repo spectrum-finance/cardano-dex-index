@@ -20,19 +20,19 @@ trait MempoolService[F[_]] {
 
 object MempoolService {
 
-  def make[I[+_]: Monad, F[_]: Clock: Monad](implicit redis: Plain[F]): I[MempoolService[F]] =
-    new Live[F].pure[I]
+  def make[I[+_]: Monad, F[_]: Clock: Monad](redis: Plain[F]): I[MempoolService[F]] =
+    new Live[F](redis).pure[I]
 
-  final private class Live[F[_]: Monad: Clock](implicit redis: Plain[F]) extends MempoolService[F] {
+  final private class Live[F[_]: Monad: Clock](redis: Plain[F]) extends MempoolService[F] {
     override def getUserOrders(req: HistoryApiQuery): F[List[UserOrderInfo]] =
-      req.userPkhs.flatTraverse { key =>
+      req.userPkhs.distinct.flatTraverse { key =>
         for {
           curTime       <- Clock[F].realTime(MILLISECONDS)
           depositOrders <- extractOrders[Deposit](Deposit.DepositRedisPrefix, key)
           swapOrders    <- extractOrders[Swap](Swap.SwapRedisPrefix, key)
           redeemOrders  <- extractOrders[Redeem](Redeem.RedeemRedisPrefix, key)
           orders = (depositOrders ++ swapOrders ++ redeemOrders).flatMap(order =>
-            UserOrderInfo.fromDbOrder(order, curTime, false, false)
+            UserOrderInfo.fromDbOrder(order, curTime, false, true)
           )
         } yield orders
       }

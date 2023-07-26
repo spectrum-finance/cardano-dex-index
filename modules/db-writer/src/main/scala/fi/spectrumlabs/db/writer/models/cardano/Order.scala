@@ -81,6 +81,13 @@ object Order {
         case redeem: RedeemOrder => Redeem.RedeemRedisPrefix ++ redeem.order.action.redeemRewardPkh.getPubKeyHash
       }
     }
+
+    override def getExtendedKey(t: Order): String =
+      t match {
+        case swap: SwapOrder => getKey(t) ++ swap.fullTxOut.fullTxOutRef.show
+        case deposit: DepositOrder => getKey(t) ++ deposit.fullTxOut.fullTxOutRef.show
+        case redeem: RedeemOrder => getKey(t) ++ redeem.fullTxOut.fullTxOutRef.show
+      }
   }
 
   implicit def commonDecoder: Decoder[Order] = new Decoder[Order] {

@@ -16,6 +16,11 @@ final case class FullTxOutValue(getValue: List[Values]) {
   // return token value in next format: (policyId(base16encoding).tokenName -> tokenValue)
   def find(coin: Coin): Option[(String, Long)] =
     flattenValue.find(_._1 == coin.value)
+
+  def get(cs: CurrencySymbol, tn: TokenName): Option[TokenValue] =
+    getValue
+      .find(_.curSymbol == cs)
+      .flatMap(_.tokens.find(_.tokenName == tn))
 }
 
 object FullTxOutValue {

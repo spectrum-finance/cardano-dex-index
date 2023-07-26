@@ -35,11 +35,19 @@ object Values {
 @derive(encoder, decoder)
 final case class CurrencySymbol(unCurrencySymbol: String)
 
+object CurrencySymbol {
+  val Ada = CurrencySymbol("")
+}
+
 @derive(encoder)
 final case class TokenValue(tokenName: TokenName, value: Long)
 
 @derive(encoder, decoder)
 final case class TokenName(unTokenName: String)
+
+object TokenName {
+  val Ada = TokenName("")
+}
 
 object TokenValue {
 

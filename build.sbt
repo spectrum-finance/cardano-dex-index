@@ -77,6 +77,7 @@ lazy val dbWriter = project
   .in(file("modules/db-writer"))
   .withId("cardano-db-writer")
   .settings(name := "cardano-db-writer")
+  .settings(javaOptions += "-Xmx2G")
   .settings(commonSettings)
   .settings(libraryDependencies ++= List(
     Libraries.tofuZio,
@@ -84,7 +85,8 @@ lazy val dbWriter = project
     Libraries.tofuFs2,
     Libraries.mouse,
     Libraries.enumeratum,
-    Libraries.enumeratumCirce
+    Libraries.enumeratumCirce,
+    "io.monix" %% "monix" % "3.4.1"
   ))
   .dependsOn(core)
   .settings(assembly / assemblyJarName := "indexes-writer.jar")

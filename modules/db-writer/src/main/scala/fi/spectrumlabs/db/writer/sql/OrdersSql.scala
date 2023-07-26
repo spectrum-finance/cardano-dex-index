@@ -7,13 +7,16 @@ import fi.spectrumlabs.db.writer.models.db.{AnyOrderDB, Deposit, Redeem, Swap}
 import doobie.implicits._
 import doobie.util.fragment.Fragment
 import doobie.util.update.Update0
-import fi.spectrumlabs.db.writer.classes.OrdersInfo.{ExecutedDepositOrderInfo, ExecutedRedeemOrderInfo, ExecutedSwapOrderInfo}
+import fi.spectrumlabs.db.writer.classes.ExecutedOrderInfo.{ExecutedDepositOrderInfo, ExecutedRedeemOrderInfo, ExecutedSwapOrderInfo}
 import fi.spectrumlabs.db.writer.models.cardano.FullTxOutRef
 import fi.spectrumlabs.db.writer.models.orders.TxOutRef
 
 object OrdersSql {
 
-  def getAnyOrderDB(in: NonEmptyList[String], offset: Int, limit: Int): doobie.Query0[AnyOrderDB] = {
+  def getAnyOrderDB(in: NonEmptyList[String], offset: Int, limit: Int, exclude: List[String]): doobie.Query0[AnyOrderDB] = {
+   def excludeC = NonEmptyList.fromList(exclude).map(x => fr"and" ++ Fragments.notIn(fr"order_input_id", x))
+     .getOrElse(Fragment.empty)
+
     sql"""
          |select * from (
          |	select
@@ -31,14 +34,13 @@ object OrdersSql {
          |  	null::bigint as amount_y,
          |  	null::text as coin_lq,
          |  	null::bigint as amount_lq,
-         |  	null::bigint as ex_fee,
          |  	null::text as coin_lq_r,
          |  	null::bigint as amount_lq_r,
          |  	null::text as coin_x_r,
          |  	null::bigint as amount_x_r,
          |  	null::text as coin_y_r,
          |  	null::bigint as amount_y_r,
-         |  	null::bigint as ex_fee_r,
+  	     |      ex_fee,
          |  	reward_pkh,
          |  	stake_pkh,
          |  	creation_timestamp,
@@ -46,7 +48,7 @@ object OrdersSql {
          |  	order_status,
          |  	redeem_output_Id,
          |      pool_output_id
-         |  	from swap where ${Fragments.in(fr"reward_pkh", in)}
+         |  	from swap where ${Fragments.in(fr"reward_pkh", in)} ${excludeC}
          |  UNION
          |  	select
          |		order_input_id,
@@ -63,14 +65,13 @@ object OrdersSql {
          |  	amount_y as amount_y,
          |  	coin_lq as coin_lq,
          |  	amount_lq as amount_lq,
-         |  	ex_fee as ex_fee,
          |  	null::text as coin_lq_r,
          |  	null::bigint as amount_lq_r,
          |  	null::text as coin_x_r,
          |  	null::bigint as amount_x_r,
          |  	null::text as coin_y_r,
          |  	null::bigint as amount_y_r,
-         |  	null::bigint as ex_fee_r,
+  	     |      ex_fee,
          |  	reward_pkh,
          |  	stake_pkh,
          |  	creation_timestamp,
@@ -78,7 +79,7 @@ object OrdersSql {
          |  	order_status,
          |  	redeem_output_Id,
          |      pool_output_id
-         |  	from deposit where ${Fragments.in(fr"reward_pkh", in)}
+         |  	from deposit where ${Fragments.in(fr"reward_pkh", in)} ${excludeC}
          |  UNION
          |  	select
          |		order_input_id,
@@ -95,14 +96,13 @@ object OrdersSql {
          |  	null::bigint as amount_y,
          |  	null::text as coin_lq,
          |  	null::bigint as amount_lq,
-         |  	null::bigint as ex_fee,
          |  	coin_lq::text as coin_lq_r,
          |  	amount_lq as amount_lq_r,
          |  	coin_x::text as coin_x_r,
          |  	amount_x as amount_x_r,
          |  	coin_y as coin_y_r,
          |  	amount_y as amount_y_r,
-         |  	ex_fee as ex_fee_r,
+         |  	ex_fee,
          |  	reward_pkh,
          |  	stake_pkh,
          |  	creation_timestamp,
@@ -110,8 +110,10 @@ object OrdersSql {
          |  	order_status,
          |  	redeem_output_Id,
          |      pool_output_id
-         |  	from redeem where ${Fragments.in(fr"reward_pkh", in)}
-         |) as x OFFSET $offset LIMIT $limit;
+         |  	from redeem where ${Fragments.in(fr"reward_pkh", in)} ${excludeC}
+         |) as x
+         |ORDER BY x.creation_timestamp DESC
+         |OFFSET $offset LIMIT $limit;
        """.stripMargin.query[AnyOrderDB]
   }
 
@@ -126,6 +128,28 @@ object OrdersSql {
          |	UNION
          |	SELECT count(1) AS y FROM redeem where ${Fragments.in(fr"reward_pkh", in)}
          |) AS x
+       """.stripMargin.query[Long]
+
+  def registerAddressCount(in: NonEmptyList[String]): doobie.Query0[Long] =
+    sql"""
+         |select sum(o.y) from (
+         |	SELECT count(1) AS y FROM swap where ${Fragments.in(fr"reward_pkh", in)} and order_status = 'Register' ${refundOnlyNotF}
+         |		UNION
+         |	SELECT count(1) AS y FROM deposit where ${Fragments.in(fr"reward_pkh", in)} and order_status = 'Register' ${refundOnlyNotF}
+         |		UNION
+         |	SELECT count(1) AS y FROM redeem where ${Fragments.in(fr"reward_pkh", in)} and order_status = 'Register' ${refundOnlyNotF}
+         |) o;
+       """.stripMargin.query[Long]
+
+  def needRefundAddressCount(in: NonEmptyList[String]): doobie.Query0[Long] =
+    sql"""
+         |select sum(o.y) from (
+         |	SELECT count(1) AS y FROM swap where ${Fragments.in(fr"reward_pkh", in)} ${refundOnlyF(true)}
+         |		UNION
+         |	SELECT count(1) AS y FROM deposit where ${Fragments.in(fr"reward_pkh", in)} ${refundOnlyF(true)}
+         |		UNION
+         |	SELECT count(1) AS y FROM redeem where ${Fragments.in(fr"reward_pkh", in)} ${refundOnlyF(true)}
+         |) o;
        """.stripMargin.query[Long]
 
   def getDepositOrderSQL(txOutRef: FullTxOutRef): Query0[Deposit] =
@@ -173,24 +197,33 @@ object OrdersSql {
          |     order_status from deposit where reward_pkh = $userPkh ${refundOnlyF(refundOnly)} ${pendingOnlyF(pendingOnly)}""".stripMargin.query
 
   def getSwapOrderSQL(txOutRef: FullTxOutRef): Query0[Swap] =
-    sql"""select base,
-          |  quote,
-          |  pool_nft,
-          |  ex_fee_per_token_num,
-          |  ex_fee_per_token_den,
-          |  reward_pkh,
-          |  stake_pkh,
-          |  base_amount,
-          |  actual_quote,
-          |  min_quote_amount,
-          |  order_input_id,
-          |  user_output_id,
-          |  pool_input_id,
-          |  pool_output_id,
-          |  redeem_output_Id,
-          |  creation_timestamp,
-          |  execution_timestamp,
-          |  order_status from swap where order_input_id = $txOutRef""".stripMargin
+    sql"""
+         |SELECT
+         |	base,
+         |	quote,
+         |	pool_nft,
+         |	ex_fee_per_token_num,
+         |	ex_fee_per_token_den,
+         |	reward_pkh,
+         |	stake_pkh,
+         |	base_amount,
+         |	actual_quote,
+         |	min_quote_amount,
+         |	order_input_id,
+         |	user_output_id,
+         |	pool_input_id,
+         |	pool_output_id,
+         |	redeem_output_Id,
+         |	creation_timestamp,
+         |	execution_timestamp,
+         |	order_status,
+         |	original_ada_amount,
+	     |  ex_fee
+         |FROM
+         |	swap
+         |WHERE
+         |	order_input_id = $txOutRef
+       """.stripMargin
       .query[Swap]
 
   def getUserSwapOrdersSQL(userPkh: String, refundOnly: Boolean,  pendingOnly: Boolean): Query0[Swap] =
@@ -211,28 +244,35 @@ object OrdersSql {
          |  redeem_output_Id,
          |  creation_timestamp,
          |  execution_timestamp,
-         |  order_status from swap where reward_pkh = $userPkh ${refundOnlyF(refundOnly)} ${pendingOnlyF(pendingOnly)}""".stripMargin
+         |  order_status, original_ada_amount, ex_fee from swap where reward_pkh = $userPkh ${refundOnlyF(refundOnly)} ${pendingOnlyF(pendingOnly)}""".stripMargin
       .query[Swap]
 
   def getRedeemOrderSQL(txOutRef: FullTxOutRef): Query0[Redeem] =
-    sql"""select pool_nft,
-          |      coin_x,
-          |      coin_y,
-          |      coin_lq,
-          |      amount_x,
-          |      amount_y,
-          |      amount_lq,
-          |      ex_fee,
-          |      reward_pkh,
-          |      stake_pkh,
-          |      order_input_id,
-          |      user_output_id,
-          |      pool_input_id,
-          |      pool_output_id,
-          |      redeem_output_Id,
-          |      creation_timestamp,
-          |      execution_timestamp,
-          |      order_status from redeem where order_input_id = $txOutRef""".stripMargin.query
+    sql"""|SELECT
+          |	    pool_nft,
+          |	    coin_x,
+          |	    coin_y,
+          |	    coin_lq,
+          |	    amount_x,
+          |	    amount_y,
+          |	    amount_lq,
+          |	    ex_fee,
+          |	    reward_pkh,
+          |	    stake_pkh,
+          |	    order_input_id,
+          |	    user_output_id,
+          |	    pool_input_id,
+          |	    pool_output_id,
+          |	    redeem_output_Id,
+          |	    creation_timestamp,
+          |	    execution_timestamp,
+          |	    order_status,
+	      |     refundable_fee
+          |FROM
+          |	    redeem
+          |WHERE
+          |	    order_input_id = $txOutRef
+    """.stripMargin.query
 
   def getUserRedeemOrdersSQL(userPkh: String, refundOnly: Boolean,  pendingOnly: Boolean): Query0[Redeem] =
     sql"""select pool_nft,
@@ -252,7 +292,7 @@ object OrdersSql {
          |      redeem_output_Id,
          |      creation_timestamp,
          |      execution_timestamp,
-         |      order_status from redeem where reward_pkh = $userPkh ${refundOnlyF(refundOnly)} ${pendingOnlyF(pendingOnly)}""".stripMargin.query
+         |      order_status, refundable_fee from redeem where reward_pkh = $userPkh ${refundOnlyF(refundOnly)} ${pendingOnlyF(pendingOnly)}""".stripMargin.query
 
   def pendingOnlyF(pendingOnly: Boolean): Fragment =
     if (pendingOnly) {
@@ -264,11 +304,14 @@ object OrdersSql {
       fr"and execution_timestamp is null and creation_timestamp + 60 < extract(epoch from now())::INTEGER"
     } else Fragment.empty
 
+  def refundOnlyNotF: Fragment =
+    fr"and execution_timestamp is null and creation_timestamp + 60 > extract(epoch from now())::INTEGER"
+
   def updateExecutedSwapOrderSQL(swapOrderInfo: ExecutedSwapOrderInfo): Update0 =
     Update[ExecutedSwapOrderInfo](
       s"""
          |update swap
-         |set actual_quote=?, user_output_id=?, pool_input_id=?, pool_output_Id=?, execution_timestamp=?, order_status='Evaluated'
+         |set actual_quote=?, user_output_id=?, pool_input_id=?, pool_output_Id=?, execution_timestamp=?, order_status='Evaluated', ex_fee=?
          |where order_input_id=?""".stripMargin
     ).toUpdate0(swapOrderInfo)
 
@@ -292,7 +335,7 @@ object OrdersSql {
     Update[ExecutedDepositOrderInfo](
       s"""
          |update deposit
-         |set amount_lq=?, user_output_id=?, pool_input_id=?, pool_output_Id=?, execution_timestamp=?, order_status='Evaluated'
+         |set amount_lq=?, user_output_id=?, pool_input_id=?, pool_output_Id=?, execution_timestamp=?, order_status='Evaluated', amount_x=?
          |where order_input_id=?""".stripMargin
     ).toUpdate0(depositOrderInfo)
 

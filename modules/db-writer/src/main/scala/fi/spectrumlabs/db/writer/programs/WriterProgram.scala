@@ -23,6 +23,6 @@ object WriterProgram {
   ) extends WriterProgram[F] {
 
     def run: F[Unit] =
-      emits(handlers.handlers.toList.map(_.handle)).parFlatten(config.maxConcurrent).drain
+      emits(handlers.handlers.toList.map(_.handle)).parFlattenUnbounded.drain
   }
 }

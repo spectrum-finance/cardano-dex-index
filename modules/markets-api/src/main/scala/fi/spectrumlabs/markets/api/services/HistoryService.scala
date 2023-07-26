@@ -6,7 +6,7 @@ import derevo.derive
 import fi.spectrumlabs.db.writer.models.db.DBOrder
 import fi.spectrumlabs.db.writer.repositories.OrdersRepository
 import fi.spectrumlabs.markets.api.v1.endpoints.models.{HistoryApiQuery, Paging, TimeWindow}
-import fi.spectrumlabs.markets.api.v1.models.{OrderHistoryResponse, UserOrderInfo}
+import fi.spectrumlabs.markets.api.v1.models.{OrderHistoryResponse, PendingNeedRefundResponse, UserOrderInfo}
 import tofu.higherKind.Mid
 import tofu.higherKind.derived.representableK
 import cats.syntax.traverse._
@@ -22,30 +22,42 @@ trait HistoryService[F[_]] {
   def getUserHistory(query: HistoryApiQuery, paging: Paging, window: TimeWindow): F[OrderHistoryResponse]
 
   def getUserHistoryV2(query: HistoryApiQuery, paging: Paging, window: TimeWindow): F[OrderHistoryResponse]
+
+  def pendingNeedRefundCount(query: HistoryApiQuery): F[PendingNeedRefundResponse]
 }
 
 object HistoryService {
 
   def make[I[_]: Functor, F[_]: Monad: Clock](
-    ordersRepository: OrdersRepository[F]
+    ordersRepository: OrdersRepository[F],
+    mempoolService: MempoolService[F]
   )(implicit logs: Logs[I, F]): I[HistoryService[F]] =
     logs.forService[HistoryService[F]].map { implicit logging =>
-      new HistoryServiceTracingMid[F] attach new Live[F](ordersRepository)
+      new HistoryServiceTracingMid[F] attach new Live[F](ordersRepository, mempoolService)
     }
 
-  final private class Live[F[_]: Monad: Clock](ordersRepository: OrdersRepository[F]) extends HistoryService[F] {
+  final private class Live[F[_]: Monad: Clock](ordersRepository: OrdersRepository[F], mempoolService: MempoolService[F])
+    extends HistoryService[F] {
+
+    def pendingNeedRefundCount(query: HistoryApiQuery): F[PendingNeedRefundResponse] =
+      ordersRepository.pendingNeedRefundCount(query.userPkhs.distinct).map { res =>
+        PendingNeedRefundResponse(res._2.getOrElse(0), res._1.getOrElse(0))
+      }
+
     def getUserHistoryV2(query: HistoryApiQuery, paging: Paging, window: TimeWindow): F[OrderHistoryResponse] =
-      ordersRepository.getAnyOrder(query.userPkhs, paging.offset, paging.limit).flatMap { orders =>
-        ordersRepository.addressCount(query.userPkhs).flatMap { count =>
-          Clock[F].realTime(SECONDS).map { curTime =>
-            val res = orders.flatMap(x => UserOrderInfo.fromAnyOrderDB(x, curTime))
-            OrderHistoryResponse(res, count.getOrElse(0))
+      mempoolService.getUserOrders(query).flatMap { exclude =>
+        ordersRepository.getAnyOrder(query.userPkhs.distinct, paging.offset, paging.limit, exclude.map(_.id)).flatMap { orders =>
+          ordersRepository.addressCount(query.userPkhs.distinct).flatMap { count =>
+            Clock[F].realTime(SECONDS).map { curTime =>
+              val res = orders.flatMap(x => UserOrderInfo.fromAnyOrderDB(x, curTime))
+              OrderHistoryResponse(res, count.getOrElse(0))
+            }
           }
         }
       }
 
     override def getUserHistory(query: HistoryApiQuery, paging: Paging, window: TimeWindow): F[OrderHistoryResponse] =
-      query.userPkhs
+      query.userPkhs.distinct
         .flatTraverse(x =>
           ordersRepository.getUserOrdersByPkh(
             x,
@@ -62,7 +74,7 @@ object HistoryService {
                   _,
                   curTime,
                   query.refundOnly.getOrElse(false),
-                  query.pendingOnly.getOrElse(false)
+                  false
                 )
               )
             OrderHistoryResponse(finalOrders.distinct.take(paging.limit), finalOrders.distinct.length)
@@ -76,10 +88,14 @@ object HistoryService {
       paging: Paging,
       window: TimeWindow
     ): Mid[F, OrderHistoryResponse] =
-      info"Going to get user history for pkhs: ${query.userPkhs.toString()}" *> _
+      trace"Going to get user history for pkhs: ${query.userPkhs.toString()}" *> _
 
     def getUserHistoryV2(query: HistoryApiQuery, paging: Paging, window: TimeWindow): Mid[F, OrderHistoryResponse] =
-      info"Going to get user history for pkhs: ${query.userPkhs.toString()}" *> _
+      trace"Going to get user history for pkhs: ${query.userPkhs.toString()}" *> _
+
+
+    def pendingNeedRefundCount(query: HistoryApiQuery): Mid[F, PendingNeedRefundResponse] =
+      trace"Going to get pendingNeedRefundCount for pkhs: ${query.userPkhs.toString()}" *> _
 
   }
 }

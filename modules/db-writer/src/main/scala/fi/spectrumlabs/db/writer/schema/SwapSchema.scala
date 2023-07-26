@@ -23,6 +23,8 @@ class SwapSchema extends Schema[Swap] {
     "redeem_output_Id",
     "creation_timestamp",
     "execution_timestamp",
-    "order_status"
+    "order_status",
+    "original_ada_amount",
+    "ex_fee"
   )
 }

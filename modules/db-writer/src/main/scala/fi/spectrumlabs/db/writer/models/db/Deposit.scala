@@ -40,6 +40,8 @@ object Deposit {
 
   implicit val key: Key[Deposit] = new Key[Deposit] {
     override def getKey(in: Deposit): String = DepositRedisPrefix ++ in.rewardPkh
+
+    def getExtendedKey(in: Deposit) = getKey(in) ++ in.orderInputId.show
   }
 
   def streamingSchema(config: CardanoConfig): ToSchema[Order, Option[Deposit]] = {

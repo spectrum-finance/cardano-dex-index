@@ -17,14 +17,14 @@ object RealPrice {
 
   def calculate(
     baseAssetAmount: Long,
-    baseAssetDecimals: Int,
+    baseAssetDecimals: Option[Int],
     quoteAssetAmount: Long,
-    quoteAssetDecimals: Int
+    quoteAssetDecimals: Option[Int]
   ): RealPrice =
     RealPrice(
       BigDecimal(quoteAssetAmount) / baseAssetAmount * BigDecimal(10)
         .pow(
-          baseAssetDecimals - quoteAssetDecimals
+          baseAssetDecimals.getOrElse(0) - quoteAssetDecimals.getOrElse(0)
         )
     )
 

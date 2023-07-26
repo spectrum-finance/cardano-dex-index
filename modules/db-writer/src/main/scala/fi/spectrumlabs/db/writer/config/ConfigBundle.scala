@@ -10,6 +10,8 @@ import tofu.optics.macros.ClassyOptics
 import fi.spectrumlabs.core.pg.PgConfig
 import fi.spectrumlabs.core.redis.RedisConfig
 
+import scala.concurrent.duration.FiniteDuration
+
 @ClassyOptics
 @derive(loggable, pureconfigReader)
 final case class ConfigBundle(
@@ -18,10 +20,11 @@ final case class ConfigBundle(
   executedOpsConsumer: ConsumerConfig,
   mempoolOpsConsumer: ConsumerConfig,
   poolsConsumer: ConsumerConfig,
-  redisApiCache: RedisConfig,
+  redisMempool: RedisConfig,
   kafka: KafkaConfig,
   writer: WriterConfig,
-  cardanoConfig: CardanoConfig
+  cardanoConfig: CardanoConfig,
+  mempoolTtl: FiniteDuration
 )
 
 object ConfigBundle extends WithContext.Companion[ConfigBundle] with ConfigBundleCompanion[ConfigBundle]
