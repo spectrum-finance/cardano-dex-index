@@ -7,6 +7,7 @@ import fi.spectrumlabs.db.writer.models.db.{AnyOrderDB, DBOrder, Deposit, OrderS
 import sttp.tapir.Schema
 import cats.syntax.option._
 import cats.syntax.show._
+import fi.spectrumlabs.core.AdaAssetClass
 import fi.spectrumlabs.markets.api.v1.endpoints.models.TxData
 
 import scala.concurrent.duration._
@@ -103,10 +104,12 @@ object UserOrderInfo {
           order.orderInputId.show,
           order.poolId.value,
           status,
-          x,
-          y,
-          x.amount.value.toString.some,
-          y.amount.value.toString.some,
+          if (x.asset == AdaAssetClass) x else y,
+          if (y.asset == AdaAssetClass) x else y,
+          if (x.asset == AdaAssetClass) x.amount.value.toString.some
+          else y.amount.value.toString.some,
+          if (y.asset == AdaAssetClass) x.amount.value.toString.some
+          else y.amount.value.toString.some,
           order.depositLq,
           "ADA",
           fee.value,
