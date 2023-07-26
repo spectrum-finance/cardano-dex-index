@@ -82,22 +82,10 @@ object App extends EnvApp[AppContext] {
       implicit0(redis: RedisCommands[RunF, Array[Byte], Array[Byte]]) <-
         mkRedis[Array[Byte], Array[Byte], RunF](configs.redisApiCache).mapK(iso.tof)
       implicit0(persistBundle: PersistBundle[RunF]) = PersistBundle.create[xa.DB, RunF]
-      ordersRepo   <- Resource.eval(OrdersRepository.make[InitF, RunF, xa.DB])
-      inputsRepo   <- Resource.eval(InputsRepository.make[InitF, RunF, xa.DB])
-      outputsRepo  <- Resource.eval(OutputsRepository.make[InitF, RunF, xa.DB])
-      poolsRepo    <- Resource.eval(PoolsRepository.make[InitF, RunF, xa.DB])
-      txRepository <- Resource.eval(TransactionRepository.make[InitF, RunF, xa.DB])
-      txHandler <- makeTxHandler(
-        configs.writer,
-        configs.cardanoConfig,
-        ordersRepo,
-        inputsRepo,
-        outputsRepo
-      )
       mempoolOpsHandler  <- makeMempoolOrdersHandler(configs.writer, configs.cardanoConfig, mempoolOpsConsumer)
       executedOpsHandler <- makeOrdersHandler(configs.writer, configs.cardanoConfig)
       poolsHandler       <- makePoolsHandler(configs.writer, configs.cardanoConfig)
-      bundle  = HandlersBundle.make[StreamF](txHandler, List(poolsHandler, executedOpsHandler, mempoolOpsHandler))
+      bundle  = HandlersBundle.make[StreamF](poolsHandler, List(executedOpsHandler, mempoolOpsHandler))
       program = WriterProgram.create[StreamF, RunF](bundle, configs.writer)
       r <- Resource.eval(program.run).mapK(ul.liftF)
     } yield r

@@ -10,6 +10,8 @@ final case class AssetClass(unCurrencySymbol: CurrencySymbol, unTokenName: Token
 
 object AssetClass {
 
+  def ada = AssetClass(CurrencySymbol(""), TokenName(""))
+
   implicit val decoder: Decoder[AssetClass] = new Decoder[AssetClass] {
     override def apply(c: HCursor): Result[AssetClass] =
       c.values.toRight(DecodingFailure("AssetClass doesn't contain values", List.empty)).flatMap { values =>
