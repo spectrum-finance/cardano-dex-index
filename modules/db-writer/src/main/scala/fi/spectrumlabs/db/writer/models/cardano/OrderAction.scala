@@ -52,7 +52,7 @@ object DepositPair {
             if (pairs.size == 2) pairs.last.as[DepositPairElem]
             else DecodingFailure("Deposit pair doesn't contain 2 elems", List.empty).asLeft
         } yield
-          if (first.coin.unAssetClass == AssetClass.ada) DepositPair(first, second)
+          if (first.coin.unAssetClass == AssetClass.ada) DepositPair(first, second) //todo drop when tracker will be fixed
           else DepositPair(second, first)
       }
   }

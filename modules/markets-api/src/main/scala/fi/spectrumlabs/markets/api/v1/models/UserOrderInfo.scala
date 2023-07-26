@@ -104,7 +104,7 @@ object UserOrderInfo {
           order.orderInputId.show,
           order.poolId.value,
           status,
-          if (x.asset == AdaAssetClass) x else y,
+          if (x.asset == AdaAssetClass) x else y, //todo drop when tracker will be fixed
           if (y.asset == AdaAssetClass) x else y,
           if (x.asset == AdaAssetClass) x.amount.value.toString.some
           else y.amount.value.toString.some,
