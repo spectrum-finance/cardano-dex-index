@@ -37,7 +37,13 @@ import fi.spectrumlabs.core.pg.PostgresTransactor
 import fi.spectrumlabs.core.redis.RedisConfig
 import fi.spectrumlabs.db.writer.models.cardano.{Action, Confirmed, Order, PoolEvent}
 import fi.spectrumlabs.db.writer.redis.codecs.bytesCodec
-import fi.spectrumlabs.db.writer.repositories.{InputsRepository, OrdersRepository, OutputsRepository, PoolsRepository, TransactionRepository}
+import fi.spectrumlabs.db.writer.repositories.{
+  InputsRepository,
+  OrdersRepository,
+  OutputsRepository,
+  PoolsRepository,
+  TransactionRepository
+}
 import io.lettuce.core.{ClientOptions, TimeoutOptions}
 
 object App extends EnvApp[AppContext] {
@@ -58,7 +64,7 @@ object App extends EnvApp[AppContext] {
           "db-writer-logging"
         )
       )
-      implicit0(iso: IsoK[RunF, InitF])            = IsoK.byFunK(wr.runContextK(ctx))(wr.liftF)
+      implicit0(iso: IsoK[RunF, InitF])     = IsoK.byFunK(wr.runContextK(ctx))(wr.liftF)
       implicit0(logsDb: Logs[InitF, xa.DB]) = Logs.sync[InitF, xa.DB]
       implicit0(txConsumer: Consumer[String, Option[TxEvent], StreamF, RunF]) = makeConsumer[String, Option[TxEvent]](
         configs.txConsumer,
@@ -79,9 +85,12 @@ object App extends EnvApp[AppContext] {
           String,
           Option[Confirmed[PoolEvent]]
         ](configs.poolsConsumer, configs.kafka)
-      ordersRepo <- Resource.eval(OrdersRepository.make[InitF, RunF, xa.DB])
-      inputsRepo <- Resource.eval(InputsRepository.make[InitF, RunF, xa.DB])
+      ordersRepo  <- Resource.eval(OrdersRepository.make[InitF, RunF, xa.DB])
+      inputsRepo  <- Resource.eval(InputsRepository.make[InitF, RunF, xa.DB])
       outputsRepo <- Resource.eval(OutputsRepository.make[InitF, RunF, xa.DB])
+      implicit0(redis: RedisCommands[RunF, Array[Byte], Array[Byte]]) <-
+        mkRedis[Array[Byte], Array[Byte], RunF](configs.redisMempool).mapK(iso.tof)
+      implicit0(persistBundle: PersistBundle[RunF]) = PersistBundle.create[xa.DB, RunF](configs.mempoolTtl)
       txHandler <- makeTxHandler(
         configs.writer,
         configs.cardanoConfig,
@@ -89,9 +98,6 @@ object App extends EnvApp[AppContext] {
         inputsRepo,
         outputsRepo
       )
-      implicit0(redis: RedisCommands[RunF, Array[Byte], Array[Byte]]) <-
-        mkRedis[Array[Byte], Array[Byte], RunF](configs.redisMempool).mapK(iso.tof)
-      implicit0(persistBundle: PersistBundle[RunF]) = PersistBundle.create[xa.DB, RunF](configs.mempoolTtl)
       mempoolOpsHandler  <- makeMempoolOrdersHandler(configs.writer, configs.cardanoConfig, mempoolOpsConsumer)
       executedOpsHandler <- makeOrdersHandler(configs.writer, configs.cardanoConfig)
       poolsHandler       <- makePoolsHandler(configs.writer, configs.cardanoConfig)
@@ -113,10 +119,12 @@ object App extends EnvApp[AppContext] {
   ): Resource[F, RedisCommands[F, K, V]] = {
     import dev.profunktor.redis4cats.effect.Log.Stdout._
     for {
-      timeoutOptions <- Resource.eval(Sync[F].delay(TimeoutOptions.builder().fixedTimeout(config.timeout.toJava).build()))
-      clientOptions  <- Resource.eval(Sync[F].delay(ClientOptions.builder().timeoutOptions(timeoutOptions).build()))
-      client         <- RedisClient[F].withOptions(s"redis://${config.password}@${config.host}:${config.port}", clientOptions)
-      redisCmd       <- Redis[F].fromClient(client, codec)
+      timeoutOptions <- Resource.eval(
+        Sync[F].delay(TimeoutOptions.builder().fixedTimeout(config.timeout.toJava).build())
+      )
+      clientOptions <- Resource.eval(Sync[F].delay(ClientOptions.builder().timeoutOptions(timeoutOptions).build()))
+      client        <- RedisClient[F].withOptions(s"redis://${config.password}@${config.host}:${config.port}", clientOptions)
+      redisCmd      <- Redis[F].fromClient(client, codec)
     } yield redisCmd
   }
 }
