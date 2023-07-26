@@ -11,6 +11,8 @@ import tofu.WithContext
 import tofu.logging.derivation.loggable
 import tofu.optics.macros.ClassyOptics
 
+import scala.concurrent.duration.FiniteDuration
+
 @ClassyOptics
 @derive(loggable, pureconfigReader)
 final case class ConfigBundle(
@@ -22,7 +24,8 @@ final case class ConfigBundle(
   network: NetworkConfig,
   tokenFetcher: TokenFetcherConfig,
   httpCache: HttpCacheConfig,
-  tf: TokenFetcherConfig1
+  tf: TokenFetcherConfig1,
+  cacheTtl: FiniteDuration
 )
 
 object ConfigBundle extends WithContext.Companion[ConfigBundle] with ConfigBundleCompanion[ConfigBundle]

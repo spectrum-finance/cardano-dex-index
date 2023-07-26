@@ -1,6 +1,7 @@
 package fi.spectrumlabs.markets.api.services
 
 import cats.data.OptionT
+import cats.effect.concurrent.Ref
 import cats.syntax.option._
 import cats.syntax.parallel._
 import cats.syntax.traverse._
@@ -32,33 +33,37 @@ trait AnalyticsService[F[_]] {
   def getPoolPriceChart(poolId: PoolId, window: TimeWindow, resolution: Long): F[List[PricePoint]]
 
   def getPlatformStats: F[PlatformStats]
+
+  def updatePoolsOverview: F[List[PoolOverview]]
 }
 
 object AnalyticsService {
 
   private val MillisInYear: FiniteDuration = 365.days
 
-  def create[I[_]: Functor, F[_]: Monad: Parallel: Clock](config: MarketsApiConfig)(implicit
+  def create[I[_]: Functor, F[_]: Monad: Parallel: Clock](config: MarketsApiConfig, cache: Ref[F, List[PoolOverview]])(implicit
     ratesRepo: RatesRepo[F],
     poolsRepo: PoolsRepo[F],
     ammStatsMath: AmmStatsMath[F],
     logs: Logs[I, F]
   ): I[AnalyticsService[F]] =
-    logs.forService[AnalyticsService[F]].map(implicit __ => new Tracing[F] attach new Impl[F](config))
+    logs.forService[AnalyticsService[F]].map(implicit __ => new Tracing[F] attach new Impl[F](config, cache))
 
-  final private class Impl[F[_]: Monad: Parallel: Clock](config: MarketsApiConfig)(implicit
+  final private class Impl[F[_]: Monad: Parallel: Clock](config: MarketsApiConfig, cache: Ref[F, List[PoolOverview]])(implicit
     ratesRepo: RatesRepo[F],
     poolsRepo: PoolsRepo[F],
     ammStatsMath: AmmStatsMath[F]
   ) extends AnalyticsService[F] {
 
-    def getPoolsOverview: F[List[PoolOverview]] = Clock[F].realTime(TimeUnit.SECONDS) >>= { now =>
+    def updatePoolsOverview: F[List[PoolOverview]] = Clock[F].realTime(TimeUnit.SECONDS) >>= { now =>
       poolsRepo.getPools.flatMap(
         _.parTraverse { p: PoolDb =>
           getPoolInfo(p.poolId, now - 24.hours.toSeconds)
         }.map(_.flatten)
       )
     }
+
+    def getPoolsOverview: F[List[PoolOverview]] = cache.get
 
     def getPoolInfo(poolId: PoolId, from: Long): F[Option[PoolOverview]] =
       (for {
@@ -176,6 +181,13 @@ object AnalyticsService {
         _ <- trace"Going to get platform stats"
         r <- _
         _ <- trace"Platform stats are $r"
+      } yield r
+
+    def updatePoolsOverview: Mid[F, List[PoolOverview]] =
+      for {
+        _ <- trace"updatePoolsOverview"
+        r <- _
+        _ <- trace"updatePoolsOverview -> $r"
       } yield r
   }
 }
