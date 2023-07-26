@@ -60,6 +60,10 @@ object App extends EnvApp[AppContext] {
         configs.httpRedis,
         RedisCodec.Bytes
       )
+      mempoolRedis <- mkRedis[Array[Byte], Array[Byte], InitF, RunF](
+        configs.ratesRedis,
+        RedisCodec.Bytes
+      )
       implicit0(cache: Cache[RunF])                       <- Resource.eval(Cache.make[InitF, RunF])
       implicit0(httpRespCache: HttpResponseCaching[RunF]) <- Resource.eval(HttpResponseCaching.make[InitF, RunF])
       implicit0(httpCache: CachingMiddleware[RunF]) = CacheMiddleware.make[RunF]
@@ -68,7 +72,7 @@ object App extends EnvApp[AppContext] {
       ordersRepo                                        <- Resource.eval(OrdersRepository.make[InitF, RunF, xa.DB])
       implicit0(ratesRepo: RatesRepo[RunF])             <- Resource.eval(RatesRepo.create[InitF, RunF])
       implicit0(ammStatsMath: AmmStatsMath[RunF])       <- Resource.eval(AmmStatsMath.create[InitF, RunF])
-      implicit0(mempoolService: MempoolService[RunF])   <- Resource.eval(MempoolService.make[InitF, RunF])
+      implicit0(mempoolService: MempoolService[RunF])   <- Resource.eval(MempoolService.make[InitF, RunF](mempoolRedis))
       implicit0(service: AnalyticsService[RunF]) <- Resource.eval(
         AnalyticsService.create[InitF, RunF](configs.marketsApi)
       )
