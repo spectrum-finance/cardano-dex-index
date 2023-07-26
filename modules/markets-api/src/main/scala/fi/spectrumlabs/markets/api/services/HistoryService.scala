@@ -27,22 +27,27 @@ trait HistoryService[F[_]] {
 object HistoryService {
 
   def make[I[_]: Functor, F[_]: Monad: Clock](
-    ordersRepository: OrdersRepository[F]
+    ordersRepository: OrdersRepository[F],
+    mempoolService: MempoolService[F]
   )(implicit logs: Logs[I, F]): I[HistoryService[F]] =
     logs.forService[HistoryService[F]].map { implicit logging =>
-      new HistoryServiceTracingMid[F] attach new Live[F](ordersRepository)
+      new HistoryServiceTracingMid[F] attach new Live[F](ordersRepository, mempoolService)
     }
 
-  final private class Live[F[_]: Monad: Clock](ordersRepository: OrdersRepository[F]) extends HistoryService[F] {
-    def getUserHistoryV2(query: HistoryApiQuery, paging: Paging, window: TimeWindow): F[OrderHistoryResponse] =
-      ordersRepository.getAnyOrder(query.userPkhs, paging.offset, paging.limit).flatMap { orders =>
-        ordersRepository.addressCount(query.userPkhs).flatMap { count =>
-          Clock[F].realTime(SECONDS).map { curTime =>
-            val res = orders.flatMap(x => UserOrderInfo.fromAnyOrderDB(x, curTime))
-            OrderHistoryResponse(res, count.getOrElse(0))
+  final private class Live[F[_]: Monad: Clock](ordersRepository: OrdersRepository[F], mempoolService: MempoolService[F]) extends HistoryService[F] {
+    def getUserHistoryV2(query: HistoryApiQuery, paging: Paging, window: TimeWindow): F[OrderHistoryResponse] = {
+      mempoolService.getUserOrders(query).flatMap { exclude =>
+
+        ordersRepository.getAnyOrder(query.userPkhs, paging.offset, paging.limit, exclude.map(_.id)).flatMap { orders =>
+          ordersRepository.addressCount(query.userPkhs).flatMap { count =>
+            Clock[F].realTime(SECONDS).map { curTime =>
+              val res = orders.flatMap(x => UserOrderInfo.fromAnyOrderDB(x, curTime))
+              OrderHistoryResponse(res, count.getOrElse(0))
+            }
           }
         }
       }
+    }
 
     override def getUserHistory(query: HistoryApiQuery, paging: Paging, window: TimeWindow): F[OrderHistoryResponse] =
       query.userPkhs

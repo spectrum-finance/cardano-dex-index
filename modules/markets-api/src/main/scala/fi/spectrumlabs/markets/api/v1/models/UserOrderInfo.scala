@@ -14,6 +14,7 @@ import scala.concurrent.duration._
 
 @derive(encoder, decoder)
 sealed trait UserOrderInfo {
+  val id: String
   val registerTx: TxData
 }
 

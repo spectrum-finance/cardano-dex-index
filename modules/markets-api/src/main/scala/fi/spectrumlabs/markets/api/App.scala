@@ -72,7 +72,7 @@ object App extends EnvApp[AppContext] {
       implicit0(service: AnalyticsService[RunF]) <- Resource.eval(
         AnalyticsService.create[InitF, RunF](configs.marketsApi)
       )
-      implicit0(historyService: HistoryService[RunF]) <- Resource.eval(HistoryService.make[InitF, RunF](ordersRepo))
+      implicit0(historyService: HistoryService[RunF]) <- Resource.eval(HistoryService.make[InitF, RunF](ordersRepo, mempoolService))
       c = CacheCleaner.make[RunF](httpRespCache)
       server                                          <- HttpServer.make[InitF, RunF](configs.http, runtime.platform.executor.asEC)
     } yield (server, c.mapK(ul.liftF))

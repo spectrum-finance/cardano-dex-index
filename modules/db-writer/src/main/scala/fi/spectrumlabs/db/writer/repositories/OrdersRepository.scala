@@ -47,7 +47,7 @@ trait OrdersRepository[F[_]] {
 
   def deleteExecutedRedeemOrder(txOutRef: String): F[Int]
 
-  def getAnyOrder(pkh: List[String], offset: Int, limit: Int): F[List[AnyOrderDB]]
+  def getAnyOrder(pkh: List[String], offset: Int, limit: Int, exclude: List[String]): F[List[AnyOrderDB]]
 
   def addressCount(pkh: List[String]): F[Option[Long]]
 }
@@ -66,9 +66,9 @@ object OrdersRepository {
 
     import fi.spectrumlabs.db.writer.sql.OrdersSql._
 
-    def getAnyOrder(pkh: List[String], offset: Int, limit: Int): ConnectionIO[List[AnyOrderDB]] =
+    def getAnyOrder(pkh: List[String], offset: Int, limit: Int, exclude: List[String]): ConnectionIO[List[AnyOrderDB]] =
       NonEmptyList.fromList(pkh) match {
-        case Some(value) => getAnyOrderDB(value, offset, limit).to[List]
+        case Some(value) => getAnyOrderDB(value, offset, limit, exclude).to[List]
         case None        => List.empty[AnyOrderDB].pure[ConnectionIO]
       }
 
@@ -184,7 +184,7 @@ object OrdersRepository {
     ): Mid[F, Int] =
       info"Going to set redeem order $orderTxOutRef from db to refund status" *> _
 
-    def getAnyOrder(pkh: List[String], offset: Int, limit: Int): Mid[F, List[AnyOrderDB]] =
+    def getAnyOrder(pkh: List[String], offset: Int, limit: Int, exclude: List[String]): Mid[F, List[AnyOrderDB]] =
       info"Going to get orders for $pkh offset: $offset limit $limit" *> _
 
     def addressCount(pkh: List[String]): Mid[F, Option[Long]] =

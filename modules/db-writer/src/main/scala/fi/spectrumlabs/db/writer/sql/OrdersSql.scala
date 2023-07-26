@@ -13,7 +13,9 @@ import fi.spectrumlabs.db.writer.models.orders.TxOutRef
 
 object OrdersSql {
 
-  def getAnyOrderDB(in: NonEmptyList[String], offset: Int, limit: Int): doobie.Query0[AnyOrderDB] = {
+  def getAnyOrderDB(in: NonEmptyList[String], offset: Int, limit: Int, exclude: List[String]): doobie.Query0[AnyOrderDB] = {
+   def excludeC = Fragments.andOpt(NonEmptyList.fromList(exclude).map(x => Fragments.notIn(fr"order_input_id", x)))
+
     sql"""
          |select * from (
          |	select
@@ -46,7 +48,7 @@ object OrdersSql {
          |  	order_status,
          |  	redeem_output_Id,
          |      pool_output_id
-         |  	from swap where ${Fragments.in(fr"reward_pkh", in)}
+         |  	from swap where ${Fragments.in(fr"reward_pkh", in)} ${excludeC}
          |  UNION
          |  	select
          |		order_input_id,
@@ -78,7 +80,7 @@ object OrdersSql {
          |  	order_status,
          |  	redeem_output_Id,
          |      pool_output_id
-         |  	from deposit where ${Fragments.in(fr"reward_pkh", in)}
+         |  	from deposit where ${Fragments.in(fr"reward_pkh", in)} ${excludeC}
          |  UNION
          |  	select
          |		order_input_id,
@@ -110,7 +112,7 @@ object OrdersSql {
          |  	order_status,
          |  	redeem_output_Id,
          |      pool_output_id
-         |  	from redeem where ${Fragments.in(fr"reward_pkh", in)}
+         |  	from redeem where ${Fragments.in(fr"reward_pkh", in)} ${excludeC}
          |) as x OFFSET $offset LIMIT $limit;
        """.stripMargin.query[AnyOrderDB]
   }
