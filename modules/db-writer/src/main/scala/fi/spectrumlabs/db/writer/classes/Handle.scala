@@ -211,8 +211,10 @@ object Handle {
                   parse(new String(raw)).flatMap(_.as[List[B]]) match {
                     case Left(value) => info"Failed to parse mempool for $key, ${value.getMessage}"
                     case Right(value) =>
-                      val processedList = value.filter(elemInList => elemInList != elem)
-                      info"Successfully retrieve $key user orders from redis, prev mempool is ${value.toString()} new mempool is: ${processedList.toString()}" >>
+                      val processedList = value.filter { elemInList =>
+                        implicitly[Key[B]].getExtendedKey(elem) != implicitly[Key[B]].getExtendedKey(elemInList)
+                      }
+                      info"Successfully retrieve $key user orders from redis, elem to delete: ${elem.toString}, prev mempool is ${value.toString()} new mempool is: ${processedList.toString()}" >>
                       redis.set(
                         implicitly[Key[B]].getKey(elem).getBytes(),
                         Encoder[List[B]].apply(processedList).toString().getBytes()

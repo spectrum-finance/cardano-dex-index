@@ -64,7 +64,9 @@ object Persist {
               (previousOrders match {
                 case Left(_) => ().pure[F]
                 case Right(value) =>
-                  val filtered = value.filter { x => implicitly[Key[T]].getKey(x) != key }
+                  val filtered = value.filter { x =>
+                    implicitly[Key[T]].getExtendedKey(x) != implicitly[Key[T]].getExtendedKey(toInsert)
+                  }
                   redis.set(
                     implicitly[Key[T]].getKey(toInsert).getBytes,
                     Encoder[List[T]].apply(filtered :+ toInsert).toString().getBytes()
@@ -72,10 +74,10 @@ object Persist {
               })
             case None =>
               info"Got empty mempool for $key" >>
-              redis.set(
-                implicitly[Key[T]].getKey(toInsert).getBytes,
-                Encoder[List[T]].apply(List(toInsert)).toString().getBytes()
-              )
+                redis.set(
+                  implicitly[Key[T]].getKey(toInsert).getBytes,
+                  Encoder[List[T]].apply(List(toInsert)).toString().getBytes()
+                )
           }
         }
         .map(_.length)

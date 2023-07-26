@@ -39,6 +39,7 @@ object Swap {
 
   implicit val key: Key[Swap] = new Key[Swap] {
     override def getKey(in: Swap): String = SwapRedisPrefix ++ in.rewardPkh
+    def getExtendedKey(in: Swap) = getKey(in) ++ in.orderInputId.show
   }
 
   def streamingSchema(config: CardanoConfig): ToSchema[Order, Option[Swap]] = {

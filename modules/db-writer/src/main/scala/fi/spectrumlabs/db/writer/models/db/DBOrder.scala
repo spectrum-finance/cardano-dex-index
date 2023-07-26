@@ -18,5 +18,13 @@ object DBOrder {
         case swap: Swap => Swap.key.getKey(swap)
         case _ => ""
       }
+
+    def getExtendedKey(in: DBOrder): String =
+      in match {
+        case deposit: Deposit => Deposit.key.getKey(deposit)
+        case redeem: Redeem => Redeem.key.getKey(redeem)
+        case swap: Swap => Swap.key.getKey(swap)
+        case _ => ""
+      }
   }
 }

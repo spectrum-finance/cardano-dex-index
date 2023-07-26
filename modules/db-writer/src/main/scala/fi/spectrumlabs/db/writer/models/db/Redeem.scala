@@ -40,6 +40,7 @@ object Redeem {
 
   implicit val key: Key[Redeem] = new Key[Redeem] {
     override def getKey(in: Redeem): String = RedeemRedisPrefix ++ in.rewardPkh
+    def getExtendedKey(in: Redeem) = getKey(in) ++ in.orderInputId.show
   }
 
   def streamingSchema(config: CardanoConfig): ToSchema[Order, Option[Redeem]] = {
