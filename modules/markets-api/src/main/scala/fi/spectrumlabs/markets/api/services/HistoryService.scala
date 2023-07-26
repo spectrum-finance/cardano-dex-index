@@ -37,7 +37,6 @@ object HistoryService {
   final private class Live[F[_]: Monad: Clock](ordersRepository: OrdersRepository[F], mempoolService: MempoolService[F]) extends HistoryService[F] {
     def getUserHistoryV2(query: HistoryApiQuery, paging: Paging, window: TimeWindow): F[OrderHistoryResponse] = {
       mempoolService.getUserOrders(query).flatMap { exclude =>
-
         ordersRepository.getAnyOrder(query.userPkhs, paging.offset, paging.limit, exclude.map(_.id)).flatMap { orders =>
           ordersRepository.addressCount(query.userPkhs).flatMap { count =>
             Clock[F].realTime(SECONDS).map { curTime =>

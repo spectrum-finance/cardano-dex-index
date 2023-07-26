@@ -113,7 +113,9 @@ object OrdersSql {
          |  	redeem_output_Id,
          |      pool_output_id
          |  	from redeem where ${Fragments.in(fr"reward_pkh", in)} ${excludeC}
-         |) as x OFFSET $offset LIMIT $limit;
+         |) as x
+         |ORDER BY x.creation_timestamp DESC
+         |OFFSET $offset LIMIT $limit;
        """.stripMargin.query[AnyOrderDB]
   }
 

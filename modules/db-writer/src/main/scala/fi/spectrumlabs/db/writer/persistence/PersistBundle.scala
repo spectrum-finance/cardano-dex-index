@@ -11,6 +11,7 @@ import tofu.doobie.LiftConnectionIO
 import tofu.doobie.log.EmbeddableLogHandler
 import tofu.doobie.transactor.Txr
 import fi.spectrumlabs.db.writer.schema._
+import tofu.logging.Logging
 import tofu.syntax.monadic._
 
 import scala.concurrent.duration.FiniteDuration
@@ -30,7 +31,7 @@ final case class PersistBundle[F[_]](
 
 object PersistBundle {
 
-  def create[D[_]: FlatMap: LiftConnectionIO, F[_]: Monad](mempoolTtl: FiniteDuration)(implicit
+  def create[D[_]: FlatMap: LiftConnectionIO, F[_]: Monad: Logging](mempoolTtl: FiniteDuration)(implicit
     elh: EmbeddableLogHandler[D],
     redis: Plain[F],
     txr: Txr[F, D]

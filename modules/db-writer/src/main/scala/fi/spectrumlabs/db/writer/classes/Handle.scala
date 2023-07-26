@@ -202,36 +202,28 @@ object Handle {
     def handle(in: NonEmptyList[A]): F[Unit] =
       in.map(toSchema(_)).toList.flatten match {
         case x :: xs =>
-          (
-            NonEmptyList
-              .of(x, xs: _*)
-              .traverse(elem =>
-                redis.get(implicitly[Key[B]].getKey(elem).getBytes()).flatMap {
-                  case Some(listValuesRaw) =>
-                    parse(new String(listValuesRaw)) match {
-                      case Left(value) =>
-                        info"Trying to parse value from redis by key ${implicitly[Key[B]].getKey(elem)}. Error: ${value.message}"
-                      case Right(value) =>
-                        Decoder[List[B]].decodeJson(value) match {
-                          case Left(value) =>
-                            info"Trying to decode json value from redis by key ${implicitly[Key[B]]
-                              .getKey(elem)}. Error: ${value.message}"
-                          case Right(list) =>
-                            val processedList = list.filter(elemInList => elemInList != elem)
-                            info"Successfully retrieve user orders from redis" >>
-                            redis.set(
-                              implicitly[Key[B]].getKey(elem).getBytes(),
-                              Encoder[List[B]].apply(processedList).toString().getBytes()
-                            )
-                        }
-                    }
-                  case None => info"No user orders is redis. ${implicitly[Key[B]].getKey(elem)}"
-                }
-              )
-              .flatMap(r =>
-                info"Finished handle [$handleLogName] process for $r elements. Batch size was ${in.size}. ${in.toString()}"
-              )
-          )
+          NonEmptyList
+            .of(x, xs: _*)
+            .traverse { elem =>
+              val key = implicitly[Key[B]].getKey(elem)
+              redis.get(key.getBytes()).flatMap {
+                case Some(raw) =>
+                  parse(new String(raw)).flatMap(_.as[List[B]]) match {
+                    case Left(value) => info"Failed to parse mempool for $key, ${value.getMessage}"
+                    case Right(value) =>
+                      val processedList = value.filter(elemInList => elemInList != elem)
+                      info"Successfully retrieve $key user orders from redis, prev mempool is ${value.toString()} new mempool is: ${processedList.toString()}" >>
+                      redis.set(
+                        implicitly[Key[B]].getKey(elem).getBytes(),
+                        Encoder[List[B]].apply(processedList).toString().getBytes()
+                      )
+                  }
+                case None => info"No user orders $key is redis. ${implicitly[Key[B]].getKey(elem)}"
+              }
+            }
+            .flatMap(r =>
+              info"Finished handle [$handleLogName] process for $r elements. Batch size was ${in.size}. ${in.toString()}"
+            )
         case Nil =>
           info"Nothing to extract ${in.toString()} [$handleLogName]. Batch contains 0 elements to persist."
       }
@@ -371,28 +363,31 @@ object Handle {
         case _: UnAppliedTransaction => unit[F]
         case tx: AppliedTransaction =>
           tx.txInputs.traverse { txInput =>
-            info"Got next txInput ${txInput.txInRef}, trying to fetch pending order..." >>
-            ordersRepository.getOrder(txInput.txInRef).flatMap {
-              case Some(deposit: Deposit) =>
-                info"Going to resolve deposit executed ${deposit.rewardPkh}, ${deposit.orderInputId}" >>
-                resolveDepositOrder(deposit, txInput, tx).traverse { executed =>
-                  info"Got executed deposit order ${deposit.orderInputId} for pkh ${deposit.rewardPkh}" >>
-                  ordersRepository.updateExecutedDepositOrder(executed)
-                }.void
-              case Some(swap: Swap) =>
-                info"Going to resolve swap executed ${swap.rewardPkh}, ${swap.orderInputId}" >>
-                resolveSwapOrder(swap, txInput, tx).traverse { executed =>
-                  info"Got executed swap order ${swap.orderInputId} for pkh ${swap.rewardPkh}" >>
-                  ordersRepository.updateExecutedSwapOrder(executed)
-                }.void
-              case Some(redeem: Redeem) =>
-                info"Going to resolve redeem executed ${redeem.rewardPkh}, ${redeem.orderInputId}" >>
-                resolveRedeemOrder(redeem, txInput, tx).traverse { executed =>
-                  info"Got executed redeem order ${redeem.orderInputId} for pkh ${redeem.rewardPkh}" >>
-                  ordersRepository.updateExecutedRedeemOrder(executed)
-                }.void
-              case _ => info"Nothing fetched for txInput ${txInput.txInRef}"
-            }.void
+            debug"Got next txInput ${txInput.txInRef}, trying to fetch pending order..." >>
+            ordersRepository
+              .getOrder(txInput.txInRef)
+              .flatMap {
+                case Some(deposit: Deposit) =>
+                  debug"Going to resolve deposit executed ${deposit.rewardPkh}, ${deposit.orderInputId}" >>
+                    resolveDepositOrder(deposit, txInput, tx).traverse { executed =>
+                      debug"Got executed deposit order ${deposit.orderInputId} for pkh ${deposit.rewardPkh}" >>
+                      ordersRepository.updateExecutedDepositOrder(executed)
+                    }.void
+                case Some(swap: Swap) =>
+                  debug"Going to resolve swap executed ${swap.rewardPkh}, ${swap.orderInputId}" >>
+                    resolveSwapOrder(swap, txInput, tx).traverse { executed =>
+                      info"Got executed swap order ${swap.orderInputId} for pkh ${swap.rewardPkh}" >>
+                      ordersRepository.updateExecutedSwapOrder(executed)
+                    }.void
+                case Some(redeem: Redeem) =>
+                  debug"Going to resolve redeem executed ${redeem.rewardPkh}, ${redeem.orderInputId}" >>
+                    resolveRedeemOrder(redeem, txInput, tx).traverse { executed =>
+                      debug"Got executed redeem order ${redeem.orderInputId} for pkh ${redeem.rewardPkh}" >>
+                      ordersRepository.updateExecutedRedeemOrder(executed)
+                    }.void
+                case _ => debug"Nothing fetched for txInput ${txInput.txInRef}"
+              }
+              .void
           }.void
       }.void
   }

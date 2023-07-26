@@ -90,7 +90,11 @@ object App extends EnvApp[AppContext] {
       outputsRepo <- Resource.eval(OutputsRepository.make[InitF, RunF, xa.DB])
       implicit0(redis: RedisCommands[RunF, Array[Byte], Array[Byte]]) <-
         mkRedis[Array[Byte], Array[Byte], RunF](configs.redisMempool).mapK(iso.tof)
-      implicit0(persistBundle: PersistBundle[RunF]) = PersistBundle.create[xa.DB, RunF](configs.mempoolTtl)
+      implicit0(persistBundle: PersistBundle[RunF]) <- Resource.eval {
+        Logs.sync[InitF, RunF].forService[PersistBundle[RunF]].map { implicit __ =>
+          PersistBundle.create[xa.DB, RunF](configs.mempoolTtl)
+        }
+      }
       txHandler <- makeTxHandler(
         configs.writer,
         configs.cardanoConfig,
