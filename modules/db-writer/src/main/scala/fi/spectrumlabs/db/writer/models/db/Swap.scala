@@ -5,7 +5,7 @@ import fi.spectrumlabs.core.models.domain.AssetClass.syntax.AssetClassOps
 import fi.spectrumlabs.core.models.domain.{Amount, Coin}
 import fi.spectrumlabs.db.writer.classes.{Key, ToSchema}
 import fi.spectrumlabs.db.writer.config.CardanoConfig
-import fi.spectrumlabs.db.writer.models.cardano.{DepositAction, Order, SwapAction, SwapOrder}
+import fi.spectrumlabs.db.writer.models.cardano.{CurrencySymbol, DepositAction, Order, SwapAction, SwapOrder, TokenName}
 import fi.spectrumlabs.db.writer.models.orders.{ExFee, StakePKH, StakePubKeyHash, TxOutRef}
 import cats.syntax.show._
 import derevo.circe.magnolia.{decoder, encoder}
@@ -30,7 +30,9 @@ final case class Swap(
   redeemOutputId: Option[TxOutRef],
   creationTimestamp: Long,
   executionTimestamp: Option[Long],
-  orderStatus: OrderStatus
+  orderStatus: OrderStatus,
+  originalAdaAmount: Long,
+  exFee: Option[Long]
 ) extends DBOrder
 
 object Swap {
@@ -39,6 +41,7 @@ object Swap {
 
   implicit val key: Key[Swap] = new Key[Swap] {
     override def getKey(in: Swap): String = SwapRedisPrefix ++ in.rewardPkh
+    def getExtendedKey(in: Swap) = getKey(in) ++ in.orderInputId.show
   }
 
   def streamingSchema(config: CardanoConfig): ToSchema[Order, Option[Swap]] = {
@@ -66,7 +69,12 @@ object Swap {
         none,
         orderAction.slotNo + config.startTimeInSeconds,
         none,
-        OrderStatus.Register
+        OrderStatus.Register,
+        orderAction.fullTxOut.fullTxOutValue
+          .get(CurrencySymbol.Ada, TokenName.Ada)
+          .map(_.value)
+          .getOrElse(0L),
+        none
       ).some
     case _ => none
   }

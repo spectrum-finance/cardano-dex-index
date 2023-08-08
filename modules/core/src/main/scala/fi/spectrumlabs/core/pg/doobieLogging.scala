@@ -20,6 +20,15 @@ object doobieLogging {
       EmbeddableLogHandler.async(lhf).lift[D]
     }
 
+  def makeEmbeddableHandler[
+    F[_] : Functor: UnliftIO,
+    D[_] : Lift[F, *[_]]
+  ](name: String)(implicit logs: Logging.Make[F]): EmbeddableLogHandler[D] =
+    logs.byName(name).map { implicit log =>
+      val lhf = LogHandlerF(logDoobieEvent)
+      EmbeddableLogHandler.async(lhf).lift[D]
+    }
+
   private def logDoobieEvent[F[_]](implicit log: Logging[F]): LogEvent => F[Unit] = {
     case Success(s, a, e1, e2) =>
       log.trace(

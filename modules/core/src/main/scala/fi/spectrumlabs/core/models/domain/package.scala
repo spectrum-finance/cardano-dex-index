@@ -51,6 +51,7 @@ package object domain {
   @newtype final case class Coin(value: String)
 
   object Coin {
+    val Ada = Coin(".")
     implicit val encoder: Encoder[Coin]   = deriving
     implicit val decoder: Decoder[Coin]   = deriving
     implicit val loggable: Loggable[Coin] = deriving

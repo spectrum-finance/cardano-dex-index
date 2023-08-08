@@ -5,7 +5,7 @@ object Dependencies {
   object V {
     val tofu              = "0.10.6"
     val derevo            = "0.12.5"
-    val catsEffect        = "2.5.3"
+    val catsEffect        = "2.5.5"
     val doobie            = "0.13.4"
     val pureconfig        = "0.14.1"
     val tapir             = "0.18.3"
@@ -16,7 +16,7 @@ object Dependencies {
     val sttpVersion       = "3.3.11"
     val redis             = "0.14.0"
     val jawnFs2Version    = "1.0.0"
-    val fs2KafkaVersion   = "1.4.1"
+    val fs2KafkaVersion   = "1.11.0"
     val circeVersion      = "0.14.1"
     val scalaland         = "0.6.1"
     val http4s            = "0.22.11"

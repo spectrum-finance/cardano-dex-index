@@ -19,7 +19,11 @@ import cats.syntax.traverse._
 import fi.spectrumlabs.core.cache.Cache.Plain
 import fi.spectrumlabs.db.writer.classes.Key
 import io.circe.{Decoder, Encoder}
+import tofu.logging.{Logging, Logs}
 import tofu.syntax.monadic._
+import tofu.syntax.logging._
+
+import scala.concurrent.duration.FiniteDuration
 
 /** Takes batch of T elements and persists them into indexes storage.
   */
@@ -40,30 +44,42 @@ object Persist {
   ): Persist[T, F] =
     elh.embed(implicit __ => new Impl[T](schema).mapK(LiftConnectionIO[D].liftF)).mapK(txr.trans)
 
-  def createRedis[T: Encoder: Key: Decoder, F[_]: Monad](implicit redis: Plain[F]): Persist[T, F] =
-    new ImplRedis[T, F]
+  def createRedis[T: Encoder: Key: Decoder, F[_]: Monad: Logging](mempoolTtl: FiniteDuration)(implicit
+    redis: Plain[F]
+  ): Persist[T, F] =
+    new ImplRedis[T, F](mempoolTtl)
 
-  final private class ImplRedis[T: Encoder: Decoder: Key, F[_]: Monad](implicit redis: Plain[F]) extends Persist[T, F] {
+  final private class ImplRedis[T: Encoder: Decoder: Key, F[_]: Monad: Logging](mempoolTtl: FiniteDuration)(implicit
+    redis: Plain[F]
+  ) extends Persist[T, F] {
 
     def persist(inputs: NonEmptyList[T]): F[Int] =
       inputs
         .traverse { toInsert =>
-          redis.get(implicitly[Key[T]].getKey(toInsert).getBytes).flatMap {
+          val key = implicitly[Key[T]].getKey(toInsert)
+          redis.get(key.getBytes).flatMap {
             case Some(previousOrdersRaw) =>
               val previousOrders = parse(new String(previousOrdersRaw)).flatMap(Decoder[List[T]].decodeJson(_))
-              previousOrders match {
+              info"Got mempool for $key ${previousOrders.toString}" >>
+              (previousOrders match {
                 case Left(_) => ().pure[F]
                 case Right(value) =>
-                  redis.set(
+                  val filtered = value.filter { x =>
+                    implicitly[Key[T]].getExtendedKey(x) != implicitly[Key[T]].getExtendedKey(toInsert)
+                  }
+                  redis.setEx(
                     implicitly[Key[T]].getKey(toInsert).getBytes,
-                    Encoder[List[T]].apply(value :+ toInsert).toString().getBytes()
+                    Encoder[List[T]].apply(filtered :+ toInsert).toString().getBytes(),
+                    mempoolTtl
                   )
-              }
+              })
             case None =>
-              redis.set(
-                implicitly[Key[T]].getKey(toInsert).getBytes,
-                Encoder[List[T]].apply(List(toInsert)).toString().getBytes()
-              )
+              info"Got empty mempool for $key" >>
+                redis.setEx(
+                  implicitly[Key[T]].getKey(toInsert).getBytes,
+                  Encoder[List[T]].apply(List(toInsert)).toString().getBytes(),
+                  mempoolTtl
+                )
           }
         }
         .map(_.length)

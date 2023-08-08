@@ -20,7 +20,7 @@ class HistoryRoutes[F[_]: Concurrent: ContextShift: Timer: AdaptThrowableEitherT
 
   private val interpreter = Http4sServerInterpreter(opts)
 
-  def routes = orderHistoryR <+> orderHistoryV2R
+  def routes = orderHistoryR <+> orderHistoryV2R <+> historyPendingNeedRefundR
 
   def orderHistoryR: HttpRoutes[F] = interpreter.toRoutes(orderHistoryE) { case (paging, window, query) =>
     service.getUserHistory(query, paging, window).adaptThrowable.value
@@ -29,6 +29,12 @@ class HistoryRoutes[F[_]: Concurrent: ContextShift: Timer: AdaptThrowableEitherT
   def orderHistoryV2R: HttpRoutes[F] = interpreter.toRoutes(orderHistoryV2E) { case (paging, window, query) =>
     service.getUserHistoryV2(query, paging, window).adaptThrowable.value
   }
+
+  def historyPendingNeedRefundR: HttpRoutes[F] = interpreter.toRoutes(historyPendingNeedRefundE) { query =>
+    service.pendingNeedRefundCount(query).adaptThrowable.value
+  }
+
+
 }
 
 object HistoryRoutes {

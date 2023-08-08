@@ -13,7 +13,7 @@ import tofu.logging.{Logging, Logs}
 import tofu.syntax.monadic._
 import cats.syntax.option._
 import cats.tagless.syntax.functorK._
-import fi.spectrumlabs.db.writer.classes.OrdersInfo.{
+import fi.spectrumlabs.db.writer.classes.ExecutedOrderInfo.{
   ExecutedDepositOrderInfo,
   ExecutedRedeemOrderInfo,
   ExecutedSwapOrderInfo
@@ -47,9 +47,11 @@ trait OrdersRepository[F[_]] {
 
   def deleteExecutedRedeemOrder(txOutRef: String): F[Int]
 
-  def getAnyOrder(pkh: List[String], offset: Int, limit: Int): F[List[AnyOrderDB]]
+  def getAnyOrder(pkh: List[String], offset: Int, limit: Int, exclude: List[String]): F[List[AnyOrderDB]]
 
   def addressCount(pkh: List[String]): F[Option[Long]]
+
+  def pendingNeedRefundCount(pkh: List[String]): F[(Option[Long], Option[Long])]
 }
 
 object OrdersRepository {
@@ -62,20 +64,28 @@ object OrdersRepository {
       new OrdersRepositoryTracingMid[F] attach new LiveCIO().mapK(LiftConnectionIO[DB].liftF andThen txr.trans)
     }
 
+  def make[F[_]: Monad, DB[_]: LiftConnectionIO](implicit
+    txr: Txr[F, DB],
+    logs: Logging.Make[F]
+  ): OrdersRepository[F] =
+    logs.forService[OrdersRepository[F]].map { implicit logging =>
+      new OrdersRepositoryTracingMid[F] attach new LiveCIO().mapK(LiftConnectionIO[DB].liftF andThen txr.trans)
+    }
+
   final private class LiveCIO extends OrdersRepository[ConnectionIO] {
 
     import fi.spectrumlabs.db.writer.sql.OrdersSql._
 
-    def getAnyOrder(pkh: List[String], offset: Int, limit: Int): ConnectionIO[List[AnyOrderDB]] =
+    def getAnyOrder(pkh: List[String], offset: Int, limit: Int, exclude: List[String]): ConnectionIO[List[AnyOrderDB]] =
       NonEmptyList.fromList(pkh) match {
-        case Some(value) => getAnyOrderDB(value, offset, limit).to[List]
+        case Some(value) => getAnyOrderDB(value, offset, limit, exclude).to[List]
         case None        => List.empty[AnyOrderDB].pure[ConnectionIO]
       }
 
     def addressCount(pkh: List[String]): ConnectionIO[Option[Long]] =
       NonEmptyList.fromList(pkh) match {
         case Some(value) => addressCountDB(value).option
-        case None => none[Long].pure[ConnectionIO]
+        case None        => none[Long].pure[ConnectionIO]
       }
 
     override def getOrder(txOutRef: FullTxOutRef): ConnectionIO[Option[DBOrder]] = for {
@@ -132,6 +142,17 @@ object OrdersRepository {
       timestamp: Long
     ): ConnectionIO[Int] =
       refundRedeemOrderSQL(refundTxOutRef, timestamp, orderTxOutRef).run
+
+    def pendingNeedRefundCount(pkh: List[String]): ConnectionIO[(Option[Long], Option[Long])] =
+      NonEmptyList.fromList(pkh) match {
+        case Some(value) =>
+          for {
+            register   <- registerAddressCount(value).option
+            needRefund <- needRefundAddressCount(value).option
+          } yield (register, needRefund)
+        case None => (none[Long], none[Long]).pure[ConnectionIO]
+      }
+
   }
 
   final private class OrdersRepositoryTracingMid[F[_]: Logging: Monad] extends OrdersRepository[Mid[F, *]] {
@@ -184,10 +205,17 @@ object OrdersRepository {
     ): Mid[F, Int] =
       info"Going to set redeem order $orderTxOutRef from db to refund status" *> _
 
-    def getAnyOrder(pkh: List[String], offset: Int, limit: Int): Mid[F, List[AnyOrderDB]] =
+    def getAnyOrder(pkh: List[String], offset: Int, limit: Int, exclude: List[String]): Mid[F, List[AnyOrderDB]] =
       info"Going to get orders for $pkh offset: $offset limit $limit" *> _
 
     def addressCount(pkh: List[String]): Mid[F, Option[Long]] =
       info"Going to get orders count for $pkh" *> _
+
+    def pendingNeedRefundCount(pkh: List[String]): Mid[F, (Option[Long], Option[Long])] =
+      for {
+        _   <- trace"pendingNeedRefundCount($pkh) "
+        res <- _
+        _   <- trace"pendingNeedRefundCount($pkh) -> ${res.toString()}"
+      } yield res
   }
 }

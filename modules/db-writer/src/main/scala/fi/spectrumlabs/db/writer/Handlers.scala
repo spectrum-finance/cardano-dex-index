@@ -1,30 +1,23 @@
 package fi.spectrumlabs.db.writer
 
 import cats.data.NonEmptyList
-import cats.effect.Resource
 import fi.spectrumlabs.core.cache.Cache.Plain
 import fi.spectrumlabs.core.streaming.Consumer
-import fi.spectrumlabs.db.writer.App.{InitF, RunF, StreamF}
 import fi.spectrumlabs.db.writer.classes.Handle
 import fi.spectrumlabs.db.writer.config.{CardanoConfig, WriterConfig}
 import fi.spectrumlabs.db.writer.models.cardano.{Confirmed, Order, PoolEvent}
-import fi.spectrumlabs.db.writer.models.db.{DBOrder, Deposit, Redeem, Swap}
+import fi.spectrumlabs.db.writer.models.db.{Deposit, Redeem, Swap}
 import fi.spectrumlabs.db.writer.models.streaming.TxEvent
 import fi.spectrumlabs.db.writer.models.{Input, Output}
 import fi.spectrumlabs.db.writer.persistence.PersistBundle
 import fi.spectrumlabs.db.writer.programs.Handler
-import fi.spectrumlabs.db.writer.repositories.{
-  InputsRepository,
-  OrdersRepository,
-  OutputsRepository,
-  PoolsRepository,
-  TransactionRepository
-}
+import fi.spectrumlabs.db.writer.repositories.{InputsRepository, OrdersRepository, OutputsRepository, PoolsRepository}
 import fs2.Chunk
-import tofu.WithContext
+import monix.eval.Task
 import tofu.fs2Instances._
-import tofu.logging.Logs
-import zio.interop.catz._
+import tofu.logging.Logging
+
+import scala.concurrent.duration.FiniteDuration
 
 object Handlers {
 
@@ -50,126 +43,119 @@ object Handlers {
   def makeTxHandler(
     config: WriterConfig,
     cardanoConfig: CardanoConfig,
-    ordersRepository: OrdersRepository[RunF],
-    inputsRepository: InputsRepository[RunF],
-    outputsRepository: OutputsRepository[RunF]
+    ordersRepository: OrdersRepository[Task],
+    inputsRepository: InputsRepository[Task],
+    outputsRepository: OutputsRepository[Task],
+    poolsRepository: PoolsRepository[Task]
   )(implicit
-    bundle: PersistBundle[RunF],
-    consumer: Consumer[_, Option[TxEvent], StreamF, RunF],
-    logs: Logs[InitF, RunF]
-  ): Resource[InitF, Handler[StreamF]] = Resource.eval {
+    bundle: PersistBundle[Task],
+    consumer: Consumer[_, Option[TxEvent], App.Stream, Task],
+    logs: Logging.Make[Task]
+  ): Handler[App.Stream] = {
     import bundle._
-    for {
-      txn       <- Handle.createForTransaction(logs, transaction, cardanoConfig)
-      in        <- Handle.createNel[TxEvent, Input, InitF, RunF](input, InHandleName)
-      eIn       <- Handle.createExecuted[InitF, RunF](cardanoConfig, ordersRepository)
-      refunds   <- Handle.createRefunded[InitF, RunF](cardanoConfig, ordersRepository)
-      out       <- Handle.createNel[TxEvent, Output, InitF, RunF](output, "outputs")
-      unApplied <- Handle.createForRollbacks[InitF, RunF](ordersRepository, inputsRepository, outputsRepository)
-      implicit0(nelHandlers: NonEmptyList[Handle[TxEvent, RunF]]) = NonEmptyList.of(
-        txn,
-        in,
-        out,
-        eIn,
-        unApplied,
-        refunds
-      )
-      handler <- Handler.create[TxEvent, StreamF, RunF, Chunk, InitF](config, TxHandlerName)
-    } yield handler
+    val txn       = Handle.createForTransaction(logs, transaction, cardanoConfig)
+    val in        = Handle.createNel[TxEvent, Input, Task](input, InHandleName)
+    val eIn       = Handle.createExecuted[Task](cardanoConfig, ordersRepository, poolsRepository)
+    val refunds   = Handle.createRefunded[Task](cardanoConfig, ordersRepository)
+    val out       = Handle.createNel[TxEvent, Output, Task](output, "outputs")
+    val unApplied = Handle.createForRollbacks[Task](ordersRepository, inputsRepository, outputsRepository)
+    implicit val nelHandlers: NonEmptyList[Handle[TxEvent, Task]] = NonEmptyList.of(
+      out,
+      eIn,
+      unApplied,
+      refunds
+    )
+    Handler.create[TxEvent, App.Stream, Task, Chunk](config, TxHandlerName)
   }
 
   def makeMempoolOrdersHandler(
     config: WriterConfig,
     cardanoConfig: CardanoConfig,
-    consumer: Consumer[_, Option[Order], StreamF, RunF]
+    consumer: Consumer[_, Option[Order], App.Stream, Task]
   )(implicit
-    bundle: PersistBundle[RunF],
-    logs: Logs[InitF, RunF]
-  ): Resource[InitF, Handler[StreamF]] = Resource.eval {
+    bundle: PersistBundle[Task],
+    logs: Logging.Make[Task]
+  ): Handler[App.Stream] = {
     import bundle._
     implicit val consumerImpl = consumer
-    for {
-      deposit <- Handle.createOption[Order, Deposit, InitF, RunF](
-        depositRedis,
-        DepositRedisHandleName,
-        Deposit.streamingSchema(cardanoConfig)
-      )
-      swap <- Handle.createOption[Order, Swap, InitF, RunF](
-        swapRedis,
-        SwapRedisHandleName,
-        Swap.streamingSchema(cardanoConfig)
-      )
-      redeem <- Handle.createOption[Order, Redeem, InitF, RunF](
-        redeemRedis,
-        RedeemRedisHandleName,
-        Redeem.streamingSchema(cardanoConfig)
-      )
-      implicit0(nelHandlers: NonEmptyList[Handle[Order, RunF]]) = NonEmptyList.of(deposit, swap, redeem)
-      handler <- Handler.create[Order, StreamF, RunF, Chunk, InitF](config, MempoolOrdersHandlerName)
-    } yield handler
+    val deposit = Handle.createOption[Order, Deposit, Task](
+      depositRedis,
+      DepositRedisHandleName,
+      Deposit.streamingSchema(cardanoConfig)
+    )
+    val swap = Handle.createOption[Order, Swap, Task](
+      swapRedis,
+      SwapRedisHandleName,
+      Swap.streamingSchema(cardanoConfig)
+    )
+    val redeem = Handle.createOption[Order, Redeem, Task](
+      redeemRedis,
+      RedeemRedisHandleName,
+      Redeem.streamingSchema(cardanoConfig)
+    )
+    implicit val nelHandlers: NonEmptyList[Handle[Order, Task]] = NonEmptyList.of(deposit, swap, redeem)
+    Handler.create[Order, App.Stream, Task, Chunk](config, MempoolOrdersHandlerName)
   }
 
-  def makeOrdersHandler(config: WriterConfig, cardanoConfig: CardanoConfig)(implicit
-    bundle: PersistBundle[RunF],
-    consumer: Consumer[_, Option[Order], StreamF, RunF],
-    logs: Logs[InitF, RunF],
-    redis: Plain[RunF]
-  ): Resource[InitF, Handler[StreamF]] = Resource.eval {
+  def makeOrdersHandler(config: WriterConfig, cardanoConfig: CardanoConfig, mempoolTtl: FiniteDuration)(implicit
+    bundle: PersistBundle[Task],
+    consumer: Consumer[_, Option[Order], App.Stream, Task],
+    logs: Logging.Make[Task],
+    redis: Plain[Task]
+  ): Handler[App.Stream] = {
     import bundle._
-    for {
-      deposit <- Handle.createOption[Order, Deposit, InitF, RunF](
-        deposit,
-        DepositHandleName,
-        Deposit.streamingSchema(cardanoConfig)
-      )
-      depositDropRedis <- Handle.createOptionForExecutedRedis[Order, Deposit, InitF, RunF](
-        DepositRedisDropHandleName,
-        Deposit.streamingSchema(cardanoConfig)
-      )
-      swap <- Handle.createOption[Order, Swap, InitF, RunF](
-        swap,
-        SwapHandleName,
-        Swap.streamingSchema(cardanoConfig)
-      )
-      swapDropRedis <- Handle.createOptionForExecutedRedis[Order, Swap, InitF, RunF](
-        SwapRedisDropHandleName,
-        Swap.streamingSchema(cardanoConfig)
-      )
-      redeem <- Handle.createOption[Order, Redeem, InitF, RunF](
-        redeem,
-        RedeemHandleName,
-        Redeem.streamingSchema(cardanoConfig)
-      )
-      redeemDropRedis <- Handle.createOptionForExecutedRedis[Order, Redeem, InitF, RunF](
-        RedeemRedisDropHandleName,
-        Redeem.streamingSchema(cardanoConfig)
-      )
-      implicit0(nelHandlers: NonEmptyList[Handle[Order, RunF]]) = NonEmptyList.of(
-        deposit,
-        swap,
-        redeem,
-        depositDropRedis,
-        swapDropRedis,
-        redeemDropRedis
-      )
-      handler <- Handler.create[Order, StreamF, RunF, Chunk, InitF](config, OrdersHandlerName)
-    } yield handler
+    val deposit1 = Handle.createOption[Order, Deposit, Task](
+      deposit,
+      DepositHandleName,
+      Deposit.streamingSchema(cardanoConfig)
+    )
+    val depositDropRedis = Handle.createOptionForExecutedRedis[Order, Deposit, Task](
+      DepositRedisDropHandleName,
+      Deposit.streamingSchema(cardanoConfig),
+      mempoolTtl
+    )
+    val swap1 = Handle.createOption[Order, Swap, Task](
+      swap,
+      SwapHandleName,
+      Swap.streamingSchema(cardanoConfig)
+    )
+    val swapDropRedis = Handle.createOptionForExecutedRedis[Order, Swap, Task](
+      SwapRedisDropHandleName,
+      Swap.streamingSchema(cardanoConfig),
+      mempoolTtl
+    )
+    val redeem1 = Handle.createOption[Order, Redeem, Task](
+      redeem,
+      RedeemHandleName,
+      Redeem.streamingSchema(cardanoConfig)
+    )
+    val redeemDropRedis = Handle.createOptionForExecutedRedis[Order, Redeem, Task](
+      RedeemRedisDropHandleName,
+      Redeem.streamingSchema(cardanoConfig),
+      mempoolTtl
+    )
+    implicit val nelHandlers: NonEmptyList[Handle[Order, Task]] = NonEmptyList.of(
+      deposit1,
+      swap1,
+      redeem1,
+      depositDropRedis,
+      swapDropRedis,
+      redeemDropRedis
+    )
+    Handler.create[Order, App.Stream, Task, Chunk](config, OrdersHandlerName)
   }
 
   def makePoolsHandler(
     config: WriterConfig,
     cardanoConfig: CardanoConfig
   )(implicit
-    bundle: PersistBundle[RunF],
-    consumer: Consumer[_, Option[Confirmed[PoolEvent]], StreamF, RunF],
-    logs: Logs[InitF, RunF]
-  ): Resource[InitF, Handler[StreamF]] = Resource.eval {
+    bundle: PersistBundle[Task],
+    consumer: Consumer[_, Option[Confirmed[PoolEvent]], App.Stream, Task],
+    logs: Logging.Make[Task]
+  ): Handler[App.Stream] = {
     import bundle._
-    for {
-      poolHandler <-
-        Handle.createForPools[InitF, RunF](logs, pool, cardanoConfig)
-      implicit0(nelHandlers: NonEmptyList[Handle[Confirmed[PoolEvent], RunF]]) = NonEmptyList.of(poolHandler)
-      handler <- Handler.create[Confirmed[PoolEvent], StreamF, RunF, Chunk, InitF](config, PoolsHandler)
-    } yield handler
+    val poolHandler                                                            = Handle.createForPools[Task](logs, pool, cardanoConfig)
+    implicit val nelHandlers: NonEmptyList[Handle[Confirmed[PoolEvent], Task]] = NonEmptyList.of(poolHandler)
+    Handler.create[Confirmed[PoolEvent], App.Stream, Task, Chunk](config, PoolsHandler)
   }
 }

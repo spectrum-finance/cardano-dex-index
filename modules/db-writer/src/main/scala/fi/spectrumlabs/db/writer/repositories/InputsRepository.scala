@@ -20,10 +20,10 @@ trait InputsRepository[F[_]] {
 
 object InputsRepository {
 
-  def make[I[_]: Functor, F[_]: Monad, DB[_]: LiftConnectionIO](implicit
+  def make[F[_]: Monad, DB[_]: LiftConnectionIO](implicit
     txr: Txr[F, DB],
-    logs: Logs[I, F]
-  ): I[InputsRepository[F]] =
+    logs: Logging.Make[F]
+  ): InputsRepository[F] =
     logs.forService[InputsRepository[F]].map { implicit logging =>
       new InputsRepositoryTracingMid[F] attach (new LiveCIO().mapK(LiftConnectionIO[DB].liftF andThen txr.trans))
     }

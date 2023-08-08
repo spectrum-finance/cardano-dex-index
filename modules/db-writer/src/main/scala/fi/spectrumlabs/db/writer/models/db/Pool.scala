@@ -1,7 +1,7 @@
 package fi.spectrumlabs.db.writer.models.db
 
 import fi.spectrumlabs.core.models.domain.AssetClass.syntax._
-import fi.spectrumlabs.core.models.domain.{Amount, Coin}
+import fi.spectrumlabs.core.models.domain.{Amount, AssetAmount, Coin}
 import fi.spectrumlabs.db.writer.classes.ToSchema
 import fi.spectrumlabs.db.writer.config.CardanoConfig
 import fi.spectrumlabs.db.writer.models.cardano.{Confirmed, PoolEvent}
@@ -21,7 +21,15 @@ final case class Pool(
   outCollateral: Amount,
   outputId: TxOutRef,
   timestamp: Long
-)
+) {
+
+  def outputAmount(inputC: Coin, inputA: Long): Long = {
+    def out(in: Long, out: Long): BigInt =
+      BigInt(out) * inputA * poolFeeNum / (BigInt(in) * poolFeeDen + BigInt(inputA) * poolFeeNum)
+
+    if (inputC == x) out(reservesX.value, reservesY.value) else out(reservesY.value, reservesX.value)
+  }.toLong
+}
 
 object Pool {
 

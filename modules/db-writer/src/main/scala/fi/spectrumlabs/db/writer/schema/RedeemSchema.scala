@@ -23,6 +23,7 @@ class RedeemSchema extends Schema[Redeem] {
     "redeem_output_Id",
     "creation_timestamp",
     "execution_timestamp",
-    "order_status"
+    "order_status",
+    "refundable_fee"
   )
 }

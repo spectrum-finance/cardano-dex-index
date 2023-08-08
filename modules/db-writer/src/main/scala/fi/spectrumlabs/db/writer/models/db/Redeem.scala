@@ -6,7 +6,14 @@ import fi.spectrumlabs.core.models.domain.AssetClass.syntax.AssetClassOps
 import fi.spectrumlabs.core.models.domain.{Amount, Coin}
 import fi.spectrumlabs.db.writer.classes.{Key, ToSchema}
 import fi.spectrumlabs.db.writer.config.CardanoConfig
-import fi.spectrumlabs.db.writer.models.cardano.{Order, RedeemAction, RedeemOrder, SwapAction}
+import fi.spectrumlabs.db.writer.models.cardano.{
+  CurrencySymbol,
+  Order,
+  RedeemAction,
+  RedeemOrder,
+  SwapAction,
+  TokenName
+}
 import fi.spectrumlabs.db.writer.models.orders.{ExFee, PublicKeyHash, StakePKH, StakePubKeyHash, TxOutRef}
 import cats.syntax.show._
 import derevo.circe.magnolia.{decoder, encoder}
@@ -22,7 +29,7 @@ final case class Redeem(
   amountY: Option[Amount],
   amountLq: Amount,
   exFee: ExFee,
-  rewardPkh: PublicKeyHash,
+  rewardPkh: String,
   stakePkh: Option[StakePKH],
   orderInputId: TxOutRef,
   userOutputId: Option[TxOutRef],
@@ -31,7 +38,8 @@ final case class Redeem(
   redeemOutputId: Option[TxOutRef],
   creationTimestamp: Long,
   executionTimestamp: Option[Long],
-  orderStatus: OrderStatus
+  orderStatus: OrderStatus,
+  refundableFee: Long
 ) extends DBOrder
 
 object Redeem {
@@ -39,7 +47,8 @@ object Redeem {
   val RedeemRedisPrefix = "Redeem"
 
   implicit val key: Key[Redeem] = new Key[Redeem] {
-    override def getKey(in: Redeem): String = RedeemRedisPrefix ++ in.rewardPkh.getPubKeyHash
+    override def getKey(in: Redeem): String = RedeemRedisPrefix ++ in.rewardPkh
+    def getExtendedKey(in: Redeem)          = getKey(in) ++ in.orderInputId.show
   }
 
   def streamingSchema(config: CardanoConfig): ToSchema[Order, Option[Redeem]] = {
@@ -52,11 +61,11 @@ object Redeem {
         castFromCardano(orderAction.order.action.redeemPoolX.unCoin.unAssetClass).toCoin,
         castFromCardano(orderAction.order.action.redeemPoolY.unCoin.unAssetClass).toCoin,
         castFromCardano(orderAction.order.action.redeemLq.unCoin.unAssetClass).toCoin,
-        none, //todo: make optional in schema
-        none, //todo: make optional in schema
+        none,
+        none,
         Amount(orderAction.order.action.redeemLqIn),
         ExFee(orderAction.order.action.redeemExFee.unExFee),
-        PublicKeyHash(orderAction.order.action.redeemRewardPkh.getPubKeyHash),
+        orderAction.order.action.redeemRewardPkh.getPubKeyHash,
         orderAction.order.action.redeemRewardSPkh.map(spkh =>
           StakePKH(StakePubKeyHash(spkh.unStakePubKeyHash.getPubKeyHash))
         ),
@@ -67,7 +76,11 @@ object Redeem {
         none,
         config.startTimeInSeconds + orderAction.slotNo,
         none,
-        OrderStatus.Register
+        OrderStatus.Register,
+        orderAction.fullTxOut.fullTxOutValue
+          .get(CurrencySymbol.Ada, TokenName.Ada)
+          .map(_.value)
+          .getOrElse(0L) - orderAction.order.action.redeemExFee.unExFee
       ).some
     case _ => none
   }

@@ -14,6 +14,7 @@ import scala.concurrent.duration._
 
 @derive(encoder, decoder)
 sealed trait UserOrderInfo {
+  val id: String
   val registerTx: TxData
 }
 
@@ -37,6 +38,7 @@ object UserOrderInfo {
             else if (order.redeemOutputId.isDefined) OrderStatus.Refunded
             else if (needRefund) OrderStatus.NeedRefund
             else OrderStatus.Pending
+          fee = order.exFee
         } yield SwapOrderInfo(
           order.orderInputId.show,
           order.poolId.value,
@@ -45,7 +47,7 @@ object UserOrderInfo {
           quote,
           order.actualQuote.map(_.value.toString),
           "ADA".some,
-          0L.some, //todo: replace with correct execution fee
+          fee.map(_.value).getOrElse(0L).some,
           order.rewardPkh,
           order.stakePkh.map(_.unStakePubKeyHash.getPubKeyHash),
           TxData(order.orderInputId.txOutRefId.getTxId, order.creationTimestamp),
@@ -61,7 +63,7 @@ object UserOrderInfo {
       case OrderTypeDB.Redeem =>
         for {
           lq  <- order.redeemLq
-          fee <- order.redeemExFee
+          fee <- order.exFee
           needRefund = curTime - order.creationTimestamp > NeedRefundTime
           status =
             if (order.poolOutputId.isDefined) OrderStatus.Evaluated
@@ -93,7 +95,7 @@ object UserOrderInfo {
         for {
           x   <- order.depositX
           y   <- order.depositY
-          fee <- order.depositExFee
+          fee <- order.exFee
           needRefund = curTime - order.creationTimestamp > NeedRefundTime
           status =
             if (order.poolOutputId.isDefined) OrderStatus.Evaluated
@@ -128,7 +130,7 @@ object UserOrderInfo {
     }
 
   //todo: check values
-  def fromDbOrder(dbOrder: DBOrder, curTime: Long, refundOnly: Boolean, pendingOnly: Boolean): Option[UserOrderInfo] =
+  def fromDbOrder(dbOrder: DBOrder, curTime: Long, refundOnly: Boolean, isMempool: Boolean): Option[UserOrderInfo] =
     dbOrder match {
       case deposit: Deposit =>
         for {
@@ -138,6 +140,7 @@ object UserOrderInfo {
           needRefund = curTime - deposit.creationTimestamp > FiveMin
           status =
             if (refundOnly) OrderStatus.NeedRefund
+            else if (isMempool) OrderStatus.Pending
             else if (deposit.poolOutputId.isDefined) OrderStatus.Evaluated
             else if (deposit.redeemOutputId.isDefined) OrderStatus.Refunded
             else if (needRefund) OrderStatus.NeedRefund
@@ -173,6 +176,7 @@ object UserOrderInfo {
           needRefund = curTime - redeem.creationTimestamp > FiveMin
           status =
             if (refundOnly) OrderStatus.NeedRefund
+            else if (isMempool) OrderStatus.Pending
             else if (redeem.poolOutputId.isDefined) OrderStatus.Evaluated
             else if (redeem.redeemOutputId.isDefined) OrderStatus.Refunded
             else if (needRefund) OrderStatus.NeedRefund
@@ -186,7 +190,7 @@ object UserOrderInfo {
           redeem.amountY.map(y => AssetAmount(assetY, y)),
           "ADA",
           redeem.exFee.unExFee,
-          redeem.rewardPkh.getPubKeyHash,
+          redeem.rewardPkh,
           redeem.stakePkh.map(_.unStakePubKeyHash.getPubKeyHash),
           TxData(redeem.orderInputId.txOutRefId.getTxId, redeem.creationTimestamp),
           for {
@@ -205,6 +209,7 @@ object UserOrderInfo {
           needRefund = curTime - swap.creationTimestamp > FiveMin
           status =
             if (refundOnly) OrderStatus.NeedRefund
+            else if (isMempool) OrderStatus.Pending
             else if (swap.poolOutputId.isDefined) OrderStatus.Evaluated
             else if (swap.redeemOutputId.isDefined) OrderStatus.Refunded
             else if (needRefund) OrderStatus.NeedRefund
@@ -217,7 +222,7 @@ object UserOrderInfo {
           AssetAmount(assetY, swap.minQuoteAmount),
           swap.actualQuote.map(_.value.toString),
           "ADA".some,
-          0L.some, //todo: replace with correct execution fee
+          swap.exFee.getOrElse(0L).some,
           swap.rewardPkh,
           swap.stakePkh.map(_.unStakePubKeyHash.getPubKeyHash),
           TxData(swap.orderInputId.txOutRefId.getTxId, swap.creationTimestamp),

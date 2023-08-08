@@ -56,6 +56,7 @@ class PoolsRepoSpec extends AnyFlatSpec with Matchers with DbTest {
               AvgAssetAmounts(
                 testPools.map(_.x.amount.value).sum / size,
                 testPools.map(_.y.amount.value).sum / size,
+                ts,
                 ts
               )
             }
