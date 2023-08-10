@@ -1,21 +1,29 @@
 package fi.spectrumlabs.db.writer.sql
 
 import cats.data.NonEmptyList
-import doobie.{Fragments, LogHandler, Update}
+import doobie.{Fragments, Update}
 import doobie.util.query.Query0
 import fi.spectrumlabs.db.writer.models.db.{AnyOrderDB, Deposit, Redeem, Swap}
 import doobie.implicits._
 import doobie.util.fragment.Fragment
 import doobie.util.update.Update0
-import fi.spectrumlabs.db.writer.classes.ExecutedOrderInfo.{ExecutedDepositOrderInfo, ExecutedRedeemOrderInfo, ExecutedSwapOrderInfo}
+import fi.spectrumlabs.db.writer.classes.ExecutedOrderInfo._
 import fi.spectrumlabs.db.writer.models.cardano.FullTxOutRef
 import fi.spectrumlabs.db.writer.models.orders.TxOutRef
 
 object OrdersSql {
 
-  def getAnyOrderDB(in: NonEmptyList[String], offset: Int, limit: Int, exclude: List[String]): doobie.Query0[AnyOrderDB] = {
-   def excludeC = NonEmptyList.fromList(exclude).map(x => fr"and" ++ Fragments.notIn(fr"order_input_id", x))
-     .getOrElse(Fragment.empty)
+  def getAnyOrderDB(
+    in: NonEmptyList[String],
+    offset: Int,
+    limit: Int,
+    exclude: List[String],
+    txId: Option[String]
+  ): doobie.Query0[AnyOrderDB] = {
+    def excludeC = NonEmptyList
+      .fromList(exclude)
+      .map(x => fr"and" ++ Fragments.notIn(fr"order_input_id", x))
+      .getOrElse(Fragment.empty)
 
     sql"""
          |select * from (
@@ -48,7 +56,7 @@ object OrdersSql {
          |  	order_status,
          |  	redeem_output_Id,
          |      pool_output_id
-         |  	from swap where ${Fragments.in(fr"reward_pkh", in)} ${excludeC}
+         |  	from swap where ${Fragments.in(fr"reward_pkh", in)} $excludeC ${txIdFilter(txId)}
          |  UNION
          |  	select
          |		order_input_id,
@@ -79,7 +87,7 @@ object OrdersSql {
          |  	order_status,
          |  	redeem_output_Id,
          |      pool_output_id
-         |  	from deposit where ${Fragments.in(fr"reward_pkh", in)} ${excludeC}
+         |  	from deposit where ${Fragments.in(fr"reward_pkh", in)} $excludeC ${txIdFilter(txId)}
          |  UNION
          |  	select
          |		order_input_id,
@@ -110,12 +118,15 @@ object OrdersSql {
          |  	order_status,
          |  	redeem_output_Id,
          |      pool_output_id
-         |  	from redeem where ${Fragments.in(fr"reward_pkh", in)} ${excludeC}
+         |  	from redeem where ${Fragments.in(fr"reward_pkh", in)} $excludeC ${txIdFilter(txId)}
          |) as x
          |ORDER BY x.creation_timestamp DESC
          |OFFSET $offset LIMIT $limit;
        """.stripMargin.query[AnyOrderDB]
   }
+
+  private def txIdFilter(txId: Option[String]) =
+    txId.map(id => fr"and order_input_id like " ++ Fragment.const(s"'$id%'")).getOrElse(Fragment.empty)
 
   def addressCountDB(in: NonEmptyList[String]): doobie.Query0[Long] =
     sql"""
@@ -174,7 +185,7 @@ object OrdersSql {
           |     execution_timestamp,
           |     order_status from deposit where order_input_id = $txOutRef""".stripMargin.query
 
-  def getUserDepositOrdersSQL(userPkh: String, refundOnly: Boolean,  pendingOnly: Boolean): Query0[Deposit] =
+  def getUserDepositOrdersSQL(userPkh: String, refundOnly: Boolean, pendingOnly: Boolean): Query0[Deposit] =
     sql"""select
          |     pool_nft,
          |     coin_x,
@@ -226,7 +237,7 @@ object OrdersSql {
        """.stripMargin
       .query[Swap]
 
-  def getUserSwapOrdersSQL(userPkh: String, refundOnly: Boolean,  pendingOnly: Boolean): Query0[Swap] =
+  def getUserSwapOrdersSQL(userPkh: String, refundOnly: Boolean, pendingOnly: Boolean): Query0[Swap] =
     sql"""select base,
          |  quote,
          |  pool_nft,
@@ -274,7 +285,7 @@ object OrdersSql {
           |	    order_input_id = $txOutRef
     """.stripMargin.query
 
-  def getUserRedeemOrdersSQL(userPkh: String, refundOnly: Boolean,  pendingOnly: Boolean): Query0[Redeem] =
+  def getUserRedeemOrdersSQL(userPkh: String, refundOnly: Boolean, pendingOnly: Boolean): Query0[Redeem] =
     sql"""select pool_nft,
          |      coin_x,
          |      coin_y,

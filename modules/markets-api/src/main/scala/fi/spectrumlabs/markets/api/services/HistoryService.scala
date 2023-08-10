@@ -46,14 +46,16 @@ object HistoryService {
 
     def getUserHistoryV2(query: HistoryApiQuery, paging: Paging, window: TimeWindow): F[OrderHistoryResponse] =
       mempoolService.getUserOrders(query).flatMap { exclude =>
-        ordersRepository.getAnyOrder(query.userPkhs.distinct, paging.offset, paging.limit, exclude.map(_.id)).flatMap { orders =>
-          ordersRepository.addressCount(query.userPkhs.distinct).flatMap { count =>
-            Clock[F].realTime(SECONDS).map { curTime =>
-              val res = orders.flatMap(x => UserOrderInfo.fromAnyOrderDB(x, curTime))
-              OrderHistoryResponse(res, count.getOrElse(0))
+        ordersRepository
+          .getAnyOrder(query.userPkhs.distinct, paging.offset, paging.limit, exclude.map(_.id), query.txId)
+          .flatMap { orders =>
+            ordersRepository.addressCount(query.userPkhs.distinct).flatMap { count =>
+              Clock[F].realTime(SECONDS).map { curTime =>
+                val res = orders.flatMap(x => UserOrderInfo.fromAnyOrderDB(x, curTime))
+                OrderHistoryResponse(res, count.getOrElse(0))
+              }
             }
           }
-        }
       }
 
     override def getUserHistory(query: HistoryApiQuery, paging: Paging, window: TimeWindow): F[OrderHistoryResponse] =
@@ -92,7 +94,6 @@ object HistoryService {
 
     def getUserHistoryV2(query: HistoryApiQuery, paging: Paging, window: TimeWindow): Mid[F, OrderHistoryResponse] =
       trace"Going to get user history for pkhs: ${query.userPkhs.toString()}" *> _
-
 
     def pendingNeedRefundCount(query: HistoryApiQuery): Mid[F, PendingNeedRefundResponse] =
       trace"Going to get pendingNeedRefundCount for pkhs: ${query.userPkhs.toString()}" *> _

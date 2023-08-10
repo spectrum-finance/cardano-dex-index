@@ -9,7 +9,8 @@ import tofu.logging.derivation.loggable
 final case class HistoryApiQuery(
   userPkhs: List[String],
   refundOnly: Option[Boolean],
-  pendingOnly: Option[Boolean]
+  pendingOnly: Option[Boolean],
+  txId: Option[String]
 )
 
 object HistoryApiQuery {

@@ -1,26 +1,22 @@
 package fi.spectrumlabs.db.writer.repositories
 
 import cats.data.NonEmptyList
+import cats.syntax.option._
 import cats.{Functor, Monad}
 import derevo.derive
 import doobie.ConnectionIO
+import cats.tagless.syntax.functorK._
+import fi.spectrumlabs.db.writer.classes.ExecutedOrderInfo._
+import fi.spectrumlabs.db.writer.models.cardano.FullTxOutRef
 import fi.spectrumlabs.db.writer.models.db.{AnyOrderDB, DBOrder}
+import fi.spectrumlabs.db.writer.models.orders.TxOutRef
 import tofu.doobie.LiftConnectionIO
 import tofu.doobie.transactor.Txr
 import tofu.higherKind.Mid
 import tofu.higherKind.derived.representableK
 import tofu.logging.{Logging, Logs}
-import tofu.syntax.monadic._
-import cats.syntax.option._
-import cats.tagless.syntax.functorK._
-import fi.spectrumlabs.db.writer.classes.ExecutedOrderInfo.{
-  ExecutedDepositOrderInfo,
-  ExecutedRedeemOrderInfo,
-  ExecutedSwapOrderInfo
-}
-import fi.spectrumlabs.db.writer.models.cardano.FullTxOutRef
-import fi.spectrumlabs.db.writer.models.orders.TxOutRef
 import tofu.syntax.logging._
+import tofu.syntax.monadic._
 
 @derive(representableK)
 trait OrdersRepository[F[_]] {
@@ -47,7 +43,13 @@ trait OrdersRepository[F[_]] {
 
   def deleteExecutedRedeemOrder(txOutRef: String): F[Int]
 
-  def getAnyOrder(pkh: List[String], offset: Int, limit: Int, exclude: List[String]): F[List[AnyOrderDB]]
+  def getAnyOrder(
+    pkh: List[String],
+    offset: Int,
+    limit: Int,
+    exclude: List[String],
+    txId: Option[String]
+  ): F[List[AnyOrderDB]]
 
   def addressCount(pkh: List[String]): F[Option[Long]]
 
@@ -76,9 +78,15 @@ object OrdersRepository {
 
     import fi.spectrumlabs.db.writer.sql.OrdersSql._
 
-    def getAnyOrder(pkh: List[String], offset: Int, limit: Int, exclude: List[String]): ConnectionIO[List[AnyOrderDB]] =
+    def getAnyOrder(
+      pkh: List[String],
+      offset: Int,
+      limit: Int,
+      exclude: List[String],
+      txId: Option[String]
+    ): ConnectionIO[List[AnyOrderDB]] =
       NonEmptyList.fromList(pkh) match {
-        case Some(value) => getAnyOrderDB(value, offset, limit, exclude).to[List]
+        case Some(value) => getAnyOrderDB(value, offset, limit, exclude, txId).to[List]
         case None        => List.empty[AnyOrderDB].pure[ConnectionIO]
       }
 
@@ -205,8 +213,14 @@ object OrdersRepository {
     ): Mid[F, Int] =
       info"Going to set redeem order $orderTxOutRef from db to refund status" *> _
 
-    def getAnyOrder(pkh: List[String], offset: Int, limit: Int, exclude: List[String]): Mid[F, List[AnyOrderDB]] =
-      info"Going to get orders for $pkh offset: $offset limit $limit" *> _
+    def getAnyOrder(
+      pkh: List[String],
+      offset: Int,
+      limit: Int,
+      exclude: List[String],
+      txId: Option[String]
+    ): Mid[F, List[AnyOrderDB]] =
+      info"Going to get orders for $pkh offset: $offset limit $limit, txId: $txId" *> _
 
     def addressCount(pkh: List[String]): Mid[F, Option[Long]] =
       info"Going to get orders count for $pkh" *> _
