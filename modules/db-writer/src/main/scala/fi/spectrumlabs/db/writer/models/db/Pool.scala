@@ -6,7 +6,7 @@ import fi.spectrumlabs.db.writer.classes.ToSchema
 import fi.spectrumlabs.db.writer.config.CardanoConfig
 import fi.spectrumlabs.db.writer.models.cardano.{Confirmed, PoolEvent}
 import fi.spectrumlabs.db.writer.models.orders._
-import fi.spectrumlabs.db.writer.models.streaming
+import fi.spectrumlabs.db.writer.models.{TokenInfo, streaming}
 
 final case class Pool(
   id: Coin,
@@ -29,6 +29,9 @@ final case class Pool(
 
     if (inputC == x) out(reservesX.value, reservesY.value) else out(reservesY.value, reservesX.value)
   }.toLong
+
+  def isVerified(in: List[TokenInfo]): Boolean =
+    in.exists(_.tokenName == x.value) && in.exists(_.tokenName == y.value)
 }
 
 object Pool {

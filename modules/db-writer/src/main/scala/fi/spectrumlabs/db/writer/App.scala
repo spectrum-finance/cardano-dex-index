@@ -4,6 +4,7 @@ import cats.effect.{Blocker, Concurrent, ContextShift, ExitCode, Resource, Sync}
 import dev.profunktor.redis4cats.connection.RedisClient
 import dev.profunktor.redis4cats.data.RedisCodec
 import dev.profunktor.redis4cats.{Redis, RedisCommands}
+import fi.spectrumlabs.core.network.makeBackend
 import fi.spectrumlabs.core.pg.PostgresTransactor
 import fi.spectrumlabs.core.pg.doobieLogging.makeEmbeddableHandler
 import fi.spectrumlabs.core.redis.RedisConfig
@@ -19,11 +20,13 @@ import fi.spectrumlabs.db.writer.persistence.PersistBundle
 import fi.spectrumlabs.db.writer.programs.{HandlersBundle, WriterProgram}
 import fi.spectrumlabs.db.writer.redis.codecs.bytesCodec
 import fi.spectrumlabs.db.writer.repositories._
+import fi.spectrumlabs.db.writer.services.Tokens
 import fs2.kafka.RecordDeserializer
 import io.lettuce.core.{ClientOptions, TimeoutOptions}
 import monix.eval.{Task, TaskApp}
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
+import sttp.client3.SttpBackend
 import tofu.doobie.log.EmbeddableLogHandler
 import tofu.doobie.transactor.Txr
 import tofu.fs2Instances._
@@ -73,6 +76,8 @@ object App extends TaskApp {
       implicit0(redis: RedisCommands[Task, Array[Byte], Array[Byte]]) <-
         mkRedis[Array[Byte], Array[Byte], Task](configs.redisMempool)
       implicit0(persistBundle: PersistBundle[Task]) = PersistBundle.create[xa.DB, Task](configs.mempoolTtl)
+      implicit0(sttp: SttpBackend[Task, Any]) <- makeBackend[Task](blocker)
+      tokens                                  <- Resource.eval(Tokens.create[Task](configs.cardanoConfig))
       txHandler = makeTxHandler(
         configs.writer,
         configs.cardanoConfig,
@@ -81,9 +86,9 @@ object App extends TaskApp {
         outputsRepo,
         poolsRepo
       )
-      mempoolOpsHandler  = makeMempoolOrdersHandler(configs.writer, configs.cardanoConfig, mempoolOpsConsumer)
-      executedOpsHandler = makeOrdersHandler(configs.writer, configs.cardanoConfig, configs.mempoolTtl)
-      poolsHandler       = makePoolsHandler(configs.writer, configs.cardanoConfig)
+      mempoolOpsHandler  = makeMempoolOrdersHandler(configs.writer, configs.cardanoConfig, mempoolOpsConsumer, tokens)
+      executedOpsHandler = makeOrdersHandler(configs.writer, configs.cardanoConfig, configs.mempoolTtl, tokens)
+      poolsHandler       = makePoolsHandler(configs.writer, configs.cardanoConfig, tokens)
       bundle             = HandlersBundle.make[Stream](txHandler, List(poolsHandler, executedOpsHandler, mempoolOpsHandler))
       program            = WriterProgram.create[Stream, Task](bundle, configs.writer)
       r <- Resource.eval(program.run)

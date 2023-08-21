@@ -12,6 +12,7 @@ import fi.spectrumlabs.db.writer.models.{Input, Output}
 import fi.spectrumlabs.db.writer.persistence.PersistBundle
 import fi.spectrumlabs.db.writer.programs.Handler
 import fi.spectrumlabs.db.writer.repositories.{InputsRepository, OrdersRepository, OutputsRepository, PoolsRepository}
+import fi.spectrumlabs.db.writer.services.Tokens
 import fs2.Chunk
 import monix.eval.Task
 import tofu.fs2Instances._
@@ -71,7 +72,8 @@ object Handlers {
   def makeMempoolOrdersHandler(
     config: WriterConfig,
     cardanoConfig: CardanoConfig,
-    consumer: Consumer[_, Option[Order], App.Stream, Task]
+    consumer: Consumer[_, Option[Order], App.Stream, Task],
+    tokens: Tokens[Task]
   )(implicit
     bundle: PersistBundle[Task],
     logs: Logging.Make[Task]
@@ -81,23 +83,37 @@ object Handlers {
     val deposit = Handle.createOption[Order, Deposit, Task](
       depositRedis,
       DepositRedisHandleName,
-      Deposit.streamingSchema(cardanoConfig)
+      Deposit.streamingSchema(cardanoConfig),
+      tokens.get.map { tokens => (elems: List[Deposit]) =>
+        elems.filter(d => tokens.exists(_.tokenName == d.coinX.value) && tokens.exists(_.tokenName == d.coinY.value))
+      }
     )
     val swap = Handle.createOption[Order, Swap, Task](
       swapRedis,
       SwapRedisHandleName,
-      Swap.streamingSchema(cardanoConfig)
+      Swap.streamingSchema(cardanoConfig),
+      tokens.get.map { tokens => (elems: List[Swap]) =>
+        elems.filter(s => tokens.exists(_.tokenName == s.quote.value) && tokens.exists(_.tokenName == s.base.value))
+      }
     )
     val redeem = Handle.createOption[Order, Redeem, Task](
       redeemRedis,
       RedeemRedisHandleName,
-      Redeem.streamingSchema(cardanoConfig)
+      Redeem.streamingSchema(cardanoConfig),
+      tokens.get.map { tokens => (elems: List[Redeem]) =>
+        elems.filter(r => tokens.exists(_.tokenName == r.coinX.value) && tokens.exists(_.tokenName == r.coinY.value))
+      }
     )
     implicit val nelHandlers: NonEmptyList[Handle[Order, Task]] = NonEmptyList.of(deposit, swap, redeem)
     Handler.create[Order, App.Stream, Task, Chunk](config, MempoolOrdersHandlerName)
   }
 
-  def makeOrdersHandler(config: WriterConfig, cardanoConfig: CardanoConfig, mempoolTtl: FiniteDuration)(implicit
+  def makeOrdersHandler(
+    config: WriterConfig,
+    cardanoConfig: CardanoConfig,
+    mempoolTtl: FiniteDuration,
+    tokens: Tokens[Task]
+  )(implicit
     bundle: PersistBundle[Task],
     consumer: Consumer[_, Option[Order], App.Stream, Task],
     logs: Logging.Make[Task],
@@ -107,7 +123,10 @@ object Handlers {
     val deposit1 = Handle.createOption[Order, Deposit, Task](
       deposit,
       DepositHandleName,
-      Deposit.streamingSchema(cardanoConfig)
+      Deposit.streamingSchema(cardanoConfig),
+      tokens.get.map { tokens => (elems: List[Deposit]) =>
+        elems.filter(d => tokens.exists(_.tokenName == d.coinX.value) && tokens.exists(_.tokenName == d.coinY.value))
+      }
     )
     val depositDropRedis = Handle.createOptionForExecutedRedis[Order, Deposit, Task](
       DepositRedisDropHandleName,
@@ -117,7 +136,10 @@ object Handlers {
     val swap1 = Handle.createOption[Order, Swap, Task](
       swap,
       SwapHandleName,
-      Swap.streamingSchema(cardanoConfig)
+      Swap.streamingSchema(cardanoConfig),
+      tokens.get.map { tokens => (elems: List[Swap]) =>
+        elems.filter(s => tokens.exists(_.tokenName == s.quote.value) && tokens.exists(_.tokenName == s.base.value))
+      }
     )
     val swapDropRedis = Handle.createOptionForExecutedRedis[Order, Swap, Task](
       SwapRedisDropHandleName,
@@ -127,7 +149,10 @@ object Handlers {
     val redeem1 = Handle.createOption[Order, Redeem, Task](
       redeem,
       RedeemHandleName,
-      Redeem.streamingSchema(cardanoConfig)
+      Redeem.streamingSchema(cardanoConfig),
+      tokens.get.map { tokens => (elems: List[Redeem]) =>
+        elems.filter(r => tokens.exists(_.tokenName == r.coinX.value) && tokens.exists(_.tokenName == r.coinY.value))
+      }
     )
     val redeemDropRedis = Handle.createOptionForExecutedRedis[Order, Redeem, Task](
       RedeemRedisDropHandleName,
@@ -147,14 +172,15 @@ object Handlers {
 
   def makePoolsHandler(
     config: WriterConfig,
-    cardanoConfig: CardanoConfig
+    cardanoConfig: CardanoConfig,
+    tokens: Tokens[Task]
   )(implicit
     bundle: PersistBundle[Task],
     consumer: Consumer[_, Option[Confirmed[PoolEvent]], App.Stream, Task],
     logs: Logging.Make[Task]
   ): Handler[App.Stream] = {
     import bundle._
-    val poolHandler                                                            = Handle.createForPools[Task](logs, pool, cardanoConfig)
+    val poolHandler                                                            = Handle.createForPools[Task](logs, pool, tokens, cardanoConfig)
     implicit val nelHandlers: NonEmptyList[Handle[Confirmed[PoolEvent], Task]] = NonEmptyList.of(poolHandler)
     Handler.create[Confirmed[PoolEvent], App.Stream, Task, Chunk](config, PoolsHandler)
   }

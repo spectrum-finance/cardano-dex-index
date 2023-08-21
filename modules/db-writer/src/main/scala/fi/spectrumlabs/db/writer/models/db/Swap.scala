@@ -41,14 +41,11 @@ object Swap {
 
   implicit val key: Key[Swap] = new Key[Swap] {
     override def getKey(in: Swap): String = SwapRedisPrefix ++ in.rewardPkh
-    def getExtendedKey(in: Swap) = getKey(in) ++ in.orderInputId.show
+    def getExtendedKey(in: Swap)          = getKey(in) ++ in.orderInputId.show
   }
 
   def streamingSchema(config: CardanoConfig): ToSchema[Order, Option[Swap]] = {
-    case orderAction: SwapOrder
-        if config.supportedPools.contains(
-          castFromCardano(orderAction.order.action.swapPoolId.unCoin.unAssetClass).toCoin.value
-        ) =>
+    case orderAction: SwapOrder =>
       Swap(
         castFromCardano(orderAction.order.action.swapBase.unCoin.unAssetClass).toCoin,
         castFromCardano(orderAction.order.action.swapQuote.unCoin.unAssetClass).toCoin,

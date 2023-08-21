@@ -23,6 +23,9 @@ package object network {
       .flatMap(implicit ce => AsyncHttpClientFs2Backend.resource[F](blocker))
       .mapK(wr.runContextK(ctx))
 
+  def makeBackend[F[_]: ConcurrentEffect: ContextShift](blocker: Blocker): Resource[F, SttpBackend[F, Fs2Streams[F]]] =
+    AsyncHttpClientFs2Backend.resource[F](blocker)
+
   implicit val uriConfigReader: ConfigReader[Uri] =
     ConfigReader.fromString(s => Uri.parse(s).leftMap(r => CannotConvert(s, "Uri", r)))
 

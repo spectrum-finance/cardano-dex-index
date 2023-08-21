@@ -16,6 +16,7 @@ import fi.spectrumlabs.db.writer.models.streaming._
 import fi.spectrumlabs.db.writer.models.{Output, Transaction}
 import fi.spectrumlabs.db.writer.persistence.Persist
 import fi.spectrumlabs.db.writer.repositories._
+import fi.spectrumlabs.db.writer.services.Tokens
 import io.circe.parser._
 import io.circe.{Decoder, Encoder}
 import mouse.any._
@@ -56,11 +57,12 @@ object Handle {
   def createForPools[F[_]: Monad](
     logs: Logging.Make[F],
     persist: Persist[Pool, F],
+    tokens: Tokens[F],
     cardanoConfig: CardanoConfig
   ): Handle[Confirmed[PoolEvent], F] =
     logs
       .forService[Handle[Confirmed[PoolEvent], F]]
-      .map(implicit __ => new HandlerForPools[F](persist, cardanoConfig))
+      .map(implicit __ => new HandlerForPools[F](persist, tokens, cardanoConfig))
 
   def createList[A, B, I[_]: Functor, F[_]: Monad](persist: Persist[B, F], handleLogName: String)(implicit
     toSchema: ToSchema[A, List[B]],
@@ -77,9 +79,10 @@ object Handle {
   def createOption[A, B, F[_]: Monad](
     persist: Persist[B, F],
     handleLogName: String,
-    toSchema: ToSchema[A, Option[B]]
+    toSchema: ToSchema[A, Option[B]],
+    filter: F[List[B] => List[B]]
   )(implicit logs: Logging.Make[F]): Handle[A, F] =
-    logs.forService[Handle[A, F]].map(implicit __ => new ImplOption[A, B, F](persist, handleLogName, toSchema))
+    logs.forService[Handle[A, F]].map(implicit __ => new ImplOption[A, B, F](persist, handleLogName, toSchema, filter))
 
   def createOptionForExecutedRedis[A, B: Key: Encoder: Decoder, F[_]: Monad](
     handleLogName: String,
@@ -164,22 +167,25 @@ object Handle {
   final private class ImplOption[A, B, F[_]: Monad: Logging](
     persist: Persist[B, F],
     handleLogName: String,
-    toSchema: ToSchema[A, Option[B]]
+    toSchema: ToSchema[A, Option[B]],
+    filter: F[List[B] => List[B]]
   ) extends Handle[A, F] {
 
     def handle(in: NonEmptyList[A]): F[Unit] =
-      info"Going to test: ${in.toString()} against schema in $handleLogName" >> (in
-        .map(toSchema(_))
-        .toList
-        .flatten match {
-        case x :: xs =>
-          (NonEmptyList.of(x, xs: _*) |> persist.persist)
-            .flatMap(r =>
-              info"Finished handle [$handleLogName] process for $r elements -> ${x.toString}. Batch size was ${in.size}. ${in.toString()}"
-            )
-        case Nil =>
-          info"Nothing to extract ${in.toString()} [$handleLogName]. Batch contains 0 elements to persist."
-      })
+      for {
+        _ <- info"[$handleLogName] Processing ${in.toString()}"
+        elems = in.map(toSchema(_)).toList.flatten
+        filtered <- filter.map(_(elems))
+        _ <- filtered match {
+          case x :: xs =>
+            (NonEmptyList.of(x, xs: _*) |> persist.persist)
+              .flatMap(r =>
+                info"Finished handle [$handleLogName] process for $r elements -> ${x.toString}. Batch size was ${in.size}. ${in.toString()}"
+              )
+          case Nil =>
+            info"Nothing to extract ${in.toString()} [$handleLogName]. Batch contains 0 elements to persist."
+        }
+      } yield ()
   }
 
   final private class RedisDrop[A, B: Key: Decoder: Encoder, F[_]: Monad: Logging](
@@ -225,19 +231,20 @@ object Handle {
 
   final private class HandlerForPools[F[_]: Monad: Logging](
     persist: Persist[Pool, F],
+    tokens: Tokens[F],
     cardanoConfig: CardanoConfig
   ) extends Handle[Confirmed[PoolEvent], F] {
 
     override def handle(in: NonEmptyList[Confirmed[PoolEvent]]): F[Unit] =
-      info"going to test pool: ${in.toString()}" >>
-      info"cardanoConfig.supportedPools: ${cardanoConfig.supportedPools}" >>
-      in.map(Pool.toSchemaNew(cardanoConfig).apply)
-        .toList
-        .filter(pool => cardanoConfig.supportedPools.contains(pool.id.value))
-        .traverse { pool =>
-          persist.persist(NonEmptyList.one(pool))
-        }
-        .void
+      info"Got next pools ${in.toString()}" >> tokens.get.flatMap { verified =>
+        in.map(Pool.toSchemaNew(cardanoConfig).apply)
+          .toList
+          .filter(_.isVerified(verified))
+          .traverse { pool =>
+            persist.persist(NonEmptyList.one(pool))
+          }
+          .void
+      }
   }
 
   final private class TransactionHandler[F[_]: Monad: Logging](

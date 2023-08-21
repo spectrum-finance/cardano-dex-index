@@ -52,10 +52,7 @@ object Redeem {
   }
 
   def streamingSchema(config: CardanoConfig): ToSchema[Order, Option[Redeem]] = {
-    case orderAction: RedeemOrder
-        if config.supportedPools.contains(
-          castFromCardano(orderAction.order.action.redeemPoolId.unCoin.unAssetClass).toCoin.value
-        ) =>
+    case orderAction: RedeemOrder =>
       Redeem(
         castFromCardano(orderAction.order.action.redeemPoolId.unCoin.unAssetClass).toCoin,
         castFromCardano(orderAction.order.action.redeemPoolX.unCoin.unAssetClass).toCoin,

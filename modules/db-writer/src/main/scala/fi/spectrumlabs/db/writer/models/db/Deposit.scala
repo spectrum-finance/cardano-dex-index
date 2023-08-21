@@ -45,8 +45,7 @@ object Deposit {
   }
 
   def streamingSchema(config: CardanoConfig): ToSchema[Order, Option[Deposit]] = {
-    case orderAction: DepositOrder
-        if config.supportedPools.contains(castFromCardano(orderAction.order.poolId.unCoin.unAssetClass).toCoin.value) =>
+    case orderAction: DepositOrder =>
       Deposit(
         castFromCardano(orderAction.order.poolId.unCoin.unAssetClass).toCoin,
         castFromCardano(orderAction.order.action.depositPair.firstElem.coin.unAssetClass).toCoin,
