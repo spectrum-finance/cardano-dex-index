@@ -4,9 +4,10 @@ import cats.Monad
 import cats.effect.Sync
 import cats.effect.concurrent.Ref
 import fi.spectrumlabs.db.writer.config.CardanoConfig
+import fi.spectrumlabs.db.writer.models.TokenInfo.Ada
 import fi.spectrumlabs.db.writer.models.{TokenInfo, TokenList}
 import sttp.client3.circe.asJson
-import sttp.client3.{basicRequest, SttpBackend}
+import sttp.client3.{SttpBackend, basicRequest}
 import tofu.Throws
 import tofu.higherKind.{Mid, RepresentableK}
 import tofu.logging.{Logging, Logs}
@@ -52,9 +53,9 @@ object Tokens {
               }
             }
             .flatMap { info =>
-              cache.set(now -> info.tokens).as(info.tokens)
+              cache.set(now -> (Ada :: tokens)).as((Ada :: tokens))
             }
-        else tokens.pure
+        else (Ada :: tokens).pure
       }
     }
   }

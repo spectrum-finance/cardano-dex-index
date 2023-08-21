@@ -22,3 +22,7 @@ final case class TokenInfo(policyId: String, subject: String, decimals: Int) {
   def token: String = s"$policyId.$tokenName"
 
 }
+
+object TokenInfo {
+  val Ada = TokenInfo("", "", 6)
+}
