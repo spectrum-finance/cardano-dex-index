@@ -53,7 +53,7 @@ object Tokens {
               }
             }
             .flatMap { info =>
-              cache.set(now -> (Ada :: tokens)).as((Ada :: tokens))
+              cache.set(now -> (Ada :: info.tokens)).as((Ada :: info.tokens))
             }
         else (Ada :: tokens).pure
       }
