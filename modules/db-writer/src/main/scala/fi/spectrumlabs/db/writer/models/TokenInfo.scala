@@ -19,4 +19,6 @@ final case class TokenInfo(policyId: String, subject: String, decimals: Int) {
     }.toOption.getOrElse("")
   }
 
+  def token: String = s"$policyId.$tokenName"
+
 }

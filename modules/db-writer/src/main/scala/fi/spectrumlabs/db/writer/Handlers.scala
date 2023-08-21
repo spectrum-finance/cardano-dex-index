@@ -85,7 +85,7 @@ object Handlers {
       DepositRedisHandleName,
       Deposit.streamingSchema(cardanoConfig),
       tokens.get.map { tokens => (elems: List[Deposit]) =>
-        elems.filter(d => tokens.exists(_.tokenName == d.coinX.value) && tokens.exists(_.tokenName == d.coinY.value))
+        elems.filter(d => tokens.exists(_.token == d.coinX.value) && tokens.exists(_.token == d.coinY.value))
       }
     )
     val swap = Handle.createOption[Order, Swap, Task](
@@ -93,7 +93,7 @@ object Handlers {
       SwapRedisHandleName,
       Swap.streamingSchema(cardanoConfig),
       tokens.get.map { tokens => (elems: List[Swap]) =>
-        elems.filter(s => tokens.exists(_.tokenName == s.quote.value) && tokens.exists(_.tokenName == s.base.value))
+        elems.filter(s => tokens.exists(_.token == s.quote.value) && tokens.exists(_.token == s.base.value))
       }
     )
     val redeem = Handle.createOption[Order, Redeem, Task](
@@ -101,7 +101,7 @@ object Handlers {
       RedeemRedisHandleName,
       Redeem.streamingSchema(cardanoConfig),
       tokens.get.map { tokens => (elems: List[Redeem]) =>
-        elems.filter(r => tokens.exists(_.tokenName == r.coinX.value) && tokens.exists(_.tokenName == r.coinY.value))
+        elems.filter(r => tokens.exists(_.token == r.coinX.value) && tokens.exists(_.token == r.coinY.value))
       }
     )
     implicit val nelHandlers: NonEmptyList[Handle[Order, Task]] = NonEmptyList.of(deposit, swap, redeem)
@@ -125,7 +125,7 @@ object Handlers {
       DepositHandleName,
       Deposit.streamingSchema(cardanoConfig),
       tokens.get.map { tokens => (elems: List[Deposit]) =>
-        elems.filter(d => tokens.exists(_.tokenName == d.coinX.value) && tokens.exists(_.tokenName == d.coinY.value))
+        elems.filter(d => tokens.exists(_.token == d.coinX.value) && tokens.exists(_.token == d.coinY.value))
       }
     )
     val depositDropRedis = Handle.createOptionForExecutedRedis[Order, Deposit, Task](
@@ -138,7 +138,7 @@ object Handlers {
       SwapHandleName,
       Swap.streamingSchema(cardanoConfig),
       tokens.get.map { tokens => (elems: List[Swap]) =>
-        elems.filter(s => tokens.exists(_.tokenName == s.quote.value) && tokens.exists(_.tokenName == s.base.value))
+        elems.filter(s => tokens.exists(_.token == s.quote.value) && tokens.exists(_.token == s.base.value))
       }
     )
     val swapDropRedis = Handle.createOptionForExecutedRedis[Order, Swap, Task](
@@ -151,7 +151,7 @@ object Handlers {
       RedeemHandleName,
       Redeem.streamingSchema(cardanoConfig),
       tokens.get.map { tokens => (elems: List[Redeem]) =>
-        elems.filter(r => tokens.exists(_.tokenName == r.coinX.value) && tokens.exists(_.tokenName == r.coinY.value))
+        elems.filter(r => tokens.exists(_.token == r.coinX.value) && tokens.exists(_.token == r.coinY.value))
       }
     )
     val redeemDropRedis = Handle.createOptionForExecutedRedis[Order, Redeem, Task](

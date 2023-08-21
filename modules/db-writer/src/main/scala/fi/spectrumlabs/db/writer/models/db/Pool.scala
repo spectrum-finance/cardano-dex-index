@@ -31,7 +31,7 @@ final case class Pool(
   }.toLong
 
   def isVerified(in: List[TokenInfo]): Boolean =
-    in.exists(_.tokenName == x.value) && in.exists(_.tokenName == y.value)
+    in.exists(_.token == x.value) && in.exists(_.token == y.value)
 }
 
 object Pool {
