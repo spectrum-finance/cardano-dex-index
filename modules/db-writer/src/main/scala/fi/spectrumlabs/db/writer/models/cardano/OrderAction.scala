@@ -25,7 +25,7 @@ final case class SwapAction(
 ) extends Action
 
 @derive(decoder)
-final case class SwapExFee(exFeePerTokenDen: Long, exFeePerTokenNum: Long)
+final case class SwapExFee(exFeePerTokenDen: BigDecimal, exFeePerTokenNum: BigDecimal)
 
 @derive(decoder)
 final case class DepositAction(

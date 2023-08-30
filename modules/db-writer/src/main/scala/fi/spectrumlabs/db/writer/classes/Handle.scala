@@ -346,7 +346,7 @@ object Handle {
         )
         pool <- OptionT.liftF(tryGetPool(5, poolIn.txInRef, tx.txId))
         actualOutputOpt = pool.map(_.outputAmount(swap.base, swap.baseAmount.value))
-        fee             = actualOutputOpt.map(actualOutput => BigInt(actualOutput) * swap.exFeePerTokenNum / swap.exFeePerTokenDen)
+        fee             = actualOutputOpt.map(actualOutput => BigDecimal(actualOutput) * swap.exFeePerTokenNum / swap.exFeePerTokenDen)
 //        refundable      = swap.originalAdaAmount - fee
         aq = actualOutputOpt match {
           case Some(value) => if (swap.quote == Coin.Ada) value else actualQuote._2
