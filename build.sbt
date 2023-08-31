@@ -86,8 +86,10 @@ lazy val dbWriter = project
     Libraries.mouse,
     Libraries.enumeratum,
     Libraries.enumeratumCirce,
-    "io.monix" %% "monix" % "3.4.1"
-  ))
+    "io.monix" %% "monix" % "3.4.1",
+    Libraries.flyway,
+    Libraries.scalaCheck
+  ) ++ Libraries.testing)
   .dependsOn(core)
   .settings(assembly / assemblyJarName := "indexes-writer.jar")
   .enablePlugins(JavaAppPackaging, UniversalPlugin, DockerPlugin)

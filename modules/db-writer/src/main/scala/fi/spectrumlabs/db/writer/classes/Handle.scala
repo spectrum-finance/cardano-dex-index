@@ -20,13 +20,12 @@ import fi.spectrumlabs.db.writer.services.Tokens
 import io.circe.parser._
 import io.circe.{Decoder, Encoder}
 import mouse.any._
-import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import tofu.logging.{Logging, Logs}
 import tofu.syntax.foption.noneF
 import tofu.syntax.logging._
 import tofu.syntax.monadic._
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 /** Keeps both ToSchema from A to B and Persist for B.
   * Contains evidence that A can be mapped into B and B can be persisted.
