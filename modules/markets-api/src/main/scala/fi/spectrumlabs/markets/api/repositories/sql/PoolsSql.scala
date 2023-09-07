@@ -18,21 +18,21 @@ final class PoolsSql(implicit lh: LogHandler) {
 
   def getPools: Query0[PoolDb] =
     sql"""
-        |SELECT
-        |	pool_id,
-        |	x,
-        |	reserves_x,
-        |	y,
-        |	reserves_y,
-        |	pool_fee_num,
-        |	pool_fee_den
-        |FROM
-        |	pool p
-        |	INNER JOIN (
-        |		SELECT pool_id AS pid, max(timestamp) AS ts
-        |		FROM pool
-        |		GROUP BY pool_id
-        |	) pLatest ON p.pool_id = pLatest.pid AND p.timestamp = pLatest.ts
+         |SELECT
+         |	pool_id,
+         |	x,
+         |	reserves_x,
+         |	y,
+         |	reserves_y,
+         |	pool_fee_num,
+         |	pool_fee_den
+         |FROM
+         |	pool p
+         |	INNER JOIN (
+         |		SELECT pool_id AS pid, max(id) AS id
+         |		FROM pool
+         |		GROUP BY pool_id
+         |	) pLatest ON p.pool_id = pLatest.pid AND p.id = pLatest.id
        """.stripMargin.query[PoolDb]
 
   def getPool(poolId: PoolId, minLiquidityValue: Long): Query0[Pool] =
