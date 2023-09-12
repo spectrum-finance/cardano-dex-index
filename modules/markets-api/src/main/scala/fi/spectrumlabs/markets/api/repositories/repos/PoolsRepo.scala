@@ -39,6 +39,8 @@ trait PoolsRepo[D[_]] {
   def fees(pool: domain.Pool, window: TimeWindow, poolFee: PoolFee): D[Option[PoolFeeSnapshot]]
 
   def getPoolList: D[List[PoolId]]
+
+  def getPoolStateByDate(poolId: PoolId, date: Long): D[Option[Pool]]
 }
 
 object PoolsRepo {
@@ -58,6 +60,9 @@ object PoolsRepo {
 
     def getPoolList: ConnectionIO[List[PoolId]] =
       sql.getPoolList.to[List]
+
+    def getPoolStateByDate(poolId: PoolId, date: Long): ConnectionIO[Option[Pool]] =
+      sql.getPoolStateByDate(poolId, date).option
 
     def getPools: ConnectionIO[List[PoolDb]] =
       sql.getPools.to[List]
@@ -82,6 +87,13 @@ object PoolsRepo {
   }
 
   final private class Tracing[F[_]: FlatMap: Logging] extends PoolsRepo[Mid[F, *]] {
+
+    def getPoolStateByDate(poolId: PoolId, date: Long):  Mid[F, Option[Pool]] =
+      for {
+        _ <- trace"Going to get pool state by $date"
+        r <- _
+        _ <- trace"Pool state from db is $r"
+      } yield r
 
     def getPools: Mid[F, List[PoolDb]] =
       for {

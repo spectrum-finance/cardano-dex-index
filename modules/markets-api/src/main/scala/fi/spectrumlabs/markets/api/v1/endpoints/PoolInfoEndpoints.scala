@@ -2,17 +2,19 @@ package fi.spectrumlabs.markets.api.v1.endpoints
 
 import fi.spectrumlabs.core.models.domain.PoolId
 import fi.spectrumlabs.core.network.models.HttpError
-import fi.spectrumlabs.markets.api.models.{PlatformStats, PoolInfo, PoolList, PoolOverview, PricePoint}
+import fi.spectrumlabs.markets.api.models.{PlatformStats, PoolList, PoolOverview, PoolState, PricePoint}
 import sttp.tapir._
 import sttp.tapir.json.circe.jsonBody
 import fi.spectrumlabs.markets.api.v1.endpoints.models.TimeWindow
+
 import scala.concurrent.duration.FiniteDuration
 
 object PoolInfoEndpoints {
 
   val pathPrefix = "pool"
 
-  def endpoints: List[Endpoint[_, _, _, _]] = getPoolList :: getPoolInfo :: getPoolsOverview :: Nil
+  def endpoints: List[Endpoint[_, _, _, _]] =
+    getPoolStateByDate :: getPoolList :: getPoolInfo :: getPoolsOverview :: Nil
 
   def getPoolInfo: Endpoint[(PoolId, FiniteDuration), HttpError, PoolOverview, Any] =
     baseEndpoint.get
@@ -64,4 +66,13 @@ object PoolInfoEndpoints {
       .tag(pathPrefix)
       .name("Pool list")
       .description("Allow to get ids and number of existing pools")
+
+  def getPoolStateByDate: Endpoint[(PoolId, Long), HttpError, PoolState, Any] =
+    baseEndpoint.get
+      .in(pathPrefix / path[PoolId] / "state")
+      .in(query[Long]("date"))
+      .out(jsonBody[PoolState])
+      .tag(pathPrefix)
+      .name("Pool state by id and date")
+      .description("Allow to get pool state at given date")
 }

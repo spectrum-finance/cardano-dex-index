@@ -10,7 +10,7 @@ import derevo.derive
 import fi.spectrumlabs.core.models.domain.{Amount, AssetAmount, Pool, PoolId}
 import fi.spectrumlabs.markets.api.configs.MarketsApiConfig
 import fi.spectrumlabs.markets.api.models.db.PoolDb
-import fi.spectrumlabs.markets.api.models.{PlatformStats, PoolList, PoolOverview, PricePoint, RealPrice}
+import fi.spectrumlabs.markets.api.models.{PlatformStats, PoolList, PoolOverview, PoolState, PricePoint, RealPrice}
 import fi.spectrumlabs.markets.api.repositories.repos.{PoolsRepo, RatesRepo}
 import fi.spectrumlabs.markets.api.v1.endpoints.models.TimeWindow
 import tofu.higherKind.Mid
@@ -37,6 +37,8 @@ trait AnalyticsService[F[_]] {
   def updatePoolsOverview: F[List[PoolOverview]]
 
   def getPoolList: F[PoolList]
+
+  def getPoolStateByDate(poolId: PoolId, date: Long): F[Option[PoolState]]
 }
 
 object AnalyticsService {
@@ -58,6 +60,22 @@ object AnalyticsService {
     poolsRepo: PoolsRepo[F],
     ammStatsMath: AmmStatsMath[F]
   ) extends AnalyticsService[F] {
+
+    def getPoolStateByDate(poolId: PoolId, date: Long): F[Option[PoolState]] =
+      (for {
+        poolDb <- OptionT(poolsRepo.getPoolStateByDate(poolId, date))
+        pool = Pool.fromDb(poolDb)
+        totalTvl <- OptionT(resolvePoolTvl(pool))
+      } yield PoolState(pool.id, totalTvl)).value
+
+    private def resolvePoolTvl(pool: Pool): F[Option[BigDecimal]] =
+      (for {
+        rateX <- OptionT(ratesRepo.get(pool.x.asset))
+        rateY <- OptionT(ratesRepo.get(pool.y.asset))
+        xTvl     = pool.x.amount.withDecimal(rateX.decimals) * rateX.rate
+        yTvl     = pool.y.amount.withDecimal(rateY.decimals) * rateY.rate
+        totalTvl = (xTvl + yTvl).setScale(2, RoundingMode.HALF_UP)
+      } yield totalTvl).value
 
     def getPoolList: F[PoolList] =
       poolsRepo.getPoolList.map(pools => PoolList(pools, pools.size))
@@ -169,6 +187,13 @@ object AnalyticsService {
   }
 
   final private class Tracing[F[_]: Monad: Logging] extends AnalyticsService[Mid[F, *]] {
+
+    def getPoolStateByDate(poolId: PoolId, date: Long): Mid[F, Option[PoolState]] =
+      for {
+        _ <- trace"Going to get $poolId pool state by $date"
+        r <- _
+        _ <- trace"Pool state is $r"
+      } yield r
 
     def getPoolsOverview: Mid[F, List[PoolOverview]] =
       for {
