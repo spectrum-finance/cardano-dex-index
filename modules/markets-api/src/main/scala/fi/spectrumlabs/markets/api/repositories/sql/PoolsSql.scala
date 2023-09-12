@@ -1,20 +1,21 @@
 package fi.spectrumlabs.markets.api.repositories.sql
 
-import doobie.util.log.LogHandler
+import cats.syntax.show._
 import doobie.implicits._
+import doobie.util.fragment.Fragment
+import doobie.util.log.LogHandler
 import doobie.util.query.Query0
 import fi.spectrumlabs.core.models.db.Pool
-import fi.spectrumlabs.core.models.domain.{PoolFee, PoolId, Pool => DomainPool}
-import fi.spectrumlabs.markets.api.models.{PoolVolume, PoolVolumeDb, PoolVolumeDbNew}
-
-import scala.concurrent.duration.FiniteDuration
-import cats.syntax.show._
-import doobie.util.fragment.Fragment
 import fi.spectrumlabs.core.models.domain
+import fi.spectrumlabs.core.models.domain.{PoolFee, PoolId, Pool => DomainPool}
 import fi.spectrumlabs.markets.api.models.db.{AvgAssetAmounts, PoolDb, PoolFeeSnapshot}
+import fi.spectrumlabs.markets.api.models.{PoolVolume, PoolVolumeDbNew}
 import fi.spectrumlabs.markets.api.v1.endpoints.models.TimeWindow
 
 final class PoolsSql(implicit lh: LogHandler) {
+
+  def getPoolList: Query0[PoolId] =
+    sql"""SELECT DISTINCT pool_id FROM pool""".stripMargin.query[PoolId]
 
   def getPools: Query0[PoolDb] =
     sql"""

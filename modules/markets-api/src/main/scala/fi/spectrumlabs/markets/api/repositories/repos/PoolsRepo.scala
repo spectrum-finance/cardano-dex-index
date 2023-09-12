@@ -37,6 +37,8 @@ trait PoolsRepo[D[_]] {
   def getFirstPoolSwapTime(id: PoolId): D[Option[Long]]
 
   def fees(pool: domain.Pool, window: TimeWindow, poolFee: PoolFee): D[Option[PoolFeeSnapshot]]
+
+  def getPoolList: D[List[PoolId]]
 }
 
 object PoolsRepo {
@@ -53,6 +55,9 @@ object PoolsRepo {
     }
 
   final class Impl(sql: PoolsSql) extends PoolsRepo[ConnectionIO] {
+
+    def getPoolList: ConnectionIO[List[PoolId]] =
+      sql.getPoolList.to[List]
 
     def getPools: ConnectionIO[List[PoolDb]] =
       sql.getPools.to[List]
@@ -83,6 +88,13 @@ object PoolsRepo {
         _ <- trace"Going to get all pools"
         r <- _
         _ <- trace"Pools from db are $r"
+      } yield r
+
+    def getPoolList: Mid[F, List[PoolId]] =
+      for {
+        _ <- trace"Going to get all pool ids"
+        r <- _
+        _ <- trace"Pool ids from db are $r"
       } yield r
 
     def getPoolById(poolId: PoolId, minLiquidityValue: Long): Mid[F, Option[Pool]] =

@@ -2,7 +2,7 @@ package fi.spectrumlabs.markets.api.v1.endpoints
 
 import fi.spectrumlabs.core.models.domain.PoolId
 import fi.spectrumlabs.core.network.models.HttpError
-import fi.spectrumlabs.markets.api.models.{PlatformStats, PoolInfo, PoolOverview, PricePoint}
+import fi.spectrumlabs.markets.api.models.{PlatformStats, PoolInfo, PoolList, PoolOverview, PricePoint}
 import sttp.tapir._
 import sttp.tapir.json.circe.jsonBody
 import fi.spectrumlabs.markets.api.v1.endpoints.models.TimeWindow
@@ -12,7 +12,7 @@ object PoolInfoEndpoints {
 
   val pathPrefix = "pool"
 
-  def endpoints: List[Endpoint[_, _, _, _]] = getPoolInfo :: getPoolsOverview :: Nil
+  def endpoints: List[Endpoint[_, _, _, _]] = getPoolList :: getPoolInfo :: getPoolsOverview :: Nil
 
   def getPoolInfo: Endpoint[(PoolId, FiniteDuration), HttpError, PoolOverview, Any] =
     baseEndpoint.get
@@ -56,4 +56,12 @@ object PoolInfoEndpoints {
       .tag(pathPrefix)
       .name("Platform summary")
       .description("Allow to get platform summary within period")
+
+  def getPoolList: Endpoint[Unit, HttpError, PoolList, Any] =
+    baseEndpoint.get
+      .in("pools" / "list")
+      .out(jsonBody[PoolList])
+      .tag(pathPrefix)
+      .name("Pool list")
+      .description("Allow to get ids and number of existing pools")
 }
