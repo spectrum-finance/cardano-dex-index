@@ -74,7 +74,7 @@ object AnalyticsService {
         rateY <- OptionT(ratesRepo.get(pool.y.asset))
         xTvl     = pool.x.amount.withDecimal(rateX.decimals) * rateX.rate
         yTvl     = pool.y.amount.withDecimal(rateY.decimals) * rateY.rate
-        totalTvl = (xTvl + yTvl).setScale(2, RoundingMode.HALF_UP)
+        totalTvl = (xTvl + yTvl).setScale(6, RoundingMode.HALF_UP)
       } yield totalTvl).value
 
     def getPoolList: F[PoolList] =
