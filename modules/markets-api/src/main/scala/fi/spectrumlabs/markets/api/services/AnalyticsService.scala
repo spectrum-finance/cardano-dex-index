@@ -20,7 +20,7 @@ import tofu.syntax.logging._
 import tofu.syntax.monadic._
 import tofu.time.Clock
 import java.util.concurrent.TimeUnit
-
+import fi.spectrumlabs.core.AdaAssetClass
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.math.BigDecimal.RoundingMode
 
@@ -64,9 +64,9 @@ object AnalyticsService {
     def getPoolStateByDate(poolId: PoolId, date: Long): F[Option[PoolState]] =
       (for {
         poolDb <- OptionT(poolsRepo.getPoolStateByDate(poolId, date))
-        pool = Pool.fromDb(poolDb)
-        totalTvl <- OptionT(resolvePoolTvl(pool))
-      } yield PoolState(pool.id, totalTvl)).value
+        pool   <- OptionT.pure(Pool.fromDb(poolDb)).filter(_.contains(AdaAssetClass))
+        adaAmount = if (pool.x.asset == AdaAssetClass) pool.x.amount else pool.y.amount
+      } yield PoolState(pool.id, adaAmount.value * 2)).value
 
     private def resolvePoolTvl(pool: Pool): F[Option[BigDecimal]] =
       (for {
