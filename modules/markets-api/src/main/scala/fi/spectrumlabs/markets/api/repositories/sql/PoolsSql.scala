@@ -25,24 +25,25 @@ final class PoolsSql(implicit lh: LogHandler) {
          |	reserves_x,
          |	y,
          |	reserves_y,
-         |  pool_fee_num,
-         |  pool_fee_den
+         |	pool_fee_num,
+         |	pool_fee_den
          |FROM
          |	pool p
          |	LEFT JOIN (
          |		SELECT
          |			pool_id AS pid,
-         |			max(id) AS id
+         |			max(id) AS id,
+         |			max(timestamp) AS ts
          |		FROM
          |			pool
-         |   WHERE timestamp <= $date
+         |		WHERE
+         |			timestamp <= $date
          |		GROUP BY
-         |			pool_id
-         |   ) AS plast ON plast.pid = p.pool_id
-         |	AND plast.id = p.id
+         |			pool_id) AS plast ON plast.pid = p.pool_id
+         |	AND plast.id = p.id AND plast.ts = p.timestamp
          |WHERE
-         |plast.id = p.id
-         |AND pool_id = $poolId;
+         |	plast.id = p.id
+         |	AND pool_id = $poolId;
        """.stripMargin.query[Pool]
 
   def getPools: Query0[PoolDb] =
