@@ -43,7 +43,8 @@ final class PoolsSql(implicit lh: LogHandler) {
          |	AND plast.id = p.id AND plast.ts = p.timestamp
          |WHERE
          |	plast.id = p.id
-         |	AND pool_id = $poolId;
+         |	AND pool_id = $poolId
+         |  AND p.timestamp <= $date;
        """.stripMargin.query[Pool]
 
   def getPools: Query0[PoolDb] =
