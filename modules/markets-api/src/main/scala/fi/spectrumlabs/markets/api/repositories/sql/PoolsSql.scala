@@ -32,15 +32,14 @@ final class PoolsSql(implicit lh: LogHandler) {
          |	LEFT JOIN (
          |		SELECT
          |			pool_id AS pid,
-         |			max(id) AS id,
-         |			max(timestamp) AS ts
+         |			max(id) AS id
          |		FROM
          |			pool
          |		WHERE
          |			timestamp <= $date
          |		GROUP BY
          |			pool_id) AS plast ON plast.pid = p.pool_id
-         |	AND plast.id = p.id AND plast.ts = p.timestamp
+         |	AND plast.id = p.id
          |WHERE
          |	plast.id = p.id
          |	AND pool_id = $poolId
