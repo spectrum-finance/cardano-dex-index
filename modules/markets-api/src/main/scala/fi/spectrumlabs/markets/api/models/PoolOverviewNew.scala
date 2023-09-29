@@ -27,12 +27,12 @@ final case class PoolOverviewNew(
       AssetAmountFront(lockedX.asset, s"${lockedX.amount.value}"),
       AssetAmountFront(lockedY.asset, s"${lockedY.amount.value}"),
       AssetAmountFront(lockedLQ.asset, s"${lockedLQ.amount.value}"),
-      tvl.map(_.toString()),
-      volume.map(_.toString()),
-      PoolFeeSnapshotFront(fee.x.toString(), fee.y.toString()),
+      tvl,
+      volume,
+      fee,
       yearlyFeesPercent,
-      poolFeeNum.toString(),
-      poolFeeDenum.toString()
+      poolFeeNum,
+      poolFeeDenum
     )
 }
 
@@ -45,12 +45,12 @@ object PoolOverviewNew {
     lockedX: AssetAmountFront,
     lockedY: AssetAmountFront,
     lockedLQ: AssetAmountFront,
-    tvl: Option[String],
-    volume: Option[String],
-    fee: PoolFeeSnapshotFront,
+    tvl: Option[BigDecimal],
+    volume: Option[BigDecimal],
+    fee: PoolFeeSnapshot,
     yearlyFeesPercent: Apr,
-    poolFeeNum: String,
-    poolFeeDenum: String
+    poolFeeNum: BigDecimal,
+    poolFeeDenum: BigDecimal
   )
 
   object PoolOverviewFront {
