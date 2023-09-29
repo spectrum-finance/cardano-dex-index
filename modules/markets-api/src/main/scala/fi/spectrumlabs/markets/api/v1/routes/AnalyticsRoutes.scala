@@ -9,6 +9,7 @@ import fi.spectrumlabs.markets.api.v1.endpoints.PoolInfoEndpoints
 import sttp.tapir.server.http4s.{Http4sServerInterpreter, Http4sServerOptions}
 import fi.spectrumlabs.core.network.models._
 import cats.syntax.semigroupk._
+import tofu.syntax.monadic._
 
 final class AnalyticsRoutes[F[_]: Concurrent: ContextShift: Timer: AdaptThrowableEitherT[*[_], HttpError]](implicit
   service: AnalyticsService[F],
@@ -27,7 +28,8 @@ final class AnalyticsRoutes[F[_]: Concurrent: ContextShift: Timer: AdaptThrowabl
     service.getPoolInfo(id, period.toSeconds).orNotFound(s"PoolInfo{id=$id}")
   }
 
-  def getPoolsOverviewR = interpreter.toRoutes(getPoolsOverview)(_ => service.getPoolsOverview.adaptThrowable.value)
+  def getPoolsOverviewR =
+    interpreter.toRoutes(getPoolsOverview)(_ => service.getPoolsOverview.map(_.map(_.toFront)).adaptThrowable.value)
 
   def getPoolPriceChartR = interpreter.toRoutes(getPoolPriceChart) { case (poolId, tw, res) =>
     service.getPoolPriceChart(poolId, tw, res).adaptThrowable.value

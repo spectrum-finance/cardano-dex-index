@@ -10,21 +10,14 @@ import fi.spectrumlabs.core.cache.Cache.Plain
 import fi.spectrumlabs.core.http.cache.CacheMiddleware.CachingMiddleware
 import fi.spectrumlabs.core.http.cache.{CacheMiddleware, HttpResponseCaching}
 import fi.spectrumlabs.core.network.makeBackend
-import fi.spectrumlabs.core.pg.{doobieLogging, PostgresTransactor}
+import fi.spectrumlabs.core.pg.{PostgresTransactor, doobieLogging}
 import fi.spectrumlabs.core.redis.codecs.stringCodec
 import fi.spectrumlabs.core.redis.mkRedis
 import fi.spectrumlabs.db.writer.repositories.OrdersRepository
 import fi.spectrumlabs.markets.api.configs.ConfigBundle
 import fi.spectrumlabs.markets.api.context.AppContext
 import fi.spectrumlabs.markets.api.repositories.repos.{PoolsRepo, RatesRepo}
-import fi.spectrumlabs.markets.api.services.{
-  AmmStatsMath,
-  AnalyticsService,
-  CacheCleaner,
-  HistoryService,
-  MempoolService,
-  PoolsOverviewCache
-}
+import fi.spectrumlabs.markets.api.services.{AmmStatsMath, AnalyticsService, CacheCleaner, HistoryService, MempoolService, PoolsOverviewCache}
 import fi.spectrumlabs.markets.api.v1.HttpServer
 import org.http4s.server.Server
 import sttp.capabilities.fs2.Fs2Streams
@@ -38,7 +31,7 @@ import tofu.logging.derivation.loggable.generate
 import zio.interop.catz._
 import zio.{ExitCode, URIO, ZIO}
 import cats.tagless.syntax.functorK._
-import fi.spectrumlabs.markets.api.models.PoolOverview
+import fi.spectrumlabs.markets.api.models.{PoolOverview, PoolOverviewNew}
 
 object App extends EnvApp[AppContext] {
 
@@ -77,7 +70,7 @@ object App extends EnvApp[AppContext] {
         RedisCodec.Bytes
       )
       implicit0(cache: Cache[RunF])                       <- Resource.eval(Cache.make[InitF, RunF])
-      ref                                                 <- Resource.eval(Ref.in[InitF, RunF, List[PoolOverview]](List.empty))
+      ref                                                 <- Resource.eval(Ref.in[InitF, RunF, List[PoolOverviewNew]](List.empty))
       implicit0(httpRespCache: HttpResponseCaching[RunF]) <- Resource.eval(HttpResponseCaching.make[InitF, RunF])
       implicit0(httpCache: CachingMiddleware[RunF]) = CacheMiddleware.make[RunF]
       implicit0(backend: SttpBackend[RunF, Fs2Streams[RunF]]) <- makeBackend[AppContext, InitF, RunF](ctx, blocker)

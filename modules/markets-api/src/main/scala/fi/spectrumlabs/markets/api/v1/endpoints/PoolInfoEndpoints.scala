@@ -2,7 +2,8 @@ package fi.spectrumlabs.markets.api.v1.endpoints
 
 import fi.spectrumlabs.core.models.domain.PoolId
 import fi.spectrumlabs.core.network.models.HttpError
-import fi.spectrumlabs.markets.api.models.{PlatformStats, PoolList, PoolOverview, PoolState, PricePoint}
+import fi.spectrumlabs.markets.api.models.PoolOverviewNew.PoolOverviewFront
+import fi.spectrumlabs.markets.api.models.{PlatformStats, PoolList, PoolOverview, PoolOverviewNew, PoolState, PricePoint}
 import sttp.tapir._
 import sttp.tapir.json.circe.jsonBody
 import fi.spectrumlabs.markets.api.v1.endpoints.models.TimeWindow
@@ -33,10 +34,10 @@ object PoolInfoEndpoints {
       .name("Info by pool id")
       .description("Allow to get info about pool within period")
 
-  def getPoolsOverview: Endpoint[Unit, HttpError, List[PoolOverview], Any] =
+  def getPoolsOverview: Endpoint[Unit, HttpError, List[PoolOverviewFront], Any] =
     baseEndpoint.get
       .in("pools" / "overview")
-      .out(jsonBody[List[PoolOverview]])
+      .out(jsonBody[List[PoolOverviewFront]])
       .tag(pathPrefix)
       .name("Pools overview")
       .description("Allow to get info about all pool within period")
