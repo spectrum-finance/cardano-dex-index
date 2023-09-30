@@ -42,7 +42,7 @@ object AssetClass {
       case "." => AssetClass("", "").some //todo fix insertion
       case str =>
         str.split('.').toList match {
-          case cs :: tn => AssetClass(cs, tn.mkString("")).some
+          case cs :: tn => AssetClass(cs, tn.mkString(".")).some
           case _        => none
         }
     }
