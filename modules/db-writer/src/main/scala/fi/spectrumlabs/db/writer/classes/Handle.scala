@@ -397,9 +397,16 @@ object Handle {
         case tx: AppliedTransaction =>
           info"Got next tx ${tx.txId.toString} in executed orders handler" >>
             tx.txInputs.traverse { txInput =>
+              def tryGetOrder(num: Int): F[Option[DBOrder]] =
+                ordersRepository.getOrder(txInput.txInRef).flatMap {
+                  case Some(value) => info"Found order ${value.toString} ${txInput.txInRef.toString}, $num" as value.some
+                  case None if num > 0 =>
+                    info"Nothing for order for tx ${txInput.txInRef.toString}, $num, retrying" >>
+                      Timer[F].sleep(1.seconds) >> tryGetOrder(num - 1)
+                  case _ => info"Nothing for order for tx ${txInput.txInRef.toString}, $num" >> noneF[F, DBOrder]
+                }
               info"Got next txInput ${txInput.txInRef}, trying to fetch pending order..." >>
-              ordersRepository
-                .getOrder(txInput.txInRef)
+                tryGetOrder(5)
                 .flatMap {
                   case Some(deposit: Deposit) =>
                     info"Going to resolve deposit executed ${deposit.rewardPkh}, ${deposit.orderInputId}" >>
