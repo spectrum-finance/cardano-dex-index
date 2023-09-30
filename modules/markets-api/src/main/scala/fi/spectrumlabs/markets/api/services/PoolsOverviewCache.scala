@@ -41,6 +41,6 @@ object PoolsOverviewCache {
     def run2: F[Unit] =
       analyticsService.updateLatestPoolsStates.flatMap { pool =>
         cache2.set(pool)
-      } >> Timer[F].sleep(1.seconds) >> run
+      } >> Timer[F].sleep(1.seconds) >> run2
   }
 }
