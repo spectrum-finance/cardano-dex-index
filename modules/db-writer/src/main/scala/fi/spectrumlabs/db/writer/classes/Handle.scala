@@ -416,7 +416,7 @@ object Handle {
                   case _ => info"Nothing for order for tx ${txInput.txInRef.toString}, $num" >> noneF[F, DBOrder]
                 }
               info"Got next txInput ${txInput.txInRef}, trying to fetch pending order..." >>
-              tryGetOrder(5).flatMap {
+              tryGetOrder(3).flatMap {
                 case Some(deposit: Deposit) =>
                   info"Going to resolve deposit executed ${deposit.rewardPkh}, ${deposit.orderInputId}" >>
                     resolveDepositOrder(deposit, txInput, tx).traverse { executed =>
