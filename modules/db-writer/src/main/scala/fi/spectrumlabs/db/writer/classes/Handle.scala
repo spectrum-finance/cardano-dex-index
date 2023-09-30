@@ -26,7 +26,7 @@ import tofu.syntax.foption.noneF
 import tofu.syntax.logging._
 import tofu.syntax.monadic._
 
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.{DurationDouble, DurationInt, FiniteDuration}
 
 /** Keeps both ToSchema from A to B and Persist for B.
   * Contains evidence that A can be mapped into B and B can be persisted.
@@ -322,7 +322,7 @@ object Handle {
         case Some(value) => info"Found pool ${value.toString} ${txId.toString}, $num" as value.some
         case None if num > 0 =>
           info"Nothing for pool for tx ${txId.toString}, $num, retrying" >>
-            Timer[F].sleep(1.seconds) >> tryGetPool(num - 1, poolId, txId)
+            Timer[F].sleep(0.5.seconds) >> tryGetPool(num - 1, poolId, txId)
         case _ => info"Nothing for pool for tx ${txId.toString}, $num" >> noneF
       }
 
