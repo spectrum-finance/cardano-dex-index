@@ -54,7 +54,7 @@ object Handler {
           batch.toList.flatMap(_.message) match {
             case x :: xs =>
               val nel = NonEmptyList.of(x, xs: _*)
-              Evals[S, F].eval(info"going to test:${nel.toString()} against $name") >>
+              Evals[S, F].eval(info"$name: going to test: ${nel.toString()}") >>
               eval(handlers.toList.parTraverse(_.handle(nel)))
                 .evalMap(_ => info"Handler [$name] processed batch of ${nel.size} elements.")
                 .evalMap(_ => batch.toList.lastOption.fold(().pure[F])(_.commit))

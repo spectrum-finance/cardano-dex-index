@@ -345,7 +345,9 @@ object Handle {
         )
         pool <- OptionT.liftF(tryGetPool(5, poolIn.txInRef, tx.txId))
         actualOutputOpt = pool.map(_.outputAmount(swap.base, swap.baseAmount.value))
-        fee             = actualOutputOpt.map(actualOutput => BigDecimal(actualOutput) * swap.exFeePerTokenNum / swap.exFeePerTokenDen)
+        fee = actualOutputOpt.map(actualOutput =>
+          BigDecimal(actualOutput) * swap.exFeePerTokenNum / swap.exFeePerTokenDen
+        )
 //        refundable      = swap.originalAdaAmount - fee
         aq = actualOutputOpt match {
           case Some(value) => if (swap.quote == Coin.Ada) value else actualQuote._2
@@ -394,44 +396,51 @@ object Handle {
       info"Handle [Executed] got next batch ${in.toString()}" >>
       in.traverse {
         case _: UnAppliedTransaction => unit[F]
-        case tx: AppliedTransaction =>
+        case tx: AppliedTransaction if tx.txOutputs.exists { out =>
+              out.fullTxOutAddress.addressCredential match {
+                case ScriptAddressCredential(contents, _) =>
+                  contents == "6b9c456aa650cb808a9ab54326e039d5235ed69f069c9664a8fe5b69" ||
+                    contents == "e628bfd68c07a7a38fcd7d8df650812a9dfdbee54b1ed4c25c87ffbf"
+                case _ => false
+              }
+            } =>
           info"Got next tx ${tx.txId.toString} in executed orders handler" >>
-            tx.txInputs.traverse { txInput =>
+            tx.txInputs.traverse { txInput: TxInput =>
               def tryGetOrder(num: Int): F[Option[DBOrder]] =
                 ordersRepository.getOrder(txInput.txInRef).flatMap {
-                  case Some(value) => info"Found order ${value.toString} ${txInput.txInRef.toString}, $num" as value.some
+                  case Some(value) =>
+                    info"Found order ${value.toString} ${txInput.txInRef.toString}, $num" as value.some
                   case None if num > 0 =>
                     info"Nothing for order for tx ${txInput.txInRef.toString}, $num, retrying" >>
                       Timer[F].sleep(1.seconds) >> tryGetOrder(num - 1)
                   case _ => info"Nothing for order for tx ${txInput.txInRef.toString}, $num" >> noneF[F, DBOrder]
                 }
               info"Got next txInput ${txInput.txInRef}, trying to fetch pending order..." >>
-                tryGetOrder(5)
-                .flatMap {
-                  case Some(deposit: Deposit) =>
-                    info"Going to resolve deposit executed ${deposit.rewardPkh}, ${deposit.orderInputId}" >>
-                      resolveDepositOrder(deposit, txInput, tx).traverse { executed =>
-                        info"Got executed deposit order ${deposit.orderInputId} for deposit ${deposit.rewardPkh}, order ${deposit.toString}, txIs: ${tx.toString}" >>
-                        ordersRepository.updateExecutedDepositOrder(executed)
+              tryGetOrder(5).flatMap {
+                case Some(deposit: Deposit) =>
+                  info"Going to resolve deposit executed ${deposit.rewardPkh}, ${deposit.orderInputId}" >>
+                    resolveDepositOrder(deposit, txInput, tx).traverse { executed =>
+                      info"Got executed deposit order ${deposit.orderInputId} for deposit ${deposit.rewardPkh}, order ${deposit.toString}, txIs: ${tx.toString}" >>
+                      ordersRepository.updateExecutedDepositOrder(executed)
+                    }.void
+                case Some(swap: Swap) =>
+                  info"Going to resolve swap executed ${swap.rewardPkh}, ${swap.orderInputId}" >>
+                    resolveSwapOrder(swap, txInput, tx).value.flatMap {
+                      _.traverse { executed =>
+                        info"Got executed swap order ${swap.orderInputId} ${swap.toString} | ${tx.toString} | ${executed.toString}" >>
+                        ordersRepository.updateExecutedSwapOrder(executed)
                       }.void
-                  case Some(swap: Swap) =>
-                    info"Going to resolve swap executed ${swap.rewardPkh}, ${swap.orderInputId}" >>
-                      resolveSwapOrder(swap, txInput, tx).value.flatMap {
-                        _.traverse { executed =>
-                          info"Got executed swap order ${swap.orderInputId} ${swap.toString} | ${tx.toString} | ${executed.toString}" >>
-                          ordersRepository.updateExecutedSwapOrder(executed)
-                        }.void
-                      }
-                  case Some(redeem: Redeem) =>
-                    info"Going to resolve redeem executed ${redeem.rewardPkh}, ${redeem.orderInputId}" >>
-                      resolveRedeemOrder(redeem, txInput, tx).traverse { executed =>
-                        info"Got executed redeem order ${redeem.orderInputId} for pkh ${redeem.rewardPkh}, redeem: ${redeem.toString}, executed: ${executed.toString}, tx: ${tx.toString}" >>
-                        ordersRepository.updateExecutedRedeemOrder(executed)
-                      }.void
-                  case _ => info"Nothing fetched for txInput ${txInput.txInRef}"
-                }
-                .void
+                    }
+                case Some(redeem: Redeem) =>
+                  info"Going to resolve redeem executed ${redeem.rewardPkh}, ${redeem.orderInputId}" >>
+                    resolveRedeemOrder(redeem, txInput, tx).traverse { executed =>
+                      info"Got executed redeem order ${redeem.orderInputId} for pkh ${redeem.rewardPkh}, redeem: ${redeem.toString}, executed: ${executed.toString}, tx: ${tx.toString}" >>
+                      ordersRepository.updateExecutedRedeemOrder(executed)
+                    }.void
+                case _ => info"Nothing fetched for txInput ${txInput.txInRef}"
+              }.void
             }.void
+        case tx: AppliedTransaction => unit[F]
       }.void
   }
 
