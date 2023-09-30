@@ -25,7 +25,8 @@ final case class ConfigBundle(
   tokenFetcher: TokenFetcherConfig,
   httpCache: HttpCacheConfig,
   tf: TokenFetcherConfig1,
-  cacheTtl: FiniteDuration
+  cacheTtl: FiniteDuration,
+  graphiteSettings: GraphiteSettings
 )
 
 object ConfigBundle extends WithContext.Companion[ConfigBundle] with ConfigBundleCompanion[ConfigBundle]

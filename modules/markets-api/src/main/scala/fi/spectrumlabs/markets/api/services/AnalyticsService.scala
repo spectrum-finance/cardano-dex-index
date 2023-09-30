@@ -52,6 +52,8 @@ trait AnalyticsService[F[_]] {
 
   def updatePoolsOverview: F[List[PoolOverview]]
 
+  def updateLatestPoolsStates: F[List[PoolOverviewNew]]
+
   def getPoolList: F[PoolList]
 
   def getPoolStateByDate(poolId: PoolId, date: Long): F[Option[PoolState]]
@@ -63,18 +65,20 @@ object AnalyticsService {
 
   def create[I[_]: Functor, F[_]: Monad: Parallel: Clock](
     config: MarketsApiConfig,
-    cache: Ref[F, List[PoolOverview]]
+    cache: Ref[F, List[PoolOverview]],
+    cache2: Ref[F, List[PoolOverviewNew]]
   )(implicit
     ratesRepo: RatesRepo[F],
     poolsRepo: PoolsRepo[F],
     ammStatsMath: AmmStatsMath[F],
     logs: Logs[I, F]
   ): I[AnalyticsService[F]] =
-    logs.forService[AnalyticsService[F]].map(implicit __ => new Tracing[F] attach new Impl[F](config, cache))
+    logs.forService[AnalyticsService[F]].map(implicit __ => new Tracing[F] attach new Impl[F](config, cache, cache2))
 
   final private class Impl[F[_]: Monad: Parallel: Clock](
     config: MarketsApiConfig,
-    cache: Ref[F, List[PoolOverview]]
+    cache: Ref[F, List[PoolOverview]],
+    cache2: Ref[F, List[PoolOverviewNew]]
   )(implicit
     ratesRepo: RatesRepo[F],
     poolsRepo: PoolsRepo[F],
@@ -92,6 +96,9 @@ object AnalyticsService {
       poolsRepo.getPoolList.map(pools => PoolList(pools, pools.size))
 
     def getLatestPoolsStates: F[List[PoolOverviewNew]] =
+      cache2.get
+
+    def updateLatestPoolsStates: F[List[PoolOverviewNew]] =
       poolsRepo.getPools.map(
         _.map { pool: PoolDbNew =>
           val p = Pool(pool.poolId, AssetAmount(pool.x, pool.xReserves), AssetAmount(pool.y, pool.yReserves))
@@ -326,6 +333,13 @@ object AnalyticsService {
         _ <- trace"getPoolInfo"
         r <- _
         _ <- trace"getPoolInfo -> $r"
+      } yield r
+
+    def updateLatestPoolsStates: Mid[F, List[PoolOverviewNew]] =
+      for {
+        _ <- trace"updateLatestPoolsStates"
+        r <- _
+        _ <- trace"updateLatestPoolsStates -> $r"
       } yield r
   }
 }
