@@ -2,9 +2,7 @@ package fi.spectrumlabs.markets.api.models
 
 import derevo.circe.magnolia.{decoder, encoder}
 import derevo.derive
-import fi.spectrumlabs.core.models.domain.{Apr, AssetAmount, AssetClass, PoolId}
-import fi.spectrumlabs.markets.api.models.PoolOverviewNew.{AssetAmountFront, PoolFeeSnapshotFront, PoolOverviewFront}
-import fi.spectrumlabs.markets.api.models.db.PoolFeeSnapshot
+import fi.spectrumlabs.core.models.domain._
 import sttp.tapir.Schema
 import tofu.logging.derivation.{loggable, show}
 
@@ -14,10 +12,6 @@ final case class PoolOverviewNew(
   lockedX: AssetAmount,
   lockedY: AssetAmount,
   lockedLQ: AssetAmount,
-  tvl: Option[BigDecimal],
-  volume: Option[BigDecimal],
-  fee: PoolFeeSnapshot,
-  yearlyFeesPercent: Apr,
   poolFeeNum: BigDecimal,
   poolFeeDenum: BigDecimal
 ) {
@@ -27,10 +21,6 @@ final case class PoolOverviewNew(
       AssetAmountFront(lockedX.asset, s"${lockedX.amount.value}"),
       AssetAmountFront(lockedY.asset, s"${lockedY.amount.value}"),
       AssetAmountFront(lockedLQ.asset, s"${lockedLQ.amount.value}"),
-      tvl,
-      volume,
-      fee,
-      yearlyFeesPercent,
       poolFeeNum,
       poolFeeDenum
     )
@@ -39,36 +29,25 @@ final case class PoolOverviewNew(
 object PoolOverviewNew {
   implicit def schema: Schema[PoolOverviewNew] = Schema.derived
 
-  @derive(encoder, decoder, loggable)
-  final case class PoolOverviewFront(
-    id: PoolId,
-    lockedX: AssetAmountFront,
-    lockedY: AssetAmountFront,
-    lockedLQ: AssetAmountFront,
-    tvl: Option[BigDecimal],
-    volume: Option[BigDecimal],
-    fee: PoolFeeSnapshot,
-    yearlyFeesPercent: Apr,
-    poolFeeNum: BigDecimal,
-    poolFeeDenum: BigDecimal
-  )
+}
 
-  object PoolOverviewFront {
-    implicit def schema: Schema[PoolOverviewFront] = Schema.derived
-  }
+@derive(encoder, decoder, loggable)
+final case class PoolOverviewFront(
+  id: PoolId,
+  lockedX: AssetAmountFront,
+  lockedY: AssetAmountFront,
+  lockedLQ: AssetAmountFront,
+  poolFeeNum: BigDecimal,
+  poolFeeDenum: BigDecimal
+)
 
-  @derive(decoder, encoder, loggable, show)
-  final case class AssetAmountFront(asset: AssetClass, amount: String)
+object PoolOverviewFront {
+  implicit def schema: Schema[PoolOverviewFront] = Schema.derived
+}
 
-  object AssetAmountFront {
-    implicit def schema: Schema[AssetAmountFront] = Schema.derived
-  }
+@derive(decoder, encoder, loggable, show)
+final case class AssetAmountFront(asset: AssetClass, amount: String)
 
-  @derive(encoder, decoder, loggable)
-  final case class PoolFeeSnapshotFront(x: String, y: String)
-
-  object PoolFeeSnapshotFront {
-    implicit def schema: Schema[PoolFeeSnapshotFront] = Schema.derived
-  }
-
+object AssetAmountFront {
+  implicit def schema: Schema[AssetAmountFront] = Schema.derived
 }

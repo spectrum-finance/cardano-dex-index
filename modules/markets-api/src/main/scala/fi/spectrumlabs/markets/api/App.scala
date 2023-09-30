@@ -70,7 +70,7 @@ object App extends EnvApp[AppContext] {
         RedisCodec.Bytes
       )
       implicit0(cache: Cache[RunF])                       <- Resource.eval(Cache.make[InitF, RunF])
-      ref                                                 <- Resource.eval(Ref.in[InitF, RunF, List[PoolOverviewNew]](List.empty))
+      ref                                                 <- Resource.eval(Ref.in[InitF, RunF, List[PoolOverview]](List.empty))
       implicit0(httpRespCache: HttpResponseCaching[RunF]) <- Resource.eval(HttpResponseCaching.make[InitF, RunF])
       implicit0(httpCache: CachingMiddleware[RunF]) = CacheMiddleware.make[RunF]
       implicit0(backend: SttpBackend[RunF, Fs2Streams[RunF]]) <- makeBackend[AppContext, InitF, RunF](ctx, blocker)

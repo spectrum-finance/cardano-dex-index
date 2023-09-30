@@ -26,6 +26,8 @@ import scala.concurrent.duration.FiniteDuration
 trait PoolsRepo[D[_]] {
   def getPools: D[List[PoolDbNew]]
 
+  def getPoolsOld: D[List[PoolDb]]
+
   def getPoolById(poolId: PoolId, minLiquidityValue: Long): D[Option[Pool]]
 
   def getPoolVolume(pool: DomainPool, from: Long): D[Option[PoolVolume]]
@@ -66,6 +68,9 @@ object PoolsRepo {
 
     def getPools: ConnectionIO[List[PoolDbNew]] =
       sql.getPools.to[List]
+
+    def getPoolsOld: ConnectionIO[List[PoolDb]] =
+      sql.getPoolsOld.to[List]
 
     def getPoolById(poolId: PoolId, minLiquidityValue: Long): ConnectionIO[Option[Pool]] =
       sql.getPool(poolId, minLiquidityValue).option
@@ -149,6 +154,13 @@ object PoolsRepo {
         _ <- trace"fees(id: ${pool.id})"
         r <- _
         _ <- trace"fees(id: ${pool.id}) -> $r"
+      } yield r
+
+    def getPoolsOld: Mid[F, List[PoolDb]] =
+      for {
+        _ <- trace"getPoolsOld()"
+        r <- _
+        _ <- trace"getPoolsOld() -> $r"
       } yield r
   }
 }

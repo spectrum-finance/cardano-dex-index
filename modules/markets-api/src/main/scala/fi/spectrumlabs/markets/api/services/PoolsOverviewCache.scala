@@ -3,7 +3,7 @@ package fi.spectrumlabs.markets.api.services
 import cats.Monad
 import cats.effect.concurrent.Ref
 import cats.effect.{Sync, Timer}
-import fi.spectrumlabs.markets.api.models.{PoolOverview, PoolOverviewNew}
+import fi.spectrumlabs.markets.api.models.PoolOverview
 import tofu.higherKind.RepresentableK
 import tofu.syntax.monadic._
 
@@ -21,12 +21,12 @@ object PoolsOverviewCache {
   def make[F[_]: Sync: Timer](
     analyticsService: AnalyticsService[F],
     sleepTime: FiniteDuration,
-    cache: Ref[F, List[PoolOverviewNew]]
+    cache: Ref[F, List[PoolOverview]]
   ): PoolsOverviewCache[F] = new Live[F](analyticsService, cache, sleepTime)
 
   final private class Live[F[_]: Monad: Timer](
     analyticsService: AnalyticsService[F],
-    cache: Ref[F, List[PoolOverviewNew]],
+    cache: Ref[F, List[PoolOverview]],
     sleepTime: FiniteDuration
   ) extends PoolsOverviewCache[F] {
     def run: F[Unit] =

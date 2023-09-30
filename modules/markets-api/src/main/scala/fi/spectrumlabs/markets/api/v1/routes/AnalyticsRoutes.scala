@@ -29,7 +29,7 @@ final class AnalyticsRoutes[F[_]: Concurrent: ContextShift: Timer: AdaptThrowabl
   }
 
   def getPoolsOverviewR =
-    interpreter.toRoutes(getPoolsOverview)(_ => service.getPoolsOverview.map(_.map(_.toFront)).adaptThrowable.value)
+    interpreter.toRoutes(getPoolsOverview)(_ => service.getPoolsOverview.adaptThrowable.value)
 
   def getPoolPriceChartR = interpreter.toRoutes(getPoolPriceChart) { case (poolId, tw, res) =>
     service.getPoolPriceChart(poolId, tw, res).adaptThrowable.value

@@ -7,10 +7,19 @@ import cats.syntax.parallel._
 import cats.syntax.traverse._
 import cats.{Functor, Monad, Parallel}
 import derevo.derive
+import fi.spectrumlabs.core.models.{db, domain}
 import fi.spectrumlabs.core.models.domain.{Amount, AssetAmount, Pool, PoolFee, PoolId}
 import fi.spectrumlabs.markets.api.configs.MarketsApiConfig
 import fi.spectrumlabs.markets.api.models.db.{PoolDb, PoolDbNew}
-import fi.spectrumlabs.markets.api.models.{PlatformStats, PoolList, PoolOverview, PoolOverviewNew, PoolState, PricePoint, RealPrice}
+import fi.spectrumlabs.markets.api.models.{
+  PlatformStats,
+  PoolList,
+  PoolOverview,
+  PoolOverviewNew,
+  PoolState,
+  PricePoint,
+  RealPrice
+}
 import fi.spectrumlabs.markets.api.repositories.repos.{PoolsRepo, RatesRepo}
 import fi.spectrumlabs.markets.api.v1.endpoints.models.TimeWindow
 import tofu.higherKind.Mid
@@ -28,7 +37,12 @@ import scala.math.BigDecimal.RoundingMode
 
 @derive(representableK)
 trait AnalyticsService[F[_]] {
-  def getPoolsOverview: F[List[PoolOverviewNew]]
+
+  def getLatestPoolsStates: F[List[PoolOverviewNew]]
+
+  def getPoolsOverview: F[List[PoolOverview]]
+
+  def getPoolInfo(poolId: PoolDb, from: Long): F[Option[PoolOverview]]
 
   def getPoolInfo(poolId: PoolId, from: Long): F[Option[PoolOverview]]
 
@@ -36,7 +50,7 @@ trait AnalyticsService[F[_]] {
 
   def getPlatformStats: F[PlatformStats]
 
-  def updatePoolsOverview: F[List[PoolOverviewNew]]
+  def updatePoolsOverview: F[List[PoolOverview]]
 
   def getPoolList: F[PoolList]
 
@@ -47,8 +61,10 @@ object AnalyticsService {
 
   private val MillisInYear: FiniteDuration = 365.days
 
-  def create[I[_]: Functor, F[_]: Monad: Parallel: Clock](config: MarketsApiConfig, cache: Ref[F, List[PoolOverviewNew]])(
-    implicit
+  def create[I[_]: Functor, F[_]: Monad: Parallel: Clock](
+    config: MarketsApiConfig,
+    cache: Ref[F, List[PoolOverview]]
+  )(implicit
     ratesRepo: RatesRepo[F],
     poolsRepo: PoolsRepo[F],
     ammStatsMath: AmmStatsMath[F],
@@ -56,8 +72,10 @@ object AnalyticsService {
   ): I[AnalyticsService[F]] =
     logs.forService[AnalyticsService[F]].map(implicit __ => new Tracing[F] attach new Impl[F](config, cache))
 
-  final private class Impl[F[_]: Monad: Parallel: Clock](config: MarketsApiConfig, cache: Ref[F, List[PoolOverviewNew]])(
-    implicit
+  final private class Impl[F[_]: Monad: Parallel: Clock](
+    config: MarketsApiConfig,
+    cache: Ref[F, List[PoolOverview]]
+  )(implicit
     ratesRepo: RatesRepo[F],
     poolsRepo: PoolsRepo[F],
     ammStatsMath: AmmStatsMath[F]
@@ -73,61 +91,30 @@ object AnalyticsService {
     def getPoolList: F[PoolList] =
       poolsRepo.getPoolList.map(pools => PoolList(pools, pools.size))
 
-    def updatePoolsOverview: F[List[PoolOverviewNew]] = Clock[F].realTime(TimeUnit.SECONDS) >>= { now =>
-      poolsRepo.getPools.flatMap(
-        _.parTraverse { p: PoolDbNew =>
-          getPoolInfoNew(p, now - 24.hours.toSeconds)
+    def getLatestPoolsStates: F[List[PoolOverviewNew]] =
+      poolsRepo.getPools.map(
+        _.map { pool: PoolDbNew =>
+          val p = Pool(pool.poolId, AssetAmount(pool.x, pool.xReserves), AssetAmount(pool.y, pool.yReserves))
+          PoolOverviewNew(
+            p.id,
+            p.x,
+            p.y,
+            AssetAmount(pool.lq, pool.lqReserved),
+            pool.feeNum,
+            pool.feeDen
+          )
+        }
+      )
+
+    def updatePoolsOverview: F[List[PoolOverview]] = Clock[F].realTime(TimeUnit.SECONDS) >>= { now =>
+      poolsRepo.getPoolsOld.flatMap(
+        _.parTraverse { p: PoolDb =>
+          getPoolInfo(p, now - 24.hours.toSeconds)
         }.map(_.flatten)
       )
     }
 
-    def getPoolsOverview: F[List[PoolOverviewNew]] = cache.get
-
-    def getPoolInfoNew(pool: PoolDbNew, from: Long): F[Option[PoolOverviewNew]] = {
-      val p = Pool(pool.poolId,
-        AssetAmount(pool.x, pool.xReserves),
-        AssetAmount(pool.y, pool.yReserves),
-      )
-      (for {
-        rateX <- OptionT(ratesRepo.get(pool.x))
-        rateY <- OptionT(ratesRepo.get(pool.y))
-        xTvl = pool.xReserves.withDecimal(rateX.decimals) * rateX.rate
-        yTvl = pool.yReserves.withDecimal(rateY.decimals) * rateY.rate
-        totalTvl = (xTvl + yTvl).setScale(6, RoundingMode.HALF_UP)
-        poolVolume <- OptionT.liftF(poolsRepo.getPoolVolume(p, from))
-        totalVolume = poolVolume
-          .map { volume =>
-            val xVolume = volume.xVolume
-              .map(r => Amount(r.longValue).withDecimal(rateX.decimals))
-              .getOrElse(BigDecimal(0)) * rateX.rate
-            val yVolume = volume.yVolume
-              .map(r => Amount(r.longValue).withDecimal(rateY.decimals))
-              .getOrElse(BigDecimal(0)) * rateY.rate
-            xVolume + yVolume
-          }
-          .getOrElse(BigDecimal(0))
-          .setScale(6, RoundingMode.HALF_UP)
-        now <- OptionT.liftF(Clock[F].realTime(TimeUnit.SECONDS))
-        tw = TimeWindow(Some(from), Some(now))
-        firstSwap <- OptionT.liftF(poolsRepo.getFirstPoolSwapTime(pool.poolId))
-        fee <- OptionT(poolsRepo.fees(p, tw, PoolFee(pool.feeNum, pool.feeDen)))
-        feeX = Amount(fee.x.toLong).withDecimal(rateX.decimals) * rateX.rate
-        feeY = Amount(fee.y.toLong).withDecimal(rateY.decimals) * rateY.rate
-        totalFee = feeX + feeY
-        apr <- OptionT.liftF(ammStatsMath.apr(p.id, totalTvl, totalFee, firstSwap.getOrElse(0), MillisInYear, tw))
-      } yield PoolOverviewNew(
-        p.id,
-        p.x,
-        p.y,
-        AssetAmount(pool.lq, pool.lqReserved),
-        totalTvl.some,
-        totalVolume.some,
-        fee,
-        apr,
-        pool.feeNum,
-        pool.feeDen
-      )).value
-    }
+    def getPoolsOverview: F[List[PoolOverview]] = cache.get
 
     def getPoolInfo(poolId: PoolId, from: Long): F[Option[PoolOverview]] =
       (for {
@@ -153,14 +140,14 @@ object AnalyticsService {
           .setScale(6, RoundingMode.HALF_UP)
         now <- OptionT.liftF(Clock[F].realTime(TimeUnit.SECONDS))
         tw = TimeWindow(Some(from), Some(now))
-        firstSwap <- OptionT.liftF(poolsRepo.getFirstPoolSwapTime(poolId))
+        firstSwap <- OptionT.liftF(poolsRepo.getFirstPoolSwapTime(pool.id))
         fee       <- OptionT(poolsRepo.fees(pool, tw, poolDb.fees))
         feeX     = Amount(fee.x.toLong).withDecimal(rateX.decimals) * rateX.rate
         feeY     = Amount(fee.y.toLong).withDecimal(rateY.decimals) * rateY.rate
         totalFee = feeX + feeY
-        apr <- OptionT.liftF(ammStatsMath.apr(poolId, totalTvl, totalFee, firstSwap.getOrElse(0), MillisInYear, tw))
+        apr <- OptionT.liftF(ammStatsMath.apr(pool.id, totalTvl, totalFee, firstSwap.getOrElse(0), MillisInYear, tw))
       } yield PoolOverview(
-        poolId,
+        pool.id,
         AssetAmount(poolDb.x, Amount(poolDb.xReserves)),
         AssetAmount(poolDb.y, Amount(poolDb.yReserves)),
         totalTvl.some,
@@ -168,6 +155,57 @@ object AnalyticsService {
         fee,
         apr
       )).value
+
+    def getPoolInfo(in: PoolDb, from: Long): F[Option[PoolOverview]] = {
+      val poolDb = db.Pool(
+        in.poolId.value,
+        in.x,
+        in.xReserves.value,
+        in.y,
+        in.yReserves.value,
+        PoolFee(
+          in.feeNum,
+          in.feeDen
+        )
+      )
+      val pool = domain.Pool.fromDb(poolDb)
+      (for {
+        rateX <- OptionT(ratesRepo.get(pool.x.asset))
+        rateY <- OptionT(ratesRepo.get(pool.y.asset))
+        xTvl     = pool.x.amount.withDecimal(rateX.decimals) * rateX.rate
+        yTvl     = pool.y.amount.withDecimal(rateY.decimals) * rateY.rate
+        totalTvl = (xTvl + yTvl).setScale(6, RoundingMode.HALF_UP)
+        poolVolume <- OptionT.liftF(poolsRepo.getPoolVolume(pool, from))
+        totalVolume = poolVolume
+          .map { volume =>
+            val xVolume = volume.xVolume
+              .map(r => Amount(r.longValue).withDecimal(rateX.decimals))
+              .getOrElse(BigDecimal(0)) * rateX.rate
+            val yVolume = volume.yVolume
+              .map(r => Amount(r.longValue).withDecimal(rateY.decimals))
+              .getOrElse(BigDecimal(0)) * rateY.rate
+            xVolume + yVolume
+          }
+          .getOrElse(BigDecimal(0))
+          .setScale(6, RoundingMode.HALF_UP)
+        now <- OptionT.liftF(Clock[F].realTime(TimeUnit.SECONDS))
+        tw = TimeWindow(Some(from), Some(now))
+        firstSwap <- OptionT.liftF(poolsRepo.getFirstPoolSwapTime(pool.id))
+        fee       <- OptionT(poolsRepo.fees(pool, tw, poolDb.fees))
+        feeX     = Amount(fee.x.toLong).withDecimal(rateX.decimals) * rateX.rate
+        feeY     = Amount(fee.y.toLong).withDecimal(rateY.decimals) * rateY.rate
+        totalFee = feeX + feeY
+        apr <- OptionT.liftF(ammStatsMath.apr(pool.id, totalTvl, totalFee, firstSwap.getOrElse(0), MillisInYear, tw))
+      } yield PoolOverview(
+        pool.id,
+        AssetAmount(poolDb.x, Amount(poolDb.xReserves)),
+        AssetAmount(poolDb.y, Amount(poolDb.yReserves)),
+        totalTvl.some,
+        totalVolume.some,
+        fee,
+        apr
+      )).value
+    }
 
     def getPlatformStats: F[PlatformStats] =
       for {
@@ -234,7 +272,7 @@ object AnalyticsService {
         _ <- trace"Pool state is $r"
       } yield r
 
-    def getPoolsOverview: Mid[F, List[PoolOverviewNew]] =
+    def getPoolsOverview: Mid[F, List[PoolOverview]] =
       for {
         _ <- trace"Going to get pools overview"
         r <- _
@@ -248,7 +286,7 @@ object AnalyticsService {
         _ <- trace"Pools list is $r"
       } yield r
 
-    def getPoolInfo(poolId: PoolId, from: Long): Mid[F, Option[PoolOverview]] =
+    def getPoolInfo(poolId: PoolDb, from: Long): Mid[F, Option[PoolOverview]] =
       for {
         _ <- trace"Going to get pool info for pool $poolId from $from"
         r <- _
@@ -269,11 +307,25 @@ object AnalyticsService {
         _ <- trace"Platform stats are $r"
       } yield r
 
-    def updatePoolsOverview: Mid[F, List[PoolOverviewNew]] =
+    def updatePoolsOverview: Mid[F, List[PoolOverview]] =
       for {
         _ <- trace"updatePoolsOverview"
         r <- _
         _ <- trace"updatePoolsOverview -> $r"
+      } yield r
+
+    def getLatestPoolsStates: Mid[F, List[PoolOverviewNew]] =
+      for {
+        _ <- trace"getLatestPoolsStates"
+        r <- _
+        _ <- trace"getLatestPoolsStates -> $r"
+      } yield r
+
+    def getPoolInfo(poolId: PoolId, from: Long): Mid[F, Option[PoolOverview]] =
+      for {
+        _ <- trace"getPoolInfo"
+        r <- _
+        _ <- trace"getPoolInfo -> $r"
       } yield r
   }
 }
