@@ -4,7 +4,8 @@ import cats.data.{NonEmptyList, OptionT}
 import cats.effect.Timer
 import cats.syntax.option._
 import cats.syntax.traverse._
-import cats.{Functor, Monad}
+import cats.syntax.parallel._
+import cats.{Functor, Monad, Parallel}
 import fi.spectrumlabs.core.cache.Cache.Plain
 import fi.spectrumlabs.core.models.domain.Coin
 import fi.spectrumlabs.core.models.domain.Coin.Ada
@@ -90,7 +91,7 @@ object Handle {
   )(implicit logs: Logging.Make[F], redis: Plain[F]): Handle[A, F] =
     logs.forService[Handle[A, F]].map(implicit __ => new RedisDrop[A, B, F](redis, handleLogName, toSchema, mempoolTtl))
 
-  def createExecuted[F[_]: Monad: Timer](
+  def createExecuted[F[_]: Monad: Timer: Parallel](
     cardanoConfig: CardanoConfig,
     ordersRepository: OrdersRepository[F],
     poolsRepository: PoolsRepository[F]
@@ -273,7 +274,7 @@ object Handle {
   }
 
   // draft for executed inputs handler
-  final private class ExecutedOrdersHandler[F[_]: Monad: Logging: Timer](
+  final private class ExecutedOrdersHandler[F[_]: Monad: Logging: Timer: Parallel](
     cardanoConfig: CardanoConfig,
     ordersRepository: OrdersRepository[F],
     poolsRepository: PoolsRepository[F]
@@ -405,7 +406,7 @@ object Handle {
               }
             } =>
           info"Got next tx ${tx.txId.toString} in executed orders handler" >>
-            tx.txInputs.traverse { txInput: TxInput =>
+            tx.txInputs.parTraverse { txInput: TxInput =>
               def tryGetOrder(num: Int): F[Option[DBOrder]] =
                 ordersRepository.getOrder(txInput.txInRef).flatMap {
                   case Some(value) =>
