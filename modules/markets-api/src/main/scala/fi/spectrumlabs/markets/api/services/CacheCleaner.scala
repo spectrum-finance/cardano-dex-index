@@ -26,6 +26,6 @@ object CacheCleaner {
 
   final private class Live[F[_]: Monad: Timer](c: HttpResponseCaching[F]) extends CacheCleaner[F] {
     def clean: F[Unit] =
-      Timer[F].sleep(1.minutes) >> c.invalidateAll >> clean
+      Timer[F].sleep(10.seconds) >> c.invalidateAll >> clean
   }
 }
