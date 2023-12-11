@@ -394,9 +394,9 @@ object AnalyticsService {
 
     def cgPriceApi: Mid[F, List[CoinGeckoTicker]] =
       for {
-        _ <- info"cgPriceApi"
+        _ <- trace"cgPriceApi"
         r <- _
-        _ <- info"cgPriceApi -> ${r.toString()}"
+        _ <- trace"cgPriceApi -> ${r.toString()}"
       } yield r
   }
 }
