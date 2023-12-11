@@ -2,16 +2,30 @@ package fi.spectrumlabs.markets.api.v1.endpoints
 
 import fi.spectrumlabs.core.models.domain.PoolId
 import fi.spectrumlabs.core.network.models.HttpError
-import fi.spectrumlabs.markets.api.models.{PlatformStats, PoolList, PoolOverview, PoolOverviewNew, PoolState, PricePoint}
+import fi.spectrumlabs.markets.api.models.{
+  PlatformStats,
+  PoolList,
+  PoolOverview,
+  PoolOverviewNew,
+  PoolState,
+  PricePoint
+}
 import sttp.tapir._
 import sttp.tapir.json.circe.jsonBody
 import fi.spectrumlabs.markets.api.v1.endpoints.models.TimeWindow
+import fi.spectrumlabs.markets.api.v1.models.CoinGeckoTicker
 
 import scala.concurrent.duration.FiniteDuration
 
 object PoolInfoEndpoints {
 
   val pathPrefix = "pool"
+
+  val PathPrefixPriceTracking = "price-tracking"
+
+  val PathPrefixCG = "cg"
+
+  val Group = "PriceTracking"
 
   def endpoints: List[Endpoint[_, _, _, _]] =
     getPoolStateByDate :: getPoolList :: getPoolInfo :: getPoolsOverview :: Nil
@@ -75,4 +89,11 @@ object PoolInfoEndpoints {
       .tag(pathPrefix)
       .name("Pool state by id and date")
       .description("Allow to get pool state at given date")
+
+  def getTickersCoinGeckoE: Endpoint[Unit, HttpError, List[CoinGeckoTicker], Any] =
+    baseEndpoint.get
+      .in(PathPrefixPriceTracking / PathPrefixCG / "tickers")
+      .out(jsonBody[List[CoinGeckoTicker]])
+      .tag(Group)
+      .name("Coin Gecko tickers API")
 }

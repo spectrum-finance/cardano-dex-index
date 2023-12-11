@@ -23,7 +23,9 @@ import fi.spectrumlabs.markets.api.services.{
   CacheCleaner,
   HistoryService,
   MempoolService,
-  PoolsOverviewCache
+  Network,
+  PoolsOverviewCache,
+  RatesCache
 }
 import fi.spectrumlabs.markets.api.v1.HttpServer
 import org.http4s.server.Server
@@ -50,14 +52,21 @@ object App extends EnvApp[AppContext] {
   def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
     init(args.headOption).use { x =>
       val appF = fs2
-        .Stream(fs2.Stream.eval(x._2.clean), fs2.Stream.eval(x._3.run), fs2.Stream.eval(x._3.run2))
+        .Stream(
+          fs2.Stream.eval(x._2.clean),
+          fs2.Stream.eval(x._3.run),
+          fs2.Stream.eval(x._3.run2),
+          fs2.Stream.eval(x._4.run)
+        )
         .parJoinUnbounded
         .compile
         .drain
       appF.as(ExitCode.success)
     }.orDie
 
-  def init(configPathOpt: Option[String]): Resource[InitF, (Server, CacheCleaner[InitF], PoolsOverviewCache[InitF])] =
+  def init(
+    configPathOpt: Option[String]
+  ): Resource[InitF, (Server, CacheCleaner[InitF], PoolsOverviewCache[InitF], RatesCache[InitF])] =
     for {
       blocker <- Blocker[InitF]
       configs <- Resource.eval(ConfigBundle.load[InitF](configPathOpt, blocker))
@@ -86,6 +95,7 @@ object App extends EnvApp[AppContext] {
       implicit0(cache: Cache[RunF])                       <- Resource.eval(Cache.make[InitF, RunF])
       ref                                                 <- Resource.eval(Ref.in[InitF, RunF, List[PoolOverview]](List.empty))
       ref2                                                <- Resource.eval(Ref.in[InitF, RunF, List[PoolOverviewNew]](List.empty))
+      ref3                                                <- Resource.eval(Ref.in[InitF, RunF, Option[BigDecimal]](Option.empty))
       implicit0(httpRespCache: HttpResponseCaching[RunF]) <- Resource.eval(HttpResponseCaching.make[InitF, RunF])
       implicit0(httpCache: CachingMiddleware[RunF]) = CacheMiddleware.make[RunF]
       implicit0(graphite: GraphiteClient[RunF]) <-
@@ -95,19 +105,21 @@ object App extends EnvApp[AppContext] {
       implicit0(metricsMiddle: MetricsMiddleware[RunF]) = MetricsMiddleware.make[RunF]
       implicit0(backend: SttpBackend[RunF, Fs2Streams[RunF]]) <- makeBackend[AppContext, InitF, RunF](ctx, blocker)
       implicit0(poolsRepo: PoolsRepo[RunF])                   <- Resource.eval(PoolsRepo.create[InitF, xa.DB, RunF])
+      implicit0(network: Network[RunF])                       <- Resource.eval(Network.make[InitF, RunF](configs.network))
       ordersRepo                                              <- Resource.eval(OrdersRepository.make[InitF, RunF, xa.DB])
       implicit0(ratesRepo: RatesRepo[RunF])                   <- Resource.eval(RatesRepo.create[InitF, RunF])
       implicit0(ammStatsMath: AmmStatsMath[RunF])             <- Resource.eval(AmmStatsMath.create[InitF, RunF])
       implicit0(mempoolService: MempoolService[RunF])         <- Resource.eval(MempoolService.make[InitF, RunF](mempoolRedis))
       implicit0(service: AnalyticsService[RunF]) <- Resource.eval(
-        AnalyticsService.create[InitF, RunF](configs.marketsApi, ref, ref2)
+        AnalyticsService.create[InitF, RunF](configs.marketsApi, ref, ref2, ref3)
       )
       poolsCache = PoolsOverviewCache.make[RunF](service, configs.cacheTtl, ref, ref2)
+      ratesCache = RatesCache.make[RunF](network, configs.ratesCacheTtl, ref3)
 
       implicit0(historyService: HistoryService[RunF]) <- Resource.eval(
         HistoryService.make[InitF, RunF](ordersRepo, mempoolService)
       )
       c = CacheCleaner.make[RunF](httpRespCache)
       server <- HttpServer.make[InitF, RunF](configs.http, runtime.platform.executor.asEC)
-    } yield (server, c.mapK(ul.liftF), poolsCache.mapK(ul.liftF))
+    } yield (server, c.mapK(ul.liftF), poolsCache.mapK(ul.liftF), ratesCache.mapK(ul.liftF))
 }

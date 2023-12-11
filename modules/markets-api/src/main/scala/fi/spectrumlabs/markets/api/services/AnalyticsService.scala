@@ -4,6 +4,7 @@ import cats.data.OptionT
 import cats.effect.concurrent.Ref
 import cats.syntax.option._
 import cats.syntax.parallel._
+import cats.syntax.show._
 import cats.syntax.traverse._
 import cats.{Functor, Monad, Parallel}
 import derevo.derive
@@ -31,8 +32,10 @@ import tofu.time.Clock
 
 import java.util.concurrent.TimeUnit
 import fi.spectrumlabs.core.{AdaAssetClass, AdaDecimal}
+import fi.spectrumlabs.markets.api.v1.models.CoinGeckoTicker
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.math.BigDecimal
 import scala.math.BigDecimal.RoundingMode
 
 @derive(representableK)
@@ -57,6 +60,8 @@ trait AnalyticsService[F[_]] {
   def getPoolList: F[PoolList]
 
   def getPoolStateByDate(poolId: PoolId, date: Long): F[Option[PoolState]]
+
+  def cgPriceApi: F[List[CoinGeckoTicker]]
 }
 
 object AnalyticsService {
@@ -66,19 +71,23 @@ object AnalyticsService {
   def create[I[_]: Functor, F[_]: Monad: Parallel: Clock](
     config: MarketsApiConfig,
     cache: Ref[F, List[PoolOverview]],
-    cache2: Ref[F, List[PoolOverviewNew]]
+    cache2: Ref[F, List[PoolOverviewNew]],
+    cache3: Ref[F, Option[BigDecimal]]
   )(implicit
     ratesRepo: RatesRepo[F],
     poolsRepo: PoolsRepo[F],
     ammStatsMath: AmmStatsMath[F],
     logs: Logs[I, F]
   ): I[AnalyticsService[F]] =
-    logs.forService[AnalyticsService[F]].map(implicit __ => new Tracing[F] attach new Impl[F](config, cache, cache2))
+    logs
+      .forService[AnalyticsService[F]]
+      .map(implicit __ => new Tracing[F] attach new Impl[F](config, cache, cache2, cache3))
 
   final private class Impl[F[_]: Monad: Parallel: Clock](
     config: MarketsApiConfig,
     cache: Ref[F, List[PoolOverview]],
-    cache2: Ref[F, List[PoolOverviewNew]]
+    cache2: Ref[F, List[PoolOverviewNew]],
+    adaRate: Ref[F, Option[BigDecimal]]
   )(implicit
     ratesRepo: RatesRepo[F],
     poolsRepo: PoolsRepo[F],
@@ -122,6 +131,47 @@ object AnalyticsService {
     }
 
     def getPoolsOverview: F[List[PoolOverview]] = cache.get
+
+    def cgPriceApi: F[List[CoinGeckoTicker]] = cache.get.flatMap { pools =>
+      pools
+        .map { pool =>
+          for {
+            rateX <- OptionT(ratesRepo.get(pool.lockedX.asset)).map(_.rate).flatMap { x =>
+              if (x == BigDecimal(0)) OptionT.none[F, BigDecimal] else OptionT.pure(x)
+            }
+            rateY <- OptionT(ratesRepo.get(pool.lockedY.asset)).map(_.rate).flatMap { x =>
+              if (x == BigDecimal(0)) OptionT.none[F, BigDecimal] else OptionT.pure(x)
+            }
+            adaRate <- OptionT(adaRate.get)
+            x_volume = (pool.volume.getOrElse(BigDecimal(0)) / (rateX * adaRate))
+              .setScale(10, RoundingMode.HALF_UP)
+            y_volume = (pool.volume.getOrElse(BigDecimal(0)) / (rateY * adaRate))
+              .setScale(10, RoundingMode.HALF_UP)
+          } yield CoinGeckoTicker(
+            pool_id          = pool.id.value,
+            ticker_id        = s"${pool.lockedX.asset.currencySymbol}_${pool.lockedY.asset.currencySymbol}",
+            base_currency    = pool.lockedX.asset.currencySymbol.show,
+            target_currency  = pool.lockedY.asset.currencySymbol.show,
+            last_price       = (rateY * adaRate / rateX * adaRate).setScale(10, RoundingMode.HALF_UP),
+            liquidity_in_usd = (pool.tvl.getOrElse(BigDecimal(0)) * adaRate).setScale(10, RoundingMode.HALF_UP),
+            base_volume      = if (x_volume == BigDecimal("0E-10")) BigDecimal(0) else x_volume,
+            target_volume    = if (y_volume == BigDecimal("0E-10")) BigDecimal(0) else y_volume
+          )
+        }
+        .map(_.value)
+        .sequence
+        .map(_.flatten)
+        .map { pairs =>
+          pairs
+            .map(x => (x.base_currency, x.target_currency) -> x)
+            .groupBy(_._1)
+            .map(_._2.maxBy(_._2.liquidity_in_usd))
+            .values
+            .toList
+            .filter(_.liquidity_in_usd != BigDecimal("0"))
+        }
+        .map(_.sortBy(_.liquidity_in_usd)(Ordering[BigDecimal].reverse))
+    }
 
     def getPoolInfo(poolId: PoolId, from: Long): F[Option[PoolOverview]] =
       (for {
@@ -340,6 +390,13 @@ object AnalyticsService {
         _ <- trace"updateLatestPoolsStates"
         r <- _
         _ <- trace"updateLatestPoolsStates -> $r"
+      } yield r
+
+    def cgPriceApi: Mid[F, List[CoinGeckoTicker]] =
+      for {
+        _ <- info"cgPriceApi"
+        r <- _
+        _ <- info"cgPriceApi -> ${r.toString()}"
       } yield r
   }
 }
