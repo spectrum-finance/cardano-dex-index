@@ -2,18 +2,12 @@ package fi.spectrumlabs.markets.api.v1.endpoints
 
 import fi.spectrumlabs.core.models.domain.PoolId
 import fi.spectrumlabs.core.network.models.HttpError
-import fi.spectrumlabs.markets.api.models.{
-  PlatformStats,
-  PoolList,
-  PoolOverview,
-  PoolOverviewNew,
-  PoolState,
-  PricePoint
-}
+import fi.spectrumlabs.markets.api.models.{PlatformStats, PoolList, PoolOverview, PoolOverviewNew, PoolState, PricePoint}
 import sttp.tapir._
 import sttp.tapir.json.circe.jsonBody
 import fi.spectrumlabs.markets.api.v1.endpoints.models.TimeWindow
-import fi.spectrumlabs.markets.api.v1.models.CoinGeckoTicker
+import fi.spectrumlabs.markets.api.v1.models.{CMCTicker, CoinGeckoTicker}
+import sttp.tapir.generic.auto.schemaForCaseClass
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -24,6 +18,7 @@ object PoolInfoEndpoints {
   val PathPrefixPriceTracking = "price-tracking"
 
   val PathPrefixCG = "cg"
+  val PathPrefixCMC = "cmc"
 
   val Group = "PriceTracking"
 
@@ -96,4 +91,11 @@ object PoolInfoEndpoints {
       .out(jsonBody[List[CoinGeckoTicker]])
       .tag(Group)
       .name("Coin Gecko tickers API")
+
+  def getTickersCMCE: Endpoint[Unit, HttpError, Map[String, CMCTicker], Any] =
+    baseEndpoint.get
+      .in(PathPrefixPriceTracking / PathPrefixCMC / "tickers")
+      .out(jsonBody[Map[String, CMCTicker]])
+      .tag(Group)
+      .name("CMC tickers API")
 }
