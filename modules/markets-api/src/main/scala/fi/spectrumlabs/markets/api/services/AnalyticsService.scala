@@ -10,6 +10,7 @@ import cats.{Functor, Monad, Parallel}
 import derevo.derive
 import fi.spectrumlabs.core.models.{db, domain}
 import fi.spectrumlabs.core.models.domain.{Amount, AssetAmount, Pool, PoolFee, PoolId}
+import fi.spectrumlabs.core.models.rates.ResolvedRate
 import fi.spectrumlabs.markets.api.configs.MarketsApiConfig
 import fi.spectrumlabs.markets.api.models.db.{PoolDb, PoolDbNew}
 import fi.spectrumlabs.markets.api.models.{
@@ -32,7 +33,7 @@ import tofu.time.Clock
 
 import java.util.concurrent.TimeUnit
 import fi.spectrumlabs.core.{AdaAssetClass, AdaDecimal}
-import fi.spectrumlabs.markets.api.v1.models.CoinGeckoTicker
+import fi.spectrumlabs.markets.api.v1.models.{CMCTicker, CoinGeckoTicker}
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.math.BigDecimal
@@ -62,6 +63,8 @@ trait AnalyticsService[F[_]] {
   def getPoolStateByDate(poolId: PoolId, date: Long): F[Option[PoolState]]
 
   def cgPriceApi: F[List[CoinGeckoTicker]]
+
+  def cmcPriceApi: F[Map[String, CMCTicker]]
 }
 
 object AnalyticsService {
@@ -171,6 +174,48 @@ object AnalyticsService {
             .filter(_.liquidity_in_usd != BigDecimal("0"))
         }
         .map(_.sortBy(_.liquidity_in_usd)(Ordering[BigDecimal].reverse))
+    }
+
+    def cmcPriceApi: F[Map[String, CMCTicker]] = cache.get.flatMap { pools =>
+      pools
+        .map { pool =>
+          for {
+            rateX <- OptionT(ratesRepo.get(pool.lockedX.asset)).flatMap { x =>
+              if (x.rate == BigDecimal(0)) OptionT.none[F, ResolvedRate] else OptionT.pure(x)
+            }
+            rateY <- OptionT(ratesRepo.get(pool.lockedY.asset)).flatMap { x =>
+              if (x.rate == BigDecimal(0)) OptionT.none[F, ResolvedRate] else OptionT.pure(x)
+            }
+            adaRate <- OptionT(adaRate.get)
+            tvl       = (pool.tvl.getOrElse(BigDecimal(0)) * adaRate).setScale(10, RoundingMode.HALF_UP)
+            ticker_id = s"${pool.lockedX.asset.currencySymbol}_${pool.lockedY.asset.currencySymbol}"
+            value = CMCTicker(
+              pool.lockedX.asset.currencySymbol.show,
+              pool.lockedX.asset.tokenName.show,
+              pool.lockedX.asset.tokenName.show,
+              pool.lockedY.asset.currencySymbol.show,
+              pool.lockedY.asset.tokenName.show,
+              pool.lockedY.asset.tokenName.show,
+              (rateY.rate * adaRate / rateX.rate * adaRate).setScale(10, RoundingMode.HALF_UP).toString(),
+              pool.lockedX.amount.withDecimal(rateX.decimals).setScale(10, RoundingMode.HALF_UP).toString(),
+              pool.lockedY.amount.withDecimal(rateY.decimals).setScale(10, RoundingMode.HALF_UP).toString()
+            )
+          } yield (ticker_id, tvl) -> value
+        }
+        .map(_.value)
+        .sequence
+        .map(_.flatten)
+        .map { pairs =>
+          pairs
+            .map(x => (x._2.base_id, x._2.quote_id) -> x)
+            .groupBy(_._1)
+            .map(_._2.maxBy(_._2._1._2))
+            .values
+            .toList
+            .filter(_._1._2 != BigDecimal("0"))
+            .map(x => x._1._1 -> x._2)
+            .toMap
+        }
     }
 
     def getPoolInfo(poolId: PoolId, from: Long): F[Option[PoolOverview]] =
@@ -398,5 +443,13 @@ object AnalyticsService {
         r <- _
         _ <- trace"cgPriceApi -> ${r.toString()}"
       } yield r
+
+    def cmcPriceApi =
+      for {
+        _ <- trace"cmcPriceApi"
+        r <- _
+        _ <- trace"cmcPriceApi -> ${r.toString()}"
+      } yield r
+
   }
 }
