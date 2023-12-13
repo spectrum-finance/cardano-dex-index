@@ -146,19 +146,21 @@ object AnalyticsService {
               if (x == BigDecimal(0)) OptionT.none[F, BigDecimal] else OptionT.pure(x)
             }
             adaRate <- OptionT(adaRate.get)
-            x_volume = (pool.volume.getOrElse(BigDecimal(0)) / (rateX * adaRate))
-              .setScale(10, RoundingMode.HALF_UP)
-            y_volume = (pool.volume.getOrElse(BigDecimal(0)) / (rateY * adaRate))
-              .setScale(10, RoundingMode.HALF_UP)
+            x_volume = (pool.volume.getOrElse(BigDecimal(0)) / rateX).setScale(10, RoundingMode.HALF_UP)
+            y_volume = (pool.volume.getOrElse(BigDecimal(0)) / rateY).setScale(10, RoundingMode.HALF_UP)
+
+            xCs = if (pool.lockedX.asset.currencySymbol == "") "ADA" else pool.lockedX.asset.currencySymbol
+            yCs = if (pool.lockedY.asset.currencySymbol == "") "ADA" else pool.lockedY.asset.currencySymbol
+
           } yield CoinGeckoTicker(
-            pool_id          = pool.id.value,
-            ticker_id        = s"${pool.lockedX.asset.currencySymbol}_${pool.lockedY.asset.currencySymbol}",
-            base_currency    = pool.lockedX.asset.currencySymbol.show,
-            target_currency  = pool.lockedY.asset.currencySymbol.show,
-            last_price       = (rateY * adaRate / rateX * adaRate).setScale(10, RoundingMode.HALF_UP),
+            pool_id = pool.id.value,
+            ticker_id = s"${xCs}_$yCs",
+            base_currency = xCs,
+            target_currency = yCs,
+            last_price = ((rateY * adaRate) / (rateX * adaRate)).setScale(10, RoundingMode.HALF_UP),
             liquidity_in_usd = (pool.tvl.getOrElse(BigDecimal(0)) * adaRate).setScale(10, RoundingMode.HALF_UP),
-            base_volume      = if (x_volume == BigDecimal("0E-10")) BigDecimal(0) else x_volume,
-            target_volume    = if (y_volume == BigDecimal("0E-10")) BigDecimal(0) else y_volume
+            base_volume = if (x_volume == BigDecimal("0E-10")) BigDecimal(0) else x_volume,
+            target_volume = if (y_volume == BigDecimal("0E-10")) BigDecimal(0) else y_volume
           )
         }
         .map(_.value)
@@ -196,7 +198,7 @@ object AnalyticsService {
               pool.lockedY.asset.currencySymbol.show,
               pool.lockedY.asset.tokenName.show,
               pool.lockedY.asset.tokenName.show,
-              (rateY.rate * adaRate / rateX.rate * adaRate).setScale(10, RoundingMode.HALF_UP).toString(),
+              ((rateY.rate * adaRate) / (rateX.rate * adaRate)).setScale(10, RoundingMode.HALF_UP).toString(),
               pool.lockedX.amount.withDecimal(rateX.decimals).setScale(10, RoundingMode.HALF_UP).toString(),
               pool.lockedY.amount.withDecimal(rateY.decimals).setScale(10, RoundingMode.HALF_UP).toString()
             )
