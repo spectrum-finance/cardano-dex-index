@@ -146,21 +146,36 @@ object AnalyticsService {
               if (x == BigDecimal(0)) OptionT.none[F, BigDecimal] else OptionT.pure(x)
             }
             adaRate <- OptionT(adaRate.get)
-            x_volume = (pool.volume.getOrElse(BigDecimal(0)) / rateX).setScale(10, RoundingMode.HALF_UP)
-            y_volume = (pool.volume.getOrElse(BigDecimal(0)) / rateY).setScale(10, RoundingMode.HALF_UP)
 
             xCs = if (pool.lockedX.asset.currencySymbol == "") "ADA" else pool.lockedX.asset.currencySymbol
             yCs = if (pool.lockedY.asset.currencySymbol == "") "ADA" else pool.lockedY.asset.currencySymbol
 
+            ticker = if (xCs == "ADA") s"${yCs}_$xCs" else s"${xCs}_$yCs"
+
+            price =
+              if (xCs == "ADA")
+                ((rateX * adaRate) / (rateY * adaRate))
+              else
+                ((rateY * adaRate) / (rateX * adaRate))
+
+            volumeX =
+              if (xCs == "ADA")
+                (pool.volume.getOrElse(BigDecimal(0)) / rateY).setScale(10, RoundingMode.HALF_UP)
+              else (pool.volume.getOrElse(BigDecimal(0)) / rateX).setScale(10, RoundingMode.HALF_UP)
+            volumeY =
+              if (xCs == "ADA")
+                (pool.volume.getOrElse(BigDecimal(0)) / rateX).setScale(10, RoundingMode.HALF_UP)
+              else (pool.volume.getOrElse(BigDecimal(0)) / rateY).setScale(10, RoundingMode.HALF_UP)
+
           } yield CoinGeckoTicker(
-            pool_id = pool.id.value,
-            ticker_id = s"${xCs}_$yCs",
-            base_currency = xCs,
-            target_currency = yCs,
-            last_price = ((rateY * adaRate) / (rateX * adaRate)).setScale(10, RoundingMode.HALF_UP),
+            pool_id          = pool.id.value,
+            ticker_id        = ticker,
+            base_currency    = if (xCs == "ADA") yCs else xCs,
+            target_currency  = if (xCs == "ADA") xCs else yCs,
+            last_price       = price.setScale(10, RoundingMode.HALF_UP),
             liquidity_in_usd = (pool.tvl.getOrElse(BigDecimal(0)) * adaRate).setScale(10, RoundingMode.HALF_UP),
-            base_volume = if (x_volume == BigDecimal("0E-10")) BigDecimal(0) else x_volume,
-            target_volume = if (y_volume == BigDecimal("0E-10")) BigDecimal(0) else y_volume
+            base_volume      = if (volumeX == BigDecimal("0E-10")) BigDecimal(0) else volumeX,
+            target_volume    = if (volumeY == BigDecimal("0E-10")) BigDecimal(0) else volumeY
           )
         }
         .map(_.value)
