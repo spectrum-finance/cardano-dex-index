@@ -6,12 +6,21 @@ import fi.spectrumlabs.markets.api.models.{PlatformStats, PoolList, PoolOverview
 import sttp.tapir._
 import sttp.tapir.json.circe.jsonBody
 import fi.spectrumlabs.markets.api.v1.endpoints.models.TimeWindow
+import fi.spectrumlabs.markets.api.v1.models.{CMCTicker, CoinGeckoTicker}
+import sttp.tapir.generic.auto.schemaForCaseClass
 
 import scala.concurrent.duration.FiniteDuration
 
 object PoolInfoEndpoints {
 
   val pathPrefix = "pool"
+
+  val PathPrefixPriceTracking = "price-tracking"
+
+  val PathPrefixCG = "cg"
+  val PathPrefixCMC = "cmc"
+
+  val Group = "PriceTracking"
 
   def endpoints: List[Endpoint[_, _, _, _]] =
     getPoolStateByDate :: getPoolList :: getPoolInfo :: getPoolsOverview :: Nil
@@ -75,4 +84,18 @@ object PoolInfoEndpoints {
       .tag(pathPrefix)
       .name("Pool state by id and date")
       .description("Allow to get pool state at given date")
+
+  def getTickersCoinGeckoE: Endpoint[Unit, HttpError, List[CoinGeckoTicker], Any] =
+    baseEndpoint.get
+      .in(PathPrefixPriceTracking / PathPrefixCG / "tickers")
+      .out(jsonBody[List[CoinGeckoTicker]])
+      .tag(Group)
+      .name("Coin Gecko tickers API")
+
+  def getTickersCMCE: Endpoint[Unit, HttpError, Map[String, CMCTicker], Any] =
+    baseEndpoint.get
+      .in(PathPrefixPriceTracking / PathPrefixCMC / "tickers")
+      .out(jsonBody[Map[String, CMCTicker]])
+      .tag(Group)
+      .name("CMC tickers API")
 }

@@ -24,7 +24,7 @@ object PoolsOverviewCache {
     analyticsService: AnalyticsService[F],
     sleepTime: FiniteDuration,
     cache: Ref[F, List[PoolOverview]],
-      cache2: Ref[F, List[PoolOverviewNew]]
+    cache2: Ref[F, List[PoolOverviewNew]]
   ): PoolsOverviewCache[F] = new Live[F](analyticsService, cache, cache2, sleepTime)
 
   final private class Live[F[_]: Monad: Timer](

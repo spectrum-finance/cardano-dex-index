@@ -22,7 +22,9 @@ final class AnalyticsRoutes[F[_]: Concurrent: ContextShift: Timer: AdaptThrowabl
   private val interpreter = Http4sServerInterpreter(opts)
 
   def routes =
-    getPoolStateByDateR <+> getPoolListR <+> getPoolInfoR <+> getPoolsOverviewR <+> getPoolPriceChartR <+> getPlatformStatsR
+    getPoolStateByDateR <+> getPoolListR <+> getPoolInfoR <+> getPoolsOverviewR <+>
+      getPoolPriceChartR <+> getPlatformStatsR <+> getTickersCoinGeckoR <+>
+      getTickersCMCR
 
   def getPoolInfoR: HttpRoutes[F] = interpreter.toRoutes(getPoolInfo) { case (id, period) =>
     service.getPoolInfo(id, period.toSeconds).orNotFound(s"PoolInfo{id=$id}")
@@ -46,6 +48,16 @@ final class AnalyticsRoutes[F[_]: Concurrent: ContextShift: Timer: AdaptThrowabl
   def getPoolStateByDateR = interpreter.toRoutes(getPoolStateByDate) { case (id, date) =>
     service.getPoolStateByDate(id, date).orNotFound(s"PoolState{id=$id, date=$date}")
   }
+
+  def getTickersCoinGeckoR =
+    interpreter.toRoutes(getTickersCoinGeckoE) { _ =>
+      service.cgPriceApi.adaptThrowable.value
+    }
+
+  def getTickersCMCR =
+    interpreter.toRoutes(getTickersCMCE) { _ =>
+      service.cmcPriceApi.adaptThrowable.value
+    }
 }
 
 object AnalyticsRoutes {
