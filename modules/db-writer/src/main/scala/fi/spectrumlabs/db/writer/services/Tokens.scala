@@ -39,6 +39,8 @@ object Tokens {
     implicit backend: SttpBackend[F, _]
   ) extends Tokens[F] {
 
+    val KITUP = TokenInfo("b166a1047a8cd275bf0a50201ece3d4f0b4da300094ffcc668a6f408", "KITUP", 0)
+
     def get: F[List[TokenInfo]] = Clock[F].realTime(TimeUnit.SECONDS).flatMap { now =>
       cache.get.flatMap { case (ts, tokens) =>
         if (ts + config.tokensTtl.toSeconds < now)
@@ -53,9 +55,9 @@ object Tokens {
               }
             }
             .flatMap { info =>
-              cache.set(now -> (Ada :: info.tokens)).as((Ada :: info.tokens))
+              cache.set(now -> (KITUP :: Ada :: info.tokens)).as((KITUP :: Ada :: info.tokens))
             }
-        else (Ada :: tokens).pure
+        else (KITUP :: Ada :: tokens).pure
       }
     }
   }
