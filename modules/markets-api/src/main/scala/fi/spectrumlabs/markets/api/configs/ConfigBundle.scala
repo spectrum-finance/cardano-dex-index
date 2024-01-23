@@ -6,7 +6,7 @@ import fi.spectrumlabs.core.config.ConfigBundleCompanion
 import fi.spectrumlabs.core.http.cache.HttpCacheConfig
 import fi.spectrumlabs.core.pg.PgConfig
 import fi.spectrumlabs.core.redis.RedisConfig
-import fi.spectrumlabs.rates.resolver.config.{TokenFetcherConfig}
+import fi.spectrumlabs.rates.resolver.config.{NetworkConfig => NC, TokenFetcherConfig}
 import tofu.WithContext
 import tofu.logging.derivation.loggable
 import tofu.optics.macros.ClassyOptics
@@ -22,9 +22,8 @@ final case class ConfigBundle(
   pg: PgConfig,
   http: HttpConfig,
   network: NetworkConfig,
-  tokenFetcher: TokenFetcherConfig,
+  tokenFetcher: NC,
   httpCache: HttpCacheConfig,
-  tf: TokenFetcherConfig1,
   cacheTtl: FiniteDuration,
   ratesCacheTtl: FiniteDuration,
   graphiteSettings: GraphiteSettings

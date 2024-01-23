@@ -11,7 +11,7 @@ object TokensMock {
   def create[F[_]: Applicative](tokens: List[AssetClass]): Tokens[F] = new Tokens[F] {
     def get: F[List[TokenInfo]] = Applicative[F].pure {
       tokens.map { ac =>
-        TokenInfo(ac.currencySymbol, ac.currencySymbol + ac.tokenName, Random.nextInt(10))
+        TokenInfo(ac.currencySymbol, ac.currencySymbol + ac.tokenName, Random.nextInt(10), "")
       }
     }
   }
