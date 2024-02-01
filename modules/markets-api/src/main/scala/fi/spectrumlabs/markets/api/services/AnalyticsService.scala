@@ -13,7 +13,15 @@ import fi.spectrumlabs.core.models.domain.{Amount, AssetAmount, Pool, PoolFee, P
 import fi.spectrumlabs.core.models.rates.ResolvedRate
 import fi.spectrumlabs.markets.api.configs.MarketsApiConfig
 import fi.spectrumlabs.markets.api.models.db.{PoolDb, PoolDbNew}
-import fi.spectrumlabs.markets.api.models.{PlatformStats, PoolList, PoolOverview, PoolOverviewNew, PoolState, PricePoint, RealPrice}
+import fi.spectrumlabs.markets.api.models.{
+  PlatformStats,
+  PoolList,
+  PoolOverview,
+  PoolOverviewNew,
+  PoolState,
+  PricePoint,
+  RealPrice
+}
 import fi.spectrumlabs.markets.api.repositories.repos.{PoolsRepo, RatesRepo}
 import fi.spectrumlabs.markets.api.v1.endpoints.models.TimeWindow
 import tofu.higherKind.Mid
@@ -200,24 +208,31 @@ object AnalyticsService {
                 if (x.rate == BigDecimal(0)) OptionT.none[F, ResolvedRate] else OptionT.pure(x)
               }
               adaRate <- OptionT(adaRate.get)
-              tvl = (pool.tvl.getOrElse(BigDecimal(0)) * adaRate).setScale(10, RoundingMode.HALF_UP)
-              xCs = if (pool.lockedX.asset.currencySymbol.show == "") "ADA" else pool.lockedX.asset.currencySymbol.show
-              yCs = if (pool.lockedY.asset.currencySymbol.show == "") "ADA" else pool.lockedY.asset.currencySymbol.show
-              ticker_id = s"${xCs}_${yCs}"
+              tvl       = (pool.tvl.getOrElse(BigDecimal(0)) * adaRate).setScale(10, RoundingMode.HALF_UP)
+              xCs       = if (pool.lockedX.asset.currencySymbol.show == "") "ADA" else pool.lockedX.asset.currencySymbol.show
+              yCs       = if (pool.lockedY.asset.currencySymbol.show == "") "ADA" else pool.lockedY.asset.currencySymbol.show
+              ticker_id = if (xCs == "ADA") s"${yCs}_$xCs" else s"${xCs}_$yCs"
               xBaseName = if (pool.lockedX.asset.tokenName.show == "") "ADA" else pool.lockedX.asset.tokenName.show
               yBaseName = if (pool.lockedY.asset.tokenName.show == "") "ADA" else pool.lockedY.asset.tokenName.show
-              xTicker = tokens.find { info => info.asset == pool.lockedX.asset }.map(_.ticker).getOrElse(xBaseName)
-              yTicker = tokens.find { info => info.asset == pool.lockedY.asset }.map(_.ticker).getOrElse(yBaseName)
+              xTicker   = tokens.find(info => info.asset == pool.lockedX.asset).map(_.ticker).getOrElse(xBaseName)
+              yTicker   = tokens.find(info => info.asset == pool.lockedY.asset).map(_.ticker).getOrElse(yBaseName)
+              price =
+                if (xCs == "ADA") (rateX.rate * adaRate) / (rateY.rate * adaRate)
+                else (rateY.rate * adaRate) / (rateX.rate * adaRate)
               value = CMCTicker(
-                xCs,
-                xBaseName,
-                xTicker,
-                yCs,
-                yBaseName,
-                yTicker,
-                ((rateY.rate * adaRate) / (rateX.rate * adaRate)).setScale(10, RoundingMode.HALF_UP).toString(),
-                pool.lockedX.amount.withDecimal(rateX.decimals).setScale(10, RoundingMode.HALF_UP).toString(),
-                pool.lockedY.amount.withDecimal(rateY.decimals).setScale(10, RoundingMode.HALF_UP).toString()
+                if (xCs == "ADA") yCs else xCs,
+                if (xCs == "ADA") yBaseName else xBaseName,
+                if (xCs == "ADA") yTicker else xTicker,
+                if (xCs == "ADA") xCs else yCs,
+                if (xCs == "ADA") xBaseName else yBaseName,
+                if (xCs == "ADA") xTicker else yTicker,
+                price.setScale(10, RoundingMode.HALF_UP).toString(),
+                if (xCs == "ADA")
+                  pool.lockedY.amount.withDecimal(rateY.decimals).setScale(10, RoundingMode.HALF_UP).toString()
+                else pool.lockedX.amount.withDecimal(rateX.decimals).setScale(10, RoundingMode.HALF_UP).toString(),
+                if (xCs == "ADA")
+                  pool.lockedX.amount.withDecimal(rateX.decimals).setScale(10, RoundingMode.HALF_UP).toString()
+                else pool.lockedY.amount.withDecimal(rateY.decimals).setScale(10, RoundingMode.HALF_UP).toString()
               )
             } yield (ticker_id, tvl) -> value
           }
