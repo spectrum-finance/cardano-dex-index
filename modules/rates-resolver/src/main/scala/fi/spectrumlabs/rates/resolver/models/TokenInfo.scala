@@ -9,7 +9,7 @@ import java.math.BigInteger
 import scala.util.Try
 
 @derive(encoder, decoder, loggable)
-final case class TokenInfo(policyId: String, subject: String, decimals: Int) {
+final case class TokenInfo(policyId: String, subject: String, decimals: Int, ticker: String) {
   def asset: AssetClass = AssetClass(policyId, tokenName)
   def tokenName: String = {
     val str = subject.drop(policyId.length)

@@ -10,23 +10,14 @@ import fi.spectrumlabs.core.cache.Cache.Plain
 import fi.spectrumlabs.core.http.cache.CacheMiddleware.CachingMiddleware
 import fi.spectrumlabs.core.http.cache.{CacheMiddleware, HttpResponseCaching}
 import fi.spectrumlabs.core.network.makeBackend
-import fi.spectrumlabs.core.pg.{doobieLogging, PostgresTransactor}
+import fi.spectrumlabs.core.pg.{PostgresTransactor, doobieLogging}
 import fi.spectrumlabs.core.redis.codecs.stringCodec
 import fi.spectrumlabs.core.redis.mkRedis
 import fi.spectrumlabs.db.writer.repositories.OrdersRepository
 import fi.spectrumlabs.markets.api.configs.ConfigBundle
 import fi.spectrumlabs.markets.api.context.AppContext
 import fi.spectrumlabs.markets.api.repositories.repos.{PoolsRepo, RatesRepo}
-import fi.spectrumlabs.markets.api.services.{
-  AmmStatsMath,
-  AnalyticsService,
-  CacheCleaner,
-  HistoryService,
-  MempoolService,
-  Network,
-  PoolsOverviewCache,
-  RatesCache
-}
+import fi.spectrumlabs.markets.api.services.{AmmStatsMath, AnalyticsService, CacheCleaner, HistoryService, MempoolService, Network, PoolsOverviewCache, RatesCache}
 import fi.spectrumlabs.markets.api.v1.HttpServer
 import org.http4s.server.Server
 import sttp.capabilities.fs2.Fs2Streams
@@ -44,6 +35,7 @@ import fi.spectrumlabs.markets.api.graphite.MetricsMiddleware
 import fi.spectrumlabs.markets.api.graphite.MetricsMiddleware.MetricsMiddleware
 import fi.spectrumlabs.markets.api.models.{PoolOverview, PoolOverviewNew}
 import fi.spectrumlabs.markets.api.graphite._
+import fi.spectrumlabs.rates.resolver.gateways.Tokens
 
 object App extends EnvApp[AppContext] {
 
@@ -110,6 +102,7 @@ object App extends EnvApp[AppContext] {
       implicit0(ratesRepo: RatesRepo[RunF])                   <- Resource.eval(RatesRepo.create[InitF, RunF])
       implicit0(ammStatsMath: AmmStatsMath[RunF])             <- Resource.eval(AmmStatsMath.create[InitF, RunF])
       implicit0(mempoolService: MempoolService[RunF])         <- Resource.eval(MempoolService.make[InitF, RunF](mempoolRedis))
+      implicit0(tokens: Tokens[RunF])         <- Resource.eval(Tokens.create[InitF, RunF](configs.tokenFetcher))
       implicit0(service: AnalyticsService[RunF]) <- Resource.eval(
         AnalyticsService.create[InitF, RunF](configs.marketsApi, ref, ref2, ref3)
       )

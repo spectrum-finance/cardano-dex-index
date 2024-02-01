@@ -13,15 +13,7 @@ import fi.spectrumlabs.core.models.domain.{Amount, AssetAmount, Pool, PoolFee, P
 import fi.spectrumlabs.core.models.rates.ResolvedRate
 import fi.spectrumlabs.markets.api.configs.MarketsApiConfig
 import fi.spectrumlabs.markets.api.models.db.{PoolDb, PoolDbNew}
-import fi.spectrumlabs.markets.api.models.{
-  PlatformStats,
-  PoolList,
-  PoolOverview,
-  PoolOverviewNew,
-  PoolState,
-  PricePoint,
-  RealPrice
-}
+import fi.spectrumlabs.markets.api.models.{PlatformStats, PoolList, PoolOverview, PoolOverviewNew, PoolState, PricePoint, RealPrice}
 import fi.spectrumlabs.markets.api.repositories.repos.{PoolsRepo, RatesRepo}
 import fi.spectrumlabs.markets.api.v1.endpoints.models.TimeWindow
 import tofu.higherKind.Mid
@@ -34,6 +26,7 @@ import tofu.time.Clock
 import java.util.concurrent.TimeUnit
 import fi.spectrumlabs.core.{AdaAssetClass, AdaDecimal}
 import fi.spectrumlabs.markets.api.v1.models.{CMCTicker, CoinGeckoTicker}
+import fi.spectrumlabs.rates.resolver.gateways.Tokens
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.math.BigDecimal
@@ -80,6 +73,7 @@ object AnalyticsService {
     ratesRepo: RatesRepo[F],
     poolsRepo: PoolsRepo[F],
     ammStatsMath: AmmStatsMath[F],
+    tokens: Tokens[F],
     logs: Logs[I, F]
   ): I[AnalyticsService[F]] =
     logs
@@ -94,7 +88,8 @@ object AnalyticsService {
   )(implicit
     ratesRepo: RatesRepo[F],
     poolsRepo: PoolsRepo[F],
-    ammStatsMath: AmmStatsMath[F]
+    ammStatsMath: AmmStatsMath[F],
+    tokens: Tokens[F]
   ) extends AnalyticsService[F] {
 
     def getPoolStateByDate(poolId: PoolId, date: Long): F[Option[PoolState]] =
@@ -194,45 +189,53 @@ object AnalyticsService {
     }
 
     def cmcPriceApi: F[Map[String, CMCTicker]] = cache.get.flatMap { pools =>
-      pools
-        .map { pool =>
-          for {
-            rateX <- OptionT(ratesRepo.get(pool.lockedX.asset)).flatMap { x =>
-              if (x.rate == BigDecimal(0)) OptionT.none[F, ResolvedRate] else OptionT.pure(x)
-            }
-            rateY <- OptionT(ratesRepo.get(pool.lockedY.asset)).flatMap { x =>
-              if (x.rate == BigDecimal(0)) OptionT.none[F, ResolvedRate] else OptionT.pure(x)
-            }
-            adaRate <- OptionT(adaRate.get)
-            tvl       = (pool.tvl.getOrElse(BigDecimal(0)) * adaRate).setScale(10, RoundingMode.HALF_UP)
-            ticker_id = s"${pool.lockedX.asset.currencySymbol}_${pool.lockedY.asset.currencySymbol}"
-            value = CMCTicker(
-              pool.lockedX.asset.currencySymbol.show,
-              pool.lockedX.asset.tokenName.show,
-              pool.lockedX.asset.tokenName.show,
-              pool.lockedY.asset.currencySymbol.show,
-              pool.lockedY.asset.tokenName.show,
-              pool.lockedY.asset.tokenName.show,
-              ((rateY.rate * adaRate) / (rateX.rate * adaRate)).setScale(10, RoundingMode.HALF_UP).toString(),
-              pool.lockedX.amount.withDecimal(rateX.decimals).setScale(10, RoundingMode.HALF_UP).toString(),
-              pool.lockedY.amount.withDecimal(rateY.decimals).setScale(10, RoundingMode.HALF_UP).toString()
-            )
-          } yield (ticker_id, tvl) -> value
-        }
-        .map(_.value)
-        .sequence
-        .map(_.flatten)
-        .map { pairs =>
-          pairs
-            .map(x => (x._2.base_id, x._2.quote_id) -> x)
-            .groupBy(_._1)
-            .map(_._2.maxBy(_._2._1._2))
-            .values
-            .toList
-            .filter(_._1._2 != BigDecimal("0"))
-            .map(x => x._1._1 -> x._2)
-            .toMap
-        }
+      tokens.get.flatMap { tokens =>
+        pools
+          .map { pool =>
+            for {
+              rateX <- OptionT(ratesRepo.get(pool.lockedX.asset)).flatMap { x =>
+                if (x.rate == BigDecimal(0)) OptionT.none[F, ResolvedRate] else OptionT.pure(x)
+              }
+              rateY <- OptionT(ratesRepo.get(pool.lockedY.asset)).flatMap { x =>
+                if (x.rate == BigDecimal(0)) OptionT.none[F, ResolvedRate] else OptionT.pure(x)
+              }
+              adaRate <- OptionT(adaRate.get)
+              tvl = (pool.tvl.getOrElse(BigDecimal(0)) * adaRate).setScale(10, RoundingMode.HALF_UP)
+              xCs = if (pool.lockedX.asset.currencySymbol.show == "") "ADA" else pool.lockedX.asset.currencySymbol.show
+              yCs = if (pool.lockedY.asset.currencySymbol.show == "") "ADA" else pool.lockedY.asset.currencySymbol.show
+              ticker_id = s"${xCs}_${yCs}"
+              xBaseName = if (pool.lockedX.asset.tokenName.show == "") "ADA" else pool.lockedX.asset.tokenName.show
+              yBaseName = if (pool.lockedY.asset.tokenName.show == "") "ADA" else pool.lockedY.asset.tokenName.show
+              xTicker = tokens.find { info => info.asset == pool.lockedX.asset }.map(_.ticker).getOrElse(xBaseName)
+              yTicker = tokens.find { info => info.asset == pool.lockedY.asset }.map(_.ticker).getOrElse(yBaseName)
+              value = CMCTicker(
+                xCs,
+                xBaseName,
+                xTicker,
+                yCs,
+                yBaseName,
+                yTicker,
+                ((rateY.rate * adaRate) / (rateX.rate * adaRate)).setScale(10, RoundingMode.HALF_UP).toString(),
+                pool.lockedX.amount.withDecimal(rateX.decimals).setScale(10, RoundingMode.HALF_UP).toString(),
+                pool.lockedY.amount.withDecimal(rateY.decimals).setScale(10, RoundingMode.HALF_UP).toString()
+              )
+            } yield (ticker_id, tvl) -> value
+          }
+          .map(_.value)
+          .sequence
+          .map(_.flatten)
+          .map { pairs =>
+            pairs
+              .map(x => (x._2.base_id, x._2.quote_id) -> x)
+              .groupBy(_._1)
+              .map(_._2.maxBy(_._2._1._2))
+              .values
+              .toList
+              .filter(_._1._2 != BigDecimal("0"))
+              .map(x => x._1._1 -> x._2)
+              .toMap
+          }
+      }
     }
 
     def getPoolInfo(poolId: PoolId, from: Long): F[Option[PoolOverview]] =
