@@ -169,7 +169,6 @@ object AnalyticsService {
               if (xCs == "ADA")
                 (pool.volume.getOrElse(BigDecimal(0)) / rateX).setScale(10, RoundingMode.HALF_UP)
               else (pool.volume.getOrElse(BigDecimal(0)) / rateY).setScale(10, RoundingMode.HALF_UP)
-
           } yield CoinGeckoTicker(
             pool_id          = pool.id.value,
             ticker_id        = ticker,
@@ -219,6 +218,16 @@ object AnalyticsService {
               price =
                 if (xCs == "ADA") (rateX.rate * adaRate) / (rateY.rate * adaRate)
                 else (rateY.rate * adaRate) / (rateX.rate * adaRate)
+
+              volumeX =
+                if (xCs == "ADA")
+                  (pool.volume.getOrElse(BigDecimal(0)) / rateY.rate).setScale(10, RoundingMode.HALF_UP)
+                else (pool.volume.getOrElse(BigDecimal(0)) / rateX.rate).setScale(10, RoundingMode.HALF_UP)
+              volumeY =
+                if (xCs == "ADA")
+                  (pool.volume.getOrElse(BigDecimal(0)) / rateX.rate).setScale(10, RoundingMode.HALF_UP)
+                else (pool.volume.getOrElse(BigDecimal(0)) / rateY.rate).setScale(10, RoundingMode.HALF_UP)
+
               value = CMCTicker(
                 if (xCs == "ADA") yCs else xCs,
                 if (xCs == "ADA") yBaseName else xBaseName,
@@ -227,12 +236,8 @@ object AnalyticsService {
                 if (xCs == "ADA") xBaseName else yBaseName,
                 if (xCs == "ADA") xTicker else yTicker,
                 price.setScale(10, RoundingMode.HALF_UP).toString(),
-                if (xCs == "ADA")
-                  pool.lockedY.amount.withDecimal(rateY.decimals).setScale(10, RoundingMode.HALF_UP).toString()
-                else pool.lockedX.amount.withDecimal(rateX.decimals).setScale(10, RoundingMode.HALF_UP).toString(),
-                if (xCs == "ADA")
-                  pool.lockedX.amount.withDecimal(rateX.decimals).setScale(10, RoundingMode.HALF_UP).toString()
-                else pool.lockedY.amount.withDecimal(rateY.decimals).setScale(10, RoundingMode.HALF_UP).toString()
+                volumeX.toString(),
+                volumeY.toString()
               )
             } yield (ticker_id, tvl) -> value
           }
