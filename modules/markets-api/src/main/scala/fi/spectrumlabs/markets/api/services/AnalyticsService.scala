@@ -236,8 +236,8 @@ object AnalyticsService {
                 if (xCs == "ADA") xBaseName else yBaseName,
                 if (xCs == "ADA") xTicker else yTicker,
                 price.setScale(10, RoundingMode.HALF_UP).toString(),
-                volumeX.toString(),
-                volumeY.toString()
+                if (volumeX == BigDecimal("0E-10")) BigDecimal(0).toString() else volumeX.toString(),
+                if (volumeY == BigDecimal("0E-10")) BigDecimal(0).toString() else volumeY.toString()
               )
             } yield (ticker_id, tvl) -> value
           }
